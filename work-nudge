@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+
+# Work Manager Nudge Script
+# This script is executed by cron to send periodic notifications
+
+# Configuration
+WORK_DB="$HOME/.local/work/timelog.db"
+WORK_CONFIG="$HOME/.local/work/config.sh"
+
+# Load configuration if it exists
+if [[ -f "$WORK_CONFIG" ]]; then
+    source "$WORK_CONFIG"
+else
+    # Default values
+    WORK_NUDGE_INTERVAL=10
+    WORK_LOG_FACILITY="user"
+    WORK_LOG_PRIORITY="notice"
+fi
+
+# Function to log messages
+log_message() {
+    local message="$1"
+    logger -p "$WORK_LOG_FACILITY.$WORK_LOG_PRIORITY" "work-nudge: $message"
+}
+
+# Function to send notification
+send_notification() {
+    local title="$1"
+    local message="$2"
+    
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send "$title" "$message"
+        log_message "notification sent: $title - $message"
+    else
+        log_message "error: notify-send not available"
+        return 1
+    fi
+}
+
+# Check if work manager is disabled
+check_work_disabled() {
+    if [[ ! -f "$WORK_DB" ]]; then
+        log_message "database not found"
+        return 1
+    fi
+    
+    local work_disabled
+    work_disabled=$(sqlite3 "$WORK_DB" "SELECT work_disabled FROM state WHERE id = 1;" 2>/dev/null)
+    
+    if [[ "$work_disabled" -eq 1 ]]; then
+        log_message "work manager is disabled"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Check if nudging is enabled
+check_nudging_enabled() {
+    if [[ ! -f "$WORK_DB" ]]; then
+        return 1
+    fi
+    
+    local nudging_enabled
+    nudging_enabled=$(sqlite3 "$WORK_DB" "SELECT nudging_enabled FROM state WHERE id = 1;" 2>/dev/null)
+    
+    if [[ "$nudging_enabled" -eq 0 ]]; then
+        log_message "nudging is disabled"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Get current work status
+get_work_status() {
+    if [[ ! -f "$WORK_DB" ]]; then
+        return 1
+    fi
+    
+    local state
+    state=$(sqlite3 "$WORK_DB" "SELECT active, project, start_time FROM state WHERE id = 1;" 2>/dev/null)
+    
+    if [[ -z "$state" ]]; then
+        return 1
+    fi
+    
+    IFS='|' read -r active project start_time <<< "$state"
+    
+    if [[ "$active" -eq 1 ]] && [[ -n "$project" ]]; then
+        # Calculate elapsed time
+        local now=$(date +%s)
+        local start_ts=$(date --date="$start_time" +%s 2>/dev/null)
+        
+        if [[ -n "$start_ts" ]]; then
+            local elapsed=$((now - start_ts))
+            local minutes=$((elapsed / 60))
+            echo "active|$project|$minutes"
+        else
+            echo "active|$project|0"
+        fi
+    else
+        echo "inactive"
+    fi
+}
+
+# Main function
+main() {
+    log_message "nudge script started"
+    
+    # Check if work manager is disabled
+    if ! check_work_disabled; then
+        exit 0
+    fi
+    
+    # Check if nudging is enabled
+    if ! check_nudging_enabled; then
+        exit 0
+    fi
+    
+    # Get current work status
+    local status
+    status=$(get_work_status)
+    
+    if [[ $? -ne 0 ]]; then
+        log_message "error: could not get work status"
+        exit 1
+    fi
+    
+    # Send appropriate notification
+    if [[ "$status" == "inactive" ]]; then
+        send_notification "Work Reminder" "You're not working on any project."
+    else
+        IFS='|' read -r state project minutes <<< "$status"
+        if [[ "$state" == "active" ]]; then
+            send_notification "Work Reminder" "You're working on: $project (${minutes}m elapsed)"
+        fi
+    fi
+    
+    log_message "nudge script completed successfully"
+}
+
+# Run main function
+main "$@" 

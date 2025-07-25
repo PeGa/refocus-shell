@@ -10,78 +10,125 @@ WORK_DATA_PATH="$HOME/.local/work"
 STATE_TABLE="state"
 SESSIONS_TABLE="sessions"
 
+# Verbose mode flag
+VERBOSE=false
+
+# Function to print verbose messages
+verbose_echo() {
+    if [[ "$VERBOSE" == "true" ]]; then
+        echo "$1"
+    fi
+}
+
 # Function to get the current prompt or fallback to default
 get_current_prompt() {
     # Always use the standard Ubuntu prompt as fallback since current PS1 is broken
     echo '${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 }
 
-# Function to save current prompt
+# Function to save current prompt to temporary file
 save_current_prompt() {
-    local original_prompt_file="$WORK_DATA_PATH/original_prompt.sh"
+    local original_prompt_file="/tmp/work_original_prompt_$$"
     
-    # Save current PS1 if not already saved
-    if [[ ! -f "$original_prompt_file" ]]; then
-        local current_prompt
-        current_prompt=$(get_current_prompt)
-        
-        cat > "$original_prompt_file" << EOF
+    # Save current PS1 to temporary file
+    local current_prompt
+    current_prompt=$(get_current_prompt)
+    
+    cat > "$original_prompt_file" << EOF
 # Original prompt saved by work manager
 PS1='$current_prompt'
 EOF
-        echo "Original prompt saved"
-    fi
+    verbose_echo "Original prompt saved to temporary file: $original_prompt_file"
 }
 
-# Function to set work prompt
+# Function to set work prompt using temporary files
 set_work_prompt() {
     local project="$1"
-    local prompt_file="$WORK_DATA_PATH/prompt.sh"
+    local work_prompt_file="/tmp/work_active_prompt_$$"
     
     # Save current prompt first
     save_current_prompt
     
     # Create work prompt with indicator at the front
-    cat > "$prompt_file" << EOF
+    cat > "$work_prompt_file" << EOF
 # Work manager prompt - active work session
 PS1='⏳ [$project] \${debian_chroot:+(\$debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 EOF
     
-    # Export PS1 to current terminal
-    export PS1='⏳ ['$project'] ${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+    # Update database with prompt file location
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET prompt_file = '$work_prompt_file' WHERE id = 1;"
     
-    echo "Work prompt set for: $project"
-    echo "Note: New terminals will show the work indicator. Current terminal updated."
+    # Update current terminal prompt using the function
+    # Try to call update-prompt function if available
+    if type update-prompt >/dev/null 2>&1; then
+        update-prompt
+        verbose_echo "Work prompt set for: $project"
+        verbose_echo "Current terminal prompt updated - press Enter to see the change."
+    else
+        # Fallback: export PS1 directly
+        export PS1='⏳ ['$project'] ${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+        verbose_echo "Work prompt set for: $project"
+        verbose_echo "Note: New terminals will show the work indicator. Current terminal updated."
+    fi
+    
+    # Always show the tip about update-prompt
+    echo "Tip: Run 'update-prompt' to update the current terminal prompt"
 }
 
 # Function to restore original prompt
 restore_original_prompt() {
-    local original_prompt_file="$WORK_DATA_PATH/original_prompt.sh"
-    local prompt_file="$WORK_DATA_PATH/prompt.sh"
+    local original_prompt_file="/tmp/work_original_prompt_$$"
+    local default_prompt_file="/tmp/work_default_prompt_$$"
     
-    if [[ -f "$original_prompt_file" ]]; then
-        # Restore original prompt
-        cp "$original_prompt_file" "$prompt_file"
-        echo "Original prompt restored"
-    else
-        # No original prompt saved, use default Ubuntu prompt
-        cat > "$prompt_file" << 'EOF'
+    # Clear prompt file from database
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET prompt_file = NULL WHERE id = 1;"
+    
+    # Create default prompt file
+    cat > "$default_prompt_file" << 'EOF'
 # Default Ubuntu prompt (no work session active)
 PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 EOF
-        echo "Default Ubuntu prompt set"
-    fi
     
-    # Export original PS1 to current terminal
-    if [[ -f "$original_prompt_file" ]]; then
-        # Source the original prompt to get the PS1 value
-        source "$original_prompt_file"
+    # Update database with default prompt file
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET prompt_file = '$default_prompt_file' WHERE id = 1;"
+    
+    # Update current terminal prompt using the function
+    # Try to call update-prompt function if available
+    if type update-prompt >/dev/null 2>&1; then
+        update-prompt
+        verbose_echo "Original prompt restored"
+        verbose_echo "Current terminal prompt updated - press Enter to see the change."
     else
-        # Use default Ubuntu prompt
-        export PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+        # Fallback: export PS1 directly
+        if [[ -f "$original_prompt_file" ]]; then
+            # Source the original prompt to get the PS1 value
+            source "$original_prompt_file"
+        else
+            # Use default Ubuntu prompt
+            export PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+        fi
+        verbose_echo "Original prompt restored"
+        verbose_echo "Note: New terminals will show the normal prompt. Current terminal updated."
     fi
     
-    echo "Note: New terminals will show the normal prompt. Current terminal updated."
+    # Always show the tip about update-prompt
+    echo "Tip: Run 'update-prompt' to update the current terminal prompt"
+}
+
+# Function to get current prompt from database
+get_current_prompt_from_db() {
+    local prompt_file
+    prompt_file=$(sqlite3 "$DB" "SELECT prompt_file FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null)
+    
+    if [[ -n "$prompt_file" ]] && [[ -f "$prompt_file" ]]; then
+        # Source the prompt file to get PS1
+        source "$prompt_file"
+        return 0
+    else
+        # No active session or prompt file doesn't exist, use default
+        export PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+        return 1
+    fi
 }
 
 # Function to check if work is properly installed
@@ -139,6 +186,14 @@ function work_on() {
     local start_time
     start_time=$(date -Iseconds)
 
+    # Check if work manager is disabled
+    local work_disabled
+    work_disabled=$(sqlite3 "$DB" "SELECT work_disabled FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null)
+    if [[ "$work_disabled" -eq 1 ]]; then
+        echo "❌ Work manager is disabled. Run 'work enable' to re-enable."
+        exit 1
+    fi
+
     # Check if already active
     active=$(sqlite3 "$DB" "SELECT active FROM $STATE_TABLE WHERE id = 1;")
     if [[ "$active" -eq 1 ]]; then
@@ -148,12 +203,12 @@ function work_on() {
 
     sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = 1, project = '$project', start_time = '$start_time' WHERE id = 1;"
     echo "Started work on: $project"
-    
+
     # Set work prompt
     set_work_prompt "$project"
 
     if command -v notify-send >/dev/null 2>&1; then
-        notify-send "Started work on: $project"
+    notify-send "Started work on: $project"
     fi
 }
 
@@ -177,14 +232,14 @@ function work_off() {
         "INSERT INTO $SESSIONS_TABLE (project, start_time, end_time, duration_seconds) \
          VALUES ('$project', '$start_time', '$now', $duration);"
 
-    sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = 0, project = NULL, start_time = NULL WHERE id = 1;"
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = 0, project = NULL, start_time = NULL, prompt_file = NULL WHERE id = 1;"
     echo "Stopped work on: $project (Duration: $((duration / 60)) min)"
-    
+
     # Restore original prompt
     restore_original_prompt
 
     if command -v notify-send >/dev/null 2>&1; then
-        notify-send "Stopped work on: $project"
+    notify-send "Stopped work on: $project"
     fi
 }
 
@@ -222,13 +277,88 @@ function work_reset() {
     fi
 }
 
+function work_enable() {
+    # Check if work manager is disabled
+    local work_disabled
+    work_disabled=$(sqlite3 "$DB" "SELECT work_disabled FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null)
+    
+    if [[ "$work_disabled" -eq 1 ]]; then
+        sqlite3 "$DB" "UPDATE $STATE_TABLE SET work_disabled = 0 WHERE id = 1;"
+        echo "✅ Work manager enabled"
+        
+        if command -v notify-send >/dev/null 2>&1; then
+            notify-send "Work Manager Enabled" "Work tracking and nudging are now active."
+        fi
+    else
+        echo "✅ Work manager is already enabled"
+    fi
+}
+
+function work_disable() {
+    # Stop any active session first
+    state=$(sqlite3 "$DB" "SELECT active FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null)
+    if [[ "$state" -eq 1 ]]; then
+        echo "Stopping active session..."
+        work_off
+    fi
+    
+    # Disable work manager
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET work_disabled = 1 WHERE id = 1;"
+    echo "🚫 Work manager disabled"
+    echo "No work sessions or nudging will be available until you run 'work enable'"
+    
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send "Work Manager Disabled" "Work tracking and nudging are now inactive."
+    fi
+}
+
+function work_nudge() {
+    # Manual nudge for testing
+    if [[ ! -f "$WORK_DATA_PATH/work-nudge" ]]; then
+        echo "❌ Nudge script not found. Run installer to set up nudging."
+        return 1
+    fi
+    
+    echo "Sending manual nudge..."
+    "$WORK_DATA_PATH/work-nudge"
+}
+
 function work_help() {
     echo "Usage:"
     echo "  work on \"project\"      Start tracking"
     echo "  work off                Stop tracking"
     echo "  work status             Show current session"
+    echo "  work enable             Enable work manager"
+    echo "  work disable            Disable work manager"
+    echo "  work nudge              Send manual nudge (testing)"
     echo "  work reset              Reset database (delete all data)"
+    echo ""
+    echo "Options:"
+    echo "  --verbose               Show detailed output"
 }
+
+# Parse arguments
+ARGS=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        -*)
+            echo "Unknown option: $1"
+            work_help
+            exit 1
+            ;;
+        *)
+            ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# Restore positional arguments
+set -- "${ARGS[@]}"
 
 case "$1" in
     on)
@@ -240,6 +370,15 @@ case "$1" in
         ;;
     status)
         work_status
+        ;;
+    enable)
+        work_enable
+        ;;
+    disable)
+        work_disable
+        ;;
+    nudge)
+        work_nudge
         ;;
     reset)
         work_reset

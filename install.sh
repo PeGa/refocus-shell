@@ -32,6 +32,7 @@ SCRIPT_NAME="work"
 # Use the real user's home directory, not the effective user's
 REAL_USER_HOME=$(eval echo ~$(logname 2>/dev/null || echo $SUDO_USER 2>/dev/null || echo $USER))
 DB_DEFAULT="$REAL_USER_HOME/.local/work/timelog.db"
+WORK_DATA_PATH="$REAL_USER_HOME/.local/work"
 
 # Detect if running with sudo and set appropriate default
 if [[ "$EUID" -eq 0 ]]; then
@@ -324,7 +325,10 @@ init_database() {
             id INTEGER PRIMARY KEY,
             active INTEGER DEFAULT 0,
             project TEXT,
-            start_time TEXT
+            start_time TEXT,
+            prompt_file TEXT,
+            nudging_enabled BOOLEAN DEFAULT 1,
+            work_disabled BOOLEAN DEFAULT 0
         );
         
         CREATE TABLE IF NOT EXISTS sessions (
@@ -335,8 +339,8 @@ init_database() {
             duration_seconds INTEGER NOT NULL
         );
         
-        INSERT OR IGNORE INTO state (id, active, project, start_time) 
-        VALUES (1, 0, NULL, NULL);
+        INSERT OR IGNORE INTO state (id, active, project, start_time, prompt_file, nudging_enabled, work_disabled) 
+        VALUES (1, 0, NULL, NULL, NULL, 1, 0);
     "
     
     # Fix ownership if running with sudo
@@ -432,6 +436,126 @@ uninstall_script() {
     print_success "Work script uninstalled from $target_path"
 }
 
+# Function to install work-nudge script
+install_nudge_script() {
+    local nudge_script=""
+    local target_path="$WORK_DATA_PATH/work-nudge"
+    
+    # Find the work-nudge script
+    if [[ -f "./work-nudge" ]]; then
+        nudge_script="./work-nudge"
+    elif [[ -f "$(dirname "$0")/work-nudge" ]]; then
+        nudge_script="$(dirname "$0")/work-nudge"
+    else
+        print_error "Could not find work-nudge script"
+        return 1
+    fi
+    
+    local nudge_script_path="$(readlink -f "$nudge_script")"
+    
+    # Create work data directory if it doesn't exist
+    mkdir -p "$WORK_DATA_PATH"
+    
+    print_status "Installing work-nudge script to: $target_path"
+    
+    # Copy the work-nudge script
+    cp "$nudge_script_path" "$target_path"
+    chmod +x "$target_path"
+    
+    # Fix ownership if running with sudo
+    if [[ "$EUID" -eq 0 ]] && [[ -n "$SUDO_USER" ]]; then
+        chown "$SUDO_USER:$SUDO_USER" "$target_path"
+    fi
+    
+    print_success "Work-nudge script installed successfully to $target_path"
+}
+
+# Function to uninstall work-nudge script
+uninstall_nudge_script() {
+    local target_path="$WORK_DATA_PATH/work-nudge"
+    
+    print_status "Uninstalling work-nudge script from: $target_path"
+    
+    if [[ ! -f "$target_path" ]]; then
+        print_warning "Work-nudge script not found at $target_path"
+        return 0
+    fi
+    
+    # Remove the script
+    rm -f "$target_path"
+    print_success "Work-nudge script uninstalled from $target_path"
+}
+
+# Function to setup cron job for nudging
+setup_cron_job() {
+    local nudge_script="$WORK_DATA_PATH/work-nudge"
+    local cron_entry="*/10 * * * * $nudge_script"
+    local temp_cron_file="/tmp/work_cron_$$"
+    
+    print_status "Setting up cron job for nudging..."
+    
+    # Check if work-nudge script exists
+    if [[ ! -f "$nudge_script" ]]; then
+        print_error "Work-nudge script not found. Cannot setup cron job."
+        return 1
+    fi
+    
+    # Get current crontab
+    crontab -l 2>/dev/null > "$temp_cron_file" || true
+    
+    # Check if cron job already exists
+    if grep -q "$nudge_script" "$temp_cron_file" 2>/dev/null; then
+        print_status "Cron job already exists"
+        rm -f "$temp_cron_file"
+        return 0
+    fi
+    
+    # Add the cron job
+    echo "$cron_entry" >> "$temp_cron_file"
+    
+    # Install the new crontab
+    if crontab "$temp_cron_file"; then
+        print_success "Cron job installed successfully"
+        print_status "Nudging will occur every 10 minutes"
+    else
+        print_error "Failed to install cron job"
+        rm -f "$temp_cron_file"
+        return 1
+    fi
+    
+    rm -f "$temp_cron_file"
+}
+
+# Function to remove cron job for nudging
+remove_cron_job() {
+    local nudge_script="$WORK_DATA_PATH/work-nudge"
+    local temp_cron_file="/tmp/work_cron_$$"
+    
+    print_status "Removing cron job for nudging..."
+    
+    # Get current crontab
+    crontab -l 2>/dev/null > "$temp_cron_file" || true
+    
+    # Remove the cron job if it exists
+    if grep -q "$nudge_script" "$temp_cron_file" 2>/dev/null; then
+        # Remove lines containing the nudge script
+        sed -i "\|$nudge_script|d" "$temp_cron_file"
+        
+        # Install the updated crontab
+        if crontab "$temp_cron_file"; then
+            print_success "Cron job removed successfully"
+        else
+            print_error "Failed to remove cron job"
+            rm -f "$temp_cron_file"
+            return 1
+        fi
+    else
+        print_status "No cron job found to remove"
+    fi
+    
+    rm -f "$temp_cron_file"
+}
+
 # Function to detect current shell
 detect_shell() {
     local shell_name=""
@@ -483,35 +607,55 @@ setup_shell_integration() {
     echo "Detected shell: $shell_name"
     echo "RC file: $rc_file"
     
-    # Create shell integration script in real user's home
-    local integration_script="$REAL_USER_HOME/.local/work/shell_integration.sh"
-    cat > "$integration_script" << 'EOF'
-#!/usr/bin/env bash
-
-# Work manager shell integration
-# This file is automatically managed by work manager
-
-WORK_PROMPT_FILE="$HOME/.local/work/prompt.sh"
-
-if [[ -f "$WORK_PROMPT_FILE" ]]; then
-    source "$WORK_PROMPT_FILE"
-fi
-EOF
+    # Create bash functions file
+    local functions_file="$REAL_USER_HOME/.bash_functions"
     
-    chmod +x "$integration_script"
-    
-    # Check if integration is already in RC file
-    if grep -q "source.*shell_integration.sh" "$rc_file" 2>/dev/null; then
-        echo "Shell integration already configured in $rc_file"
-        return 0
+    # Create the functions file if it doesn't exist
+    if [[ ! -f "$functions_file" ]]; then
+        touch "$functions_file"
+        echo "Created bash functions file: $functions_file"
     fi
     
-    # Add integration to RC file
-    echo "" >> "$rc_file"
-    echo "# Work manager shell integration" >> "$rc_file"
-    echo "source $integration_script" >> "$rc_file"
+    # Add work manager functions to bash_functions
+    if ! grep -q "update-prompt" "$functions_file" 2>/dev/null; then
+        echo "" >> "$functions_file"
+        echo "# Work manager functions" >> "$functions_file"
+        cat >> "$functions_file" << 'EOF'
+function update-prompt(){
+    # Work manager shell integration
+    # This function is automatically managed by work manager
+
+    # Get the database path
+    WORK_DB="$HOME/.local/work/timelog.db"
+
+    # Check if database exists and get current prompt file
+    if [[ -f "$WORK_DB" ]]; then
+        # Get the prompt file from database
+        PROMPT_FILE=$(sqlite3 "$WORK_DB" "SELECT prompt_file FROM state WHERE id = 1;" 2>/dev/null)
+        
+        if [[ -n "$PROMPT_FILE" ]] && [[ -f "$PROMPT_FILE" ]]; then
+            # Source the prompt file to set PS1
+            source "$PROMPT_FILE"
+        fi
+    fi
+}
+EOF
+        echo "Added update-prompt function to $functions_file"
+    else
+        echo "update-prompt function already exists in $functions_file"
+    fi
     
-    echo "Shell integration added to $rc_file"
+    # Check if bash_functions is sourced in bashrc
+    if ! grep -q "source.*bash_functions" "$rc_file" 2>/dev/null; then
+        echo "" >> "$rc_file"
+        echo "# Source bash functions" >> "$rc_file"
+        echo "source $functions_file" >> "$rc_file"
+        echo "Added bash_functions source to $rc_file"
+    else
+        echo "bash_functions already sourced in $rc_file"
+    fi
+    
+    echo "Shell integration configured successfully"
     echo "Note: You may need to restart your terminal or run 'source $rc_file' for changes to take effect"
 }
 
@@ -525,20 +669,24 @@ remove_shell_integration() {
     echo "Detected shell: $shell_name"
     echo "RC file: $rc_file"
     
-    # Remove integration lines from RC file
-    if [[ -f "$rc_file" ]]; then
+    # Remove work manager functions from bash_functions
+    local functions_file="$REAL_USER_HOME/.bash_functions"
+    if [[ -f "$functions_file" ]]; then
         # Create backup
-        cp "$rc_file" "${rc_file}.backup.$(date +%Y%m%d_%H%M%S)"
+        cp "$functions_file" "${functions_file}.backup.$(date +%Y%m%d_%H%M%S)"
         
-        # Remove work manager lines
-        sed -i '/# Work manager shell integration/d' "$rc_file"
-        sed -i "/source.*shell_integration.sh/d" "$rc_file"
+        # Remove work manager functions
+        sed -i '/# Work manager functions/,/^}$/d' "$functions_file"
         
-        echo "Shell integration removed from $rc_file"
-        echo "Backup created at ${rc_file}.backup.$(date +%Y%m%d_%H%M%S)"
+        echo "Work manager functions removed from $functions_file"
+        echo "Backup created at ${functions_file}.backup.$(date +%Y%m%d_%H%M%S)"
     else
-        echo "RC file $rc_file not found"
+        echo "bash_functions file not found"
     fi
+    
+    # Note: We don't remove the bash_functions source from bashrc
+    # as it might contain other user functions
+    echo "Note: bash_functions source line left in $rc_file (may contain other functions)"
 }
 
 # Parse command line arguments
@@ -617,7 +765,9 @@ case "$COMMAND" in
         install_dependencies
         init_database "$DB_PATH"
         install_script
+        install_nudge_script
         setup_shell_integration
+        setup_cron_job
         print_success "Installation complete!"
         ;;
     uninstall)
@@ -629,6 +779,8 @@ case "$COMMAND" in
         fi
         print_status "Uninstalling work manager..."
         uninstall_script
+        uninstall_nudge_script
+        remove_cron_job
         if [[ -f "$DB_PATH" ]]; then
             print_status "Removing database: $DB_PATH"
             rm -f "$DB_PATH"
