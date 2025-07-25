@@ -353,7 +353,8 @@ init_database() {
             start_time TEXT,
             prompt_file TEXT,
             nudging_enabled BOOLEAN DEFAULT 1,
-            work_disabled BOOLEAN DEFAULT 0
+            work_disabled BOOLEAN DEFAULT 0,
+            last_work_off_time TEXT
         );
         
         CREATE TABLE IF NOT EXISTS sessions (
@@ -364,8 +365,8 @@ init_database() {
             duration_seconds INTEGER NOT NULL
         );
         
-        INSERT OR IGNORE INTO state (id, active, project, start_time, prompt_file, nudging_enabled, work_disabled) 
-        VALUES (1, 0, NULL, NULL, NULL, 1, 0);
+        INSERT OR IGNORE INTO state (id, active, project, start_time, prompt_file, nudging_enabled, work_disabled, last_work_off_time) 
+        VALUES (1, 0, NULL, NULL, NULL, 1, 0, NULL);
     "
     
     # Fix ownership if running with sudo

@@ -7,7 +7,10 @@ A privacy-first, FLOSS command-line tool for tracking work sessions with intelli
 - **Core Work Tracking**: `work on/off/status` commands
 - **Smart Continuation**: `work on` without project continues last session
 - **Enhanced Status**: Rich context about last session and time tracking
+- **Cumulative Time Tracking**: Shows total time invested in each project across sessions
 - **Past Session Management**: Add, modify, and delete historical work sessions
+- **Work Reports**: Generate markdown reports for today, week, month, or custom periods
+- **Discrete Session Management**: ADHD-friendly work/idle session tracking with automatic idle detection
 - **Desktop Notifications**: `notify-send` integration
 - **Shell Integration**: Dynamic prompt modification with `⏳ [Project]` indicator
 - **Intelligent Nudging**: Periodic reminders every 10 minutes via cron
@@ -62,6 +65,10 @@ work status               # Show current work status
 work past add "project" <minutes>    # Add past work session
 work past modify "project" <minutes>  # Modify session duration
 work past delete "project"            # Delete a session
+work report today        # Today's work report
+work report week         # This week's report
+work report month        # This month's report
+work report custom <N>   # Last N days report
 ```
 
 ### Advanced Commands
@@ -98,6 +105,10 @@ work past add "meeting" 45
 
 # Modify an existing session duration
 work past modify "coding" 120
+
+# Generate work reports
+work report today              # Today's summary
+work report custom 7           # Last 7 days
 
 # Export your data
 work export my-backup.json
@@ -143,6 +154,36 @@ $ work status
 ⏰ Time since last work: 2h 15m
 ```
 
+## Cumulative Time Tracking
+
+Work Manager tracks total time invested in each project across multiple sessions:
+
+- **Total Time Display**: When continuing a project, shows accumulated time from all previous sessions
+- **Current + Total**: `work status` shows both current session time and total project time
+- **Smart Continuation**: `work on` without project shows total time when continuing
+- **Motivation Boost**: See your total investment in each project
+
+### Examples:
+```bash
+# Continue with previous project (shows total time)
+$ work on
+Last project was: website-redesign
+Continue? (Y/n)
+y
+Started work on: website-redesign (Total: 12m)
+
+# Check status (shows current + total)
+$ work status
+⏳ Working on: website-redesign — 2m elapsed (Total: 12m)
+
+# New project (no previous time)
+$ work on "new-project"
+Started work on: new-project
+
+$ work status
+⏳ Working on: new-project — 0m elapsed
+```
+
 ## Past Session Management
 
 Work Manager allows you to manage historical work sessions that may have been missed or need adjustment:
@@ -167,6 +208,72 @@ Session: 2025-07-25T10:00:00-03:00 to 2025-07-25T10:45:00-03:00
 Are you sure? (y/N)
 ✅ Session deleted: old-project
 ```
+
+## Discrete Session Management
+
+Work Manager uses an ADHD-friendly approach to time tracking with discrete sessions and automatic idle detection:
+
+- **Discrete Sessions**: Each `work on/off` cycle creates a clear session boundary
+- **Automatic Idle Detection**: When you start work after a break > 60 seconds, an idle session is automatically created
+- **Chronological Flow**: Reports show the natural work → idle → work pattern
+- **Cooldown Visibility**: See your break patterns and durations for better self-awareness
+- **Minimal Cognitive Load**: No manual tracking required - just work on/off as usual
+
+### How It Works:
+1. **Work Session**: `work on "project"` starts tracking
+2. **Work Complete**: `work off` stops tracking and stores the session
+3. **Idle Period**: Time passes between work sessions
+4. **Next Work**: `work on "project"` automatically creates an idle session if break > 60 seconds
+5. **Report View**: See your natural workflow with work and idle sessions in chronological order
+
+### Benefits for ADHD:
+- **Clear Boundaries**: Each session is a discrete unit of focus
+- **Natural Breaks**: Idle time reflects real work patterns
+- **Pattern Recognition**: Identify productivity patterns and break habits
+- **Reduced Guilt**: Idle time is part of the natural workflow, not "wasted" time
+- **Better Planning**: Understand your actual work/break cycles
+
+## Work Reports
+
+Work Manager generates comprehensive markdown reports showing your work patterns and productivity insights:
+
+- **Today's Report**: `work report today` - Shows work since 00:00 today
+- **Weekly Report**: `work report week` - Shows work since Monday of current week
+- **Monthly Report**: `work report month` - Shows work since 1st of current month
+- **Custom Period**: `work report custom <N>` - Shows work for last N days
+- **Discrete Session Tracking**: Shows work and idle sessions in chronological order
+- **Automatic Idle Detection**: Captures breaks between work sessions automatically
+- **Total Calculations**: Separate totals for work time and idle time
+
+### Example Report:
+```bash
+$ work report today
+# Work Report - Today (2025-07-25)
+
+| Session | Time |
+|---------|------|
+| **morning-coding** | **1h 0m** |
+| *Idle* | *15m* |
+| **meeting** | **45m** |
+| *Idle* | *30m* |
+| **coding** | **2h 0m** |
+| *Idle* | *1h 20m* |
+| **planning** | **30m** |
+
+**Total Work Time: 4h 15m**
+*Total Idle Time: 2h 5m*
+
+*Report generated on vie 25 jul 2025 08:27:32 -03*
+```
+
+### Report Features:
+- **Markdown Format**: Easy to copy into documents or notes
+- **Chronological Order**: Sessions displayed in natural work → idle → work flow
+- **Discrete Sessions**: Each work/off cycle creates clear session boundaries
+- **Automatic Idle Detection**: Breaks > 60 seconds are automatically captured
+- **Time Formatting**: Hours and minutes for readability
+- **Separate Totals**: Work time and idle time tracked separately
+- **Configurable Periods**: Flexible time windows for analysis
 
 ## Nudging System
 

@@ -216,10 +216,31 @@ function work_on() {
         exit 1
     fi
 
+    # Store idle session from last work_off to now (if any)
+    local last_work_off_time
+    last_work_off_time=$(sqlite3 "$DB" "SELECT last_work_off_time FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null)
+    
+    if [[ -n "$last_work_off_time" ]] && [[ "$last_work_off_time" != "NULL" ]]; then
+        local idle_start_ts
+        idle_start_ts=$(date --date="$last_work_off_time" +%s)
+        local idle_end_ts
+        idle_end_ts=$(date +%s)
+        local idle_duration
+        idle_duration=$((idle_end_ts - idle_start_ts))
+        
+        # Only store idle session if duration is significant (> 1 minute)
+        if [[ $idle_duration -gt 60 ]]; then
+            sqlite3 "$DB" \
+                "INSERT INTO $SESSIONS_TABLE (project, start_time, end_time, duration_seconds) \
+                 VALUES ('[idle]', '$last_work_off_time', '$start_time', $idle_duration);"
+            verbose_echo "Stored idle session: ${idle_duration}s"
+        fi
+    fi
+
     # If no project specified, try to use last project
     if [[ -z "$project" ]]; then
         local last_project
-        last_project=$(sqlite3 "$DB" "SELECT project FROM $SESSIONS_TABLE ORDER BY end_time DESC LIMIT 1;" 2>/dev/null)
+        last_project=$(sqlite3 "$DB" "SELECT project FROM $SESSIONS_TABLE WHERE project != '[idle]' ORDER BY end_time DESC LIMIT 1;" 2>/dev/null)
         
         if [[ -n "$last_project" ]]; then
             echo "Last project was: $last_project"
@@ -240,8 +261,19 @@ function work_on() {
         fi
     fi
 
+    # Calculate total time for this project (including previous sessions)
+    local total_project_time
+    total_project_time=$(sqlite3 "$DB" "SELECT COALESCE(SUM(duration_seconds), 0) FROM $SESSIONS_TABLE WHERE project = '$project' AND project != '[idle]';" 2>/dev/null)
+    local total_minutes
+    total_minutes=$((total_project_time / 60))
+    
     sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = 1, project = '$project', start_time = '$start_time' WHERE id = 1;"
-    echo "Started work on: $project"
+    
+    if [[ $total_minutes -gt 0 ]]; then
+        echo "Started work on: $project (Total: ${total_minutes}m)"
+    else
+        echo "Started work on: $project"
+    fi
 
     # Set work prompt
     set_work_prompt "$project"
@@ -271,7 +303,7 @@ function work_off() {
         "INSERT INTO $SESSIONS_TABLE (project, start_time, end_time, duration_seconds) \
          VALUES ('$project', '$start_time', '$now', $duration);"
 
-    sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = 0, project = NULL, start_time = NULL, prompt_file = NULL WHERE id = 1;"
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = 0, project = NULL, start_time = NULL, prompt_file = NULL, last_work_off_time = '$now' WHERE id = 1;"
     echo "Stopped work on: $project (Duration: $((duration / 60)) min)"
 
     # Restore original prompt
@@ -290,13 +322,26 @@ function work_status() {
         now=$(date +%s)
         start_ts=$(date --date="$start_time" +%s)
         elapsed=$((now - start_ts))
-        echo "⏳ Working on: $project — $(($elapsed / 60))m elapsed"
+        
+        # Calculate total time for this project (including previous sessions)
+        local total_project_time
+        total_project_time=$(sqlite3 "$DB" "SELECT COALESCE(SUM(duration_seconds), 0) FROM $SESSIONS_TABLE WHERE project = '$project' AND project != '[idle]';" 2>/dev/null)
+        local total_minutes
+        total_minutes=$((total_project_time / 60))
+        local current_minutes
+        current_minutes=$((elapsed / 60))
+        
+        if [[ $total_minutes -gt 0 ]]; then
+            echo "⏳ Working on: $project — ${current_minutes}m elapsed (Total: ${total_minutes}m)"
+        else
+            echo "⏳ Working on: $project — ${current_minutes}m elapsed"
+        fi
     else
         echo "✅ Not currently tracking work."
         
-        # Show last session information
+        # Show last work session information (excluding idle sessions)
         local last_session
-        last_session=$(sqlite3 "$DB" "SELECT project, end_time, duration_seconds FROM $SESSIONS_TABLE ORDER BY end_time DESC LIMIT 1;" 2>/dev/null)
+        last_session=$(sqlite3 "$DB" "SELECT project, end_time, duration_seconds FROM $SESSIONS_TABLE WHERE project != '[idle]' ORDER BY end_time DESC LIMIT 1;" 2>/dev/null)
         
         if [[ -n "$last_session" ]]; then
             IFS='|' read -r last_project last_end_time last_duration <<< "$last_session"
@@ -626,6 +671,144 @@ function work_past_help() {
     echo "Note: Sessions are created with end time = now, start time = X minutes ago"
 }
 
+function work_report_today() {
+    local start_time
+    start_time=$(date -d "today 00:00" -Iseconds)
+    local end_time
+    end_time=$(date -Iseconds)
+    
+    echo "# Work Report - Today ($(date +%Y-%m-%d))"
+    echo ""
+    work_generate_report "$start_time" "$end_time"
+}
+
+function work_report_week() {
+    local start_time
+    start_time=$(date -d "monday this week 00:00" -Iseconds)
+    local end_time
+    end_time=$(date -Iseconds)
+    
+    echo "# Work Report - This Week ($(date -d "monday this week" +%Y-%m-%d) to $(date +%Y-%m-%d))"
+    echo ""
+    work_generate_report "$start_time" "$end_time"
+}
+
+function work_report_month() {
+    local start_time
+    start_time=$(date -d "$(date +%Y-%m-01) 00:00" -Iseconds)
+    local end_time
+    end_time=$(date -Iseconds)
+    
+    echo "# Work Report - This Month ($(date +%Y-%m-01) to $(date +%Y-%m-%d))"
+    echo ""
+    work_generate_report "$start_time" "$end_time"
+}
+
+function work_report_custom() {
+    local days_back="$1"
+    
+    if [[ -z "$days_back" ]]; then
+        echo "❌ Please specify number of days back."
+        echo "Usage: work report custom <days>"
+        echo "Examples:"
+        echo "  work report custom 4    # Last 4 days"
+        echo "  work report custom 60   # Last 60 days (2 months)"
+        exit 1
+    fi
+    
+    # Validate days is a number
+    if ! [[ "$days_back" =~ ^[0-9]+$ ]]; then
+        echo "❌ Days must be a positive integer."
+        exit 1
+    fi
+    
+    local start_time
+    start_time=$(date -d "$days_back days ago 00:00" -Iseconds)
+    local end_time
+    end_time=$(date -Iseconds)
+    
+    echo "# Work Report - Last $days_back Days ($(date -d "$days_back days ago" +%Y-%m-%d) to $(date +%Y-%m-%d))"
+    echo ""
+    work_generate_report "$start_time" "$end_time"
+}
+
+function work_generate_report() {
+    local start_time="$1"
+    local end_time="$2"
+    
+    # Get all sessions in the time window, ordered by start_time
+    local sessions_data
+    sessions_data=$(sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds FROM $SESSIONS_TABLE WHERE end_time >= '$start_time' AND end_time <= '$end_time' ORDER BY start_time;" 2>/dev/null)
+    
+    if [[ -z "$sessions_data" ]]; then
+        echo "📊 No work sessions found in the specified time period."
+        return
+    fi
+    
+    # Calculate total work time (excluding idle sessions)
+    local total_work_seconds=0
+    local total_idle_seconds=0
+    
+    # Generate markdown table
+    echo "| Session | Time |"
+    echo "|---------|------|"
+    
+    # Process sessions in chronological order
+    while IFS='|' read -r project start_time_session end_time_session duration; do
+        if [[ -n "$project" && -n "$duration" ]]; then
+            local hours=$((duration / 3600))
+            local minutes=$(((duration % 3600) / 60))
+            
+            if [[ "$project" == "[idle]" ]]; then
+                # Idle session
+                total_idle_seconds=$((total_idle_seconds + duration))
+                if [[ $hours -gt 0 ]]; then
+                    echo "| *Idle* | *${hours}h ${minutes}m* |"
+                else
+                    echo "| *Idle* | *${minutes}m* |"
+                fi
+            else
+                # Work session
+                total_work_seconds=$((total_work_seconds + duration))
+                if [[ $hours -gt 0 ]]; then
+                    echo "| **$project** | **${hours}h ${minutes}m** |"
+                else
+                    echo "| **$project** | **${minutes}m** |"
+                fi
+            fi
+        fi
+    done <<< "$sessions_data"
+    
+    # Convert totals to hours and minutes for display
+    local total_work_hours=$((total_work_seconds / 3600))
+    local total_work_minutes=$(((total_work_seconds % 3600) / 60))
+    local total_idle_hours=$((total_idle_seconds / 3600))
+    local total_idle_minutes=$(((total_idle_seconds % 3600) / 60))
+    
+    echo ""
+    echo "**Total Work Time: ${total_work_hours}h ${total_work_minutes}m**"
+    echo "*Total Idle Time: ${total_idle_hours}h ${total_idle_minutes}m*"
+    echo ""
+    echo "*Report generated on $(date)*"
+}
+
+function work_report_help() {
+    echo "Work Reports:"
+    echo "  work report today        # Today's work report (since 00:00)"
+    echo "  work report week         # This week's report (since Monday)"
+    echo "  work report month        # This month's report (since 1st)"
+    echo "  work report custom <N>   # Last N days report"
+    echo ""
+    echo "Examples:"
+    echo "  work report today              # Today's work summary"
+    echo "  work report week               # This week's summary"
+    echo "  work report month              # This month's summary"
+    echo "  work report custom 7           # Last 7 days"
+    echo "  work report custom 30          # Last 30 days"
+    echo ""
+    echo "Note: Reports show work time totals and idleness for visibility"
+}
+
 function work_help() {
     echo "Usage:"
     echo "  work on \"project\"      Start tracking"
@@ -640,6 +823,10 @@ function work_help() {
     echo "  work past add \"project\" <minutes>    # Add past session"
     echo "  work past modify \"project\" <minutes>  # Modify session"
     echo "  work past delete \"project\"            # Delete session"
+    echo "  work report today        # Today's work report"
+    echo "  work report week         # This week's report"
+    echo "  work report month        # This month's report"
+    echo "  work report custom <N>   # Last N days report"
     echo "  work reset              Reset database (delete all data)"
     echo ""
     echo "Options:"
@@ -650,6 +837,8 @@ function work_help() {
     echo "  work on                     # Continue with last project"
     echo "  work past add \"meeting\" 30  # Add 30-minute past session"
     echo "  work past modify \"coding\" 120 # Change session to 2 hours"
+    echo "  work report today              # Today's work summary"
+    echo "  work report custom 7           # Last 7 days"
     echo "  work export                    # Export to timestamped file"
     echo "  work export my-data.json      # Export to specific file"
     echo "  work import backup.json       # Import from JSON file"
@@ -724,6 +913,27 @@ case "$1" in
                 ;;
             *)
                 work_past_help
+                ;;
+        esac
+        ;;
+    report)
+        shift
+        case "$1" in
+            today)
+                work_report_today
+                ;;
+            week)
+                work_report_week
+                ;;
+            month)
+                work_report_month
+                ;;
+            custom)
+                shift
+                work_report_custom "$@"
+                ;;
+            *)
+                work_report_help
                 ;;
         esac
         ;;
