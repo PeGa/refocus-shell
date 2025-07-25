@@ -3,6 +3,28 @@
 > 🧠 **Built for neurodivergent devs, sysadmins, and anyone tired of forgetting where their time went.**  
 > Work Manager is a terminal-first, privacy-conscious time tracker that nudges, reflects, and gets out of your way.
 
+## 📚 Table of Contents
+- [Who It's For](#who-its-for)
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Smart Work Continuation](#smart-work-continuation)
+- [Enhanced Status Information](#enhanced-status-information)
+- [Cumulative Time Tracking](#cumulative-time-tracking)
+- [Past Session Management](#past-session-management)
+- [Discrete Session Management](#discrete-session-management)
+- [Work Reports](#work-reports)
+- [Nudging System](#nudging-system)
+- [Data Import/Export](#data-importexport)
+- [Verbose Mode](#verbose-mode)
+- [Uninstallation](#uninstallation)
+- [Dependencies](#dependencies)
+- [Database](#database)
+- [Configuration](#configuration)
+- [Troubleshooting](#troubleshooting)
+- [Future Features](#future-features)
+- [License](#license)
+
 ## Who It's For
 
 - Neurodivergent developers and sysadmins who need **low-friction structure**
