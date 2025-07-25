@@ -761,7 +761,7 @@ function work_generate_report() {
     
     # Generate formatted table with fixed column widths
     printf "%-35s | %-12s\n" "Session" "Time"
-    printf "%-35s-+-%-12s\n" "-----------------------------------" "------------"
+    printf "%-35s-|-%12s\n" "-----------------------------------" "------------"
     
     # Process sessions in chronological order
     while IFS='|' read -r project start_time_session end_time_session duration; do
@@ -802,7 +802,6 @@ function work_generate_report() {
     
     echo ""
     echo "**Total Work Time: ${total_work_hours}h ${total_work_minutes}m**"
-    echo "*Total Idle Time: ${total_idle_hours}h ${total_idle_minutes}m*"
     echo ""
     echo "*Report generated on $(date)*"
 }
