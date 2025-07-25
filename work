@@ -216,6 +216,30 @@ function work_on() {
         exit 1
     fi
 
+    # If no project specified, try to use last project
+    if [[ -z "$project" ]]; then
+        local last_project
+        last_project=$(sqlite3 "$DB" "SELECT project FROM $SESSIONS_TABLE ORDER BY end_time DESC LIMIT 1;" 2>/dev/null)
+        
+        if [[ -n "$last_project" ]]; then
+            echo "Last project was: $last_project"
+            echo "Continue? (Y/n)"
+            read -r response
+            
+            if [[ "$response" =~ ^[Nn]$ ]]; then
+                echo "Work session aborted — no project specified."
+                echo "Run 'work on \"project\"' to start a work session."
+                exit 1
+            fi
+            
+            project="$last_project"
+        else
+            echo "No previous project found."
+            echo "Run 'work on \"project\"' to start a work session."
+            exit 1
+        fi
+    fi
+
     sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = 1, project = '$project', start_time = '$start_time' WHERE id = 1;"
     echo "Started work on: $project"
 
@@ -269,6 +293,31 @@ function work_status() {
         echo "⏳ Working on: $project — $(($elapsed / 60))m elapsed"
     else
         echo "✅ Not currently tracking work."
+        
+        # Show last session information
+        local last_session
+        last_session=$(sqlite3 "$DB" "SELECT project, end_time, duration_seconds FROM $SESSIONS_TABLE ORDER BY end_time DESC LIMIT 1;" 2>/dev/null)
+        
+        if [[ -n "$last_session" ]]; then
+            IFS='|' read -r last_project last_end_time last_duration <<< "$last_session"
+            
+            if [[ -n "$last_project" && -n "$last_end_time" ]]; then
+                local now_ts
+                now_ts=$(date +%s)
+                local end_ts
+                end_ts=$(date --date="$last_end_time" +%s)
+                local time_since
+                time_since=$((now_ts - end_ts))
+                
+                local duration_min
+                duration_min=$((last_duration / 60))
+                local time_since_min
+                time_since_min=$((time_since / 60))
+                
+                echo "📊 Last session: $last_project (${duration_min}m)"
+                echo "⏰ Time since last work: ${time_since_min}m"
+            fi
+        fi
     fi
 }
 
@@ -456,6 +505,7 @@ function work_import() {
 function work_help() {
     echo "Usage:"
     echo "  work on \"project\"      Start tracking"
+    echo "  work on                 Start tracking (use last project)"
     echo "  work off                Stop tracking"
     echo "  work status             Show current session"
     echo "  work enable             Enable work manager"
@@ -469,6 +519,8 @@ function work_help() {
     echo "  --verbose               Show detailed output"
     echo ""
     echo "Examples:"
+    echo "  work on \"my-project\"        # Start tracking specific project"
+    echo "  work on                     # Continue with last project"
     echo "  work export                    # Export to timestamped file"
     echo "  work export my-data.json      # Export to specific file"
     echo "  work import backup.json       # Import from JSON file"

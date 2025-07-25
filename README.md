@@ -5,6 +5,8 @@ A privacy-first, FLOSS command-line tool for tracking work sessions with intelli
 ## Features
 
 - **Core Work Tracking**: `work on/off/status` commands
+- **Smart Continuation**: `work on` without project continues last session
+- **Enhanced Status**: Rich context about last session and time tracking
 - **Desktop Notifications**: `notify-send` integration
 - **Shell Integration**: Dynamic prompt modification with `⏳ [Project]` indicator
 - **Intelligent Nudging**: Periodic reminders every 10 minutes via cron
@@ -53,6 +55,7 @@ sudo apt-get install sqlite3 libnotify-bin jq
 
 ```bash
 work on "project-name"    # Start tracking work on a project
+work on                   # Continue with last project (interactive)
 work off                  # Stop tracking work
 work status               # Show current work status
 ```
@@ -80,7 +83,10 @@ work --verbose            # Show detailed output
 # Start working on a project
 work on "website-redesign"
 
-# Check status
+# Continue with last project (interactive)
+work on
+
+# Check status (shows last session when not working)
 work status
 
 # Export your data
@@ -91,6 +97,40 @@ work import backup.json
 
 # Test nudging functionality
 work test-nudge
+```
+
+## Smart Work Continuation
+
+Work Manager intelligently remembers your last project and makes it easy to continue:
+
+- **Last Project Detection**: When you run `work on` without a project, it asks if you want to continue with your last project
+- **Interactive Confirmation**: "Last project was: [Project]. Continue? (Y/n)"
+- **Graceful Handling**: If you decline, it provides helpful guidance
+- **No Project Fallback**: If no previous project exists, it guides you to specify a project
+
+### Example:
+```bash
+$ work on
+Last project was: website-redesign
+Continue? (Y/n)
+y
+Started work on: website-redesign
+```
+
+## Enhanced Status Information
+
+When you're not currently working, `work status` provides rich context about your last session:
+
+- **Last Session Details**: Shows project name and duration
+- **Time Tracking**: Displays how long since your last work session
+- **Clear Formatting**: Uses emojis and clear labels for better readability
+
+### Example:
+```bash
+$ work status
+✅ Not currently tracking work.
+📊 Last session: website-redesign (45m)
+⏰ Time since last work: 2h 15m
 ```
 
 ## Nudging System
