@@ -3,6 +3,13 @@
 > 🧠 **Built for neurodivergent devs, sysadmins, and anyone tired of forgetting where their time went.**  
 > Work Manager is a terminal-first, privacy-conscious time tracker that nudges, reflects, and gets out of your way.
 
+## Who It's For
+
+- Neurodivergent developers and sysadmins who need **low-friction structure**
+- Freelancers tired of guessing where their hours went
+- Anyone who wants a **terminal-first**, privacy-respecting time tracker
+- People who don't want their productivity tools to spy on them
+
 ## Features
 
 - **Core Work Tracking**: `work on/off/status` commands
