@@ -1,6 +1,7 @@
 # Work Manager
 
-A privacy-first, FLOSS command-line tool for tracking work sessions with intelligent nudging and cross-device synchronization capabilities.
+> 🧠 **Built for neurodivergent devs, sysadmins, and anyone tired of forgetting where their time went.**  
+> Work Manager is a terminal-first, privacy-conscious time tracker that nudges, reflects, and gets out of your way.
 
 ## Features
 
@@ -10,7 +11,7 @@ A privacy-first, FLOSS command-line tool for tracking work sessions with intelli
 - **Cumulative Time Tracking**: Shows total time invested in each project across sessions
 - **Past Session Management**: Add, modify, and delete historical work sessions
 - **Work Reports**: Generate markdown reports for today, week, month, or custom periods
-- **Discrete Session Management**: ADHD-friendly work/idle session tracking with automatic idle detection
+- **Discrete Session Management**: ADHD-friendly work/idle session tracking with automatic break detection
 - **Desktop Notifications**: `notify-send` integration
 - **Shell Integration**: Dynamic prompt modification with `⏳ [Project]` indicator
 - **Intelligent Nudging**: Periodic reminders every 10 minutes via cron
@@ -211,10 +212,10 @@ Are you sure? (y/N)
 
 ## Discrete Session Management
 
-Work Manager uses an ADHD-friendly approach to time tracking with discrete sessions and automatic idle detection:
+Work Manager uses an ADHD-friendly approach to time tracking with discrete sessions and automatic break detection:
 
 - **Discrete Sessions**: Each `work on/off` cycle creates a clear session boundary
-- **Automatic Idle Detection**: When you start work after a break > 60 seconds, an idle session is automatically created
+- **Automatic Break Detection**: When you start work after a break > 60 seconds, an idle session is automatically created
 - **Chronological Flow**: Reports show the natural work → idle → work pattern
 - **Cooldown Visibility**: See your break patterns and durations for better self-awareness
 - **Minimal Cognitive Load**: No manual tracking required - just work on/off as usual
@@ -242,7 +243,7 @@ Work Manager generates comprehensive markdown reports showing your work patterns
 - **Monthly Report**: `work report month` - Shows work since 1st of current month
 - **Custom Period**: `work report custom <N>` - Shows work for last N days
 - **Discrete Session Tracking**: Shows work and idle sessions in chronological order
-- **Automatic Idle Detection**: Captures breaks between work sessions automatically
+- **Automatic Break Detection**: Captures breaks between work sessions automatically
 - **Total Calculations**: Separate totals for work time and idle time
 
 ### Example Report:
@@ -270,7 +271,7 @@ $ work report today
 - **Markdown Format**: Easy to copy into documents or notes
 - **Chronological Order**: Sessions displayed in natural work → idle → work flow
 - **Discrete Sessions**: Each work/off cycle creates clear session boundaries
-- **Automatic Idle Detection**: Breaks > 60 seconds are automatically captured
+- **Automatic Break Detection**: Breaks > 60 seconds are automatically captured
 - **Time Formatting**: Hours and minutes for readability
 - **Separate Totals**: Work time and idle time tracked separately
 - **Configurable Periods**: Flexible time windows for analysis
@@ -364,6 +365,11 @@ WORK_LOG_FACILITY="user"
 # Logging priority
 WORK_LOG_PRIORITY="notice"
 ```
+
+## Future Features
+
+### Automatic Idle Detection
+A planned feature that will automatically detect when your device is idle (no keyboard/mouse activity) and automatically stop work tracking. This is different from the current "automatic break detection" which creates idle sessions between work sessions.
 
 ## Troubleshooting
 
