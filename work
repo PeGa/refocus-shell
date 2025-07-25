@@ -243,7 +243,17 @@ function work_on() {
         last_project=$(sqlite3 "$DB" "SELECT project FROM $SESSIONS_TABLE WHERE project != '[idle]' ORDER BY end_time DESC LIMIT 1;" 2>/dev/null)
         
         if [[ -n "$last_project" ]]; then
-            echo "Last project was: $last_project"
+            # Calculate total time for the last project to show in prompt
+            local total_project_time
+            total_project_time=$(sqlite3 "$DB" "SELECT COALESCE(SUM(duration_seconds), 0) FROM $SESSIONS_TABLE WHERE project = '$last_project' AND project != '[idle]';" 2>/dev/null)
+            local total_minutes
+            total_minutes=$((total_project_time / 60))
+            
+            if [[ $total_minutes -gt 0 ]]; then
+                echo "Last project was: $last_project (Total: ${total_minutes}m)"
+            else
+                echo "Last project was: $last_project"
+            fi
             echo "Continue? (Y/n)"
             read -r response
             
