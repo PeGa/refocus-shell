@@ -759,9 +759,9 @@ function work_generate_report() {
     local total_work_seconds=0
     local total_idle_seconds=0
     
-    # Generate markdown table
-    echo "| Session | Time |"
-    echo "|---------|------|"
+    # Generate formatted table with fixed column widths
+    printf "%-35s | %-12s\n" "Session" "Time"
+    printf "%-35s-+-%-12s\n" "-----------------------------------" "------------"
     
     # Process sessions in chronological order
     while IFS='|' read -r project start_time_session end_time_session duration; do
@@ -773,17 +773,22 @@ function work_generate_report() {
                 # Idle session
                 total_idle_seconds=$((total_idle_seconds + duration))
                 if [[ $hours -gt 0 ]]; then
-                    echo "| *Idle* | *${hours}h ${minutes}m* |"
+                    printf "%-35s | %-12s\n" "*Idle*" "*${hours}h ${minutes}m*"
                 else
-                    echo "| *Idle* | *${minutes}m* |"
+                    printf "%-35s | %-12s\n" "*Idle*" "*${minutes}m*"
                 fi
             else
                 # Work session
                 total_work_seconds=$((total_work_seconds + duration))
+                # Truncate long project names to fit in 35 chars
+                local display_project="$project"
+                if [[ ${#display_project} -gt 33 ]]; then
+                    display_project="${display_project:0:30}..."
+                fi
                 if [[ $hours -gt 0 ]]; then
-                    echo "| **$project** | **${hours}h ${minutes}m** |"
+                    printf "%-35s | %-12s\n" "**$display_project**" "**${hours}h ${minutes}m**"
                 else
-                    echo "| **$project** | **${minutes}m** |"
+                    printf "%-35s | %-12s\n" "**$display_project**" "**${minutes}m**"
                 fi
             fi
         fi
