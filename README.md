@@ -11,6 +11,7 @@ A simple command-line work tracking tool that helps you track time spent on diff
 - **Session Management**: Track active sessions and elapsed time
 - **Intelligent Nudging**: Periodic reminders about work status (every 10 minutes)
 - **Work Manager Control**: Enable/disable work tracking and nudging
+- **Data Import/Export**: JSON-based backup and restore functionality
 - **Reset Capability**: Reset database to start fresh
 
 ## Installation
@@ -66,7 +67,13 @@ work enable
 work disable
 
 # Send manual nudge (for testing)
-work nudge
+work test-nudge
+
+# Export data to JSON
+work export
+
+# Import data from JSON
+work import backup.json
 
 # Reset database (delete all data)
 work reset
@@ -96,6 +103,32 @@ work disable
 ```
 
 **Note**: When work manager is disabled, you cannot start new work sessions and no nudging will occur.
+
+### Data Import/Export
+
+The work manager supports JSON-based data import and export for backup and migration:
+
+```bash
+# Export all data to timestamped file
+work export
+
+# Export to specific file
+work export my-backup.json
+
+# Import from JSON file
+work import backup.json
+```
+
+**Export includes:**
+- Current work state (active sessions, settings)
+- All work sessions with timing data
+- Export metadata (date, version, database path)
+
+**Import features:**
+- Validates JSON structure before import
+- Creates automatic backup of existing data
+- Preserves all session history and settings
+- Handles missing fields gracefully
 
 ### Verbose Mode
 
@@ -153,6 +186,7 @@ The shell integration:
 
 - `notify-send`: For desktop notifications
 - `sqlite3`: For database operations
+- `jq`: For JSON processing (import/export functionality)
 
 The installer will automatically install these dependencies using your system's package manager.
 
@@ -203,11 +237,17 @@ Currently tested with:
 - Check if cron job exists: `crontab -l`
 - Verify work-nudge script exists: `ls ~/.local/work/work-nudge`
 - Check if work manager is enabled: `work status`
-- Test manual nudge: `work nudge`
+- Test manual nudge: `work test-nudge`
 
 ### Database Issues
 - Reset the database: `work reset`
 - Reinitialize: `./install.sh init`
+
+### Import/Export Issues
+- Check if jq is installed: `jq --version`
+- Verify JSON file format: `jq empty file.json`
+- Test export functionality: `work export test.json`
+- Check file permissions for import/export directories
 
 ## Development
 

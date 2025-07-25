@@ -229,6 +229,11 @@ install_dependencies() {
         missing_deps+=("notify-send")
     fi
     
+    # Check jq
+    if ! command -v jq >/dev/null 2>&1; then
+        missing_deps+=("jq")
+    fi
+    
     # If no missing dependencies, we're done
     if [[ ${#missing_deps[@]} -eq 0 ]]; then
         print_status "All dependencies are already available"
@@ -244,6 +249,7 @@ install_dependencies() {
         local packages=()
         [[ " ${missing_deps[*]} " =~ " sqlite3 " ]] && packages+=("sqlite3")
         [[ " ${missing_deps[*]} " =~ " notify-send " ]] && packages+=("libnotify-bin")
+        [[ " ${missing_deps[*]} " =~ " jq " ]] && packages+=("jq")
         
         if [[ ${#packages[@]} -gt 0 ]]; then
             sudo apt-get update && sudo apt-get install -y "${packages[@]}"
@@ -254,6 +260,7 @@ install_dependencies() {
         local packages=()
         [[ " ${missing_deps[*]} " =~ " sqlite3 " ]] && packages+=("sqlite")
         [[ " ${missing_deps[*]} " =~ " notify-send " ]] && packages+=("libnotify")
+        [[ " ${missing_deps[*]} " =~ " jq " ]] && packages+=("jq")
         
         if [[ ${#packages[@]} -gt 0 ]]; then
             sudo pacman -S --noconfirm "${packages[@]}"
@@ -264,6 +271,7 @@ install_dependencies() {
         local packages=()
         [[ " ${missing_deps[*]} " =~ " sqlite3 " ]] && packages+=("sqlite")
         [[ " ${missing_deps[*]} " =~ " notify-send " ]] && packages+=("libnotify")
+        [[ " ${missing_deps[*]} " =~ " jq " ]] && packages+=("jq")
         
         if [[ ${#packages[@]} -gt 0 ]]; then
             sudo dnf install -y "${packages[@]}"
@@ -274,6 +282,7 @@ install_dependencies() {
         local packages=()
         [[ " ${missing_deps[*]} " =~ " sqlite3 " ]] && packages+=("sqlite3")
         [[ " ${missing_deps[*]} " =~ " notify-send " ]] && packages+=("libnotify-tools")
+        [[ " ${missing_deps[*]} " =~ " jq " ]] && packages+=("jq")
         
         if [[ ${#packages[@]} -gt 0 ]]; then
             sudo zypper install -y "${packages[@]}"
@@ -283,12 +292,13 @@ install_dependencies() {
         echo "Required packages:"
         echo "  - sqlite3 (for database operations)"
         echo "  - notify-send (for desktop notifications)"
+        echo "  - jq (for JSON processing)"
         echo ""
         echo "Common package names by distribution:"
-        echo "  Ubuntu/Debian: sqlite3, libnotify-bin"
-        echo "  Arch/Manjaro: sqlite, libnotify"
-        echo "  Fedora/RHEL: sqlite, libnotify"
-        echo "  openSUSE: sqlite3, libnotify-tools"
+        echo "  Ubuntu/Debian: sqlite3, libnotify-bin, jq"
+        echo "  Arch/Manjaro: sqlite, libnotify, jq"
+        echo "  Fedora/RHEL: sqlite, libnotify, jq"
+        echo "  openSUSE: sqlite3, libnotify-tools, jq"
         return 1
     fi
     

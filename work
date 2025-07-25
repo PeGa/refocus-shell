@@ -312,7 +312,7 @@ function work_disable() {
     fi
 }
 
-function work_nudge() {
+function work_test_nudge() {
     # Manual nudge for testing
     if [[ ! -f "$WORK_DATA_PATH/work-nudge" ]]; then
         echo "❌ Nudge script not found. Run installer to set up nudging."
@@ -323,6 +323,121 @@ function work_nudge() {
     "$WORK_DATA_PATH/work-nudge"
 }
 
+function work_export() {
+    local output_file="$1"
+    
+    # Default output file if none specified
+    if [[ -z "$output_file" ]]; then
+        output_file="work-export-$(date +%Y%m%d_%H%M%S).json"
+    fi
+    
+    # Check if database exists
+    if [[ ! -f "$DB" ]]; then
+        echo "❌ Database not found. Run installer to initialize."
+        return 1
+    fi
+    
+    echo "📤 Exporting work data to: $output_file"
+    
+    # Export state table
+    local state_data=$(sqlite3 "$DB" -json "SELECT * FROM state WHERE id = 1;" 2>/dev/null)
+    
+    # Export sessions table
+    local sessions_data=$(sqlite3 "$DB" -json "SELECT * FROM sessions ORDER BY start_time;" 2>/dev/null)
+    
+    # Create JSON structure
+    cat > "$output_file" << EOF
+{
+  "export_info": {
+    "export_date": "$(date -Iseconds)",
+    "version": "1.0",
+    "database_path": "$DB"
+  },
+  "state": $state_data,
+  "sessions": $sessions_data
+}
+EOF
+    
+    if [[ $? -eq 0 ]]; then
+        echo "✅ Export completed successfully"
+        echo "📁 File: $output_file"
+        verbose_echo "Exported $(echo "$sessions_data" | jq 'length' 2>/dev/null || echo "unknown number of") sessions"
+    else
+        echo "❌ Export failed"
+        return 1
+    fi
+}
+
+function work_import() {
+    local input_file="$1"
+    
+    if [[ -z "$input_file" ]]; then
+        echo "❌ Please specify a JSON file to import"
+        echo "Usage: work import <filename.json>"
+        return 1
+    fi
+    
+    if [[ ! -f "$input_file" ]]; then
+        echo "❌ File not found: $input_file"
+        return 1
+    fi
+    
+    echo "📥 Importing work data from: $input_file"
+    
+    # Validate JSON structure
+    if ! jq empty "$input_file" 2>/dev/null; then
+        echo "❌ Invalid JSON file"
+        return 1
+    fi
+    
+    # Check if required fields exist
+    if ! jq -e '.state and .sessions' "$input_file" >/dev/null 2>&1; then
+        echo "❌ Invalid export format. Missing required fields."
+        return 1
+    fi
+    
+    # Backup current database
+    local backup_file="$DB.backup.$(date +%Y%m%d_%H%M%S)"
+    if [[ -f "$DB" ]]; then
+        cp "$DB" "$backup_file"
+        verbose_echo "Created backup: $backup_file"
+    fi
+    
+    # Clear existing data
+    sqlite3 "$DB" "DELETE FROM sessions;"
+    sqlite3 "$DB" "DELETE FROM state WHERE id > 1;"
+    
+    # Import state data
+    local state_json=$(jq -r '.state[0]' "$input_file" 2>/dev/null)
+    if [[ -n "$state_json" ]] && [[ "$state_json" != "null" ]]; then
+        local active=$(echo "$state_json" | jq -r '.active // 0')
+        local project=$(echo "$state_json" | jq -r '.project // null')
+        local start_time=$(echo "$state_json" | jq -r '.start_time // null')
+        local prompt_file=$(echo "$state_json" | jq -r '.prompt_file // null')
+        local nudging_enabled=$(echo "$state_json" | jq -r '.nudging_enabled // 1')
+        local work_disabled=$(echo "$state_json" | jq -r '.work_disabled // 0')
+        
+        sqlite3 "$DB" "UPDATE state SET active = $active, project = '$project', start_time = '$start_time', prompt_file = '$prompt_file', nudging_enabled = $nudging_enabled, work_disabled = $work_disabled WHERE id = 1;"
+        verbose_echo "Imported state data"
+    fi
+    
+    # Import sessions data
+    local sessions_count=$(jq -r '.sessions | length' "$input_file" 2>/dev/null)
+    if [[ "$sessions_count" -gt 0 ]]; then
+        jq -r '.sessions[] | [.project, .start_time, .end_time, .duration_seconds] | @tsv' "$input_file" 2>/dev/null | while IFS=$'\t' read -r project start_time end_time duration; do
+            sqlite3 "$DB" "INSERT INTO sessions (project, start_time, end_time, duration_seconds) VALUES ('$project', '$start_time', '$end_time', $duration);"
+        done
+        verbose_echo "Imported $sessions_count sessions"
+    fi
+    
+    echo "✅ Import completed successfully"
+    echo "📊 Imported $sessions_count sessions"
+    
+    if [[ -f "$backup_file" ]]; then
+        echo "💾 Backup created: $backup_file"
+    fi
+}
+
 function work_help() {
     echo "Usage:"
     echo "  work on \"project\"      Start tracking"
@@ -330,11 +445,19 @@ function work_help() {
     echo "  work status             Show current session"
     echo "  work enable             Enable work manager"
     echo "  work disable            Disable work manager"
-    echo "  work nudge              Send manual nudge (testing)"
+    echo "  work test-nudge         Send manual nudge (testing)"
+    echo "  work export [file]      Export data to JSON"
+    echo "  work import <file>      Import data from JSON"
     echo "  work reset              Reset database (delete all data)"
     echo ""
     echo "Options:"
     echo "  --verbose               Show detailed output"
+    echo ""
+    echo "Examples:"
+    echo "  work export                    # Export to timestamped file"
+    echo "  work export my-data.json      # Export to specific file"
+    echo "  work import backup.json       # Import from JSON file"
+    echo "  work test-nudge               # Test nudging functionality"
 }
 
 # Parse arguments
@@ -377,8 +500,16 @@ case "$1" in
     disable)
         work_disable
         ;;
-    nudge)
-        work_nudge
+    test-nudge)
+        work_test_nudge
+        ;;
+    export)
+        shift
+        work_export "$@"
+        ;;
+    import)
+        shift
+        work_import "$@"
         ;;
     reset)
         work_reset
