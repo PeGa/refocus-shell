@@ -256,32 +256,50 @@ Work Manager generates comprehensive markdown reports showing your work patterns
 ### Example Report:
 ```bash
 $ work report today
+📄 Report exported to: work-report-today-2025-07-25.md
 # Work Report - Today (2025-07-25)
 
-| Session | Time |
-|---------|------|
-| **morning-coding** | **1h 0m** |
-| *Idle* | *15m* |
-| **meeting** | **45m** |
-| *Idle* | *30m* |
-| **coding** | **2h 0m** |
-| *Idle* | *1h 20m* |
-| **planning** | **30m** |
+Session                             | Time        
+------------------------------------|-------------
+**morning-coding**                  | **1h 0m**   
+*Idle*                              | *15m*       
+**meeting**                         | **45m**     
+*Idle*                              | *30m*       
+**coding**                          | **2h 0m**   
+*Idle*                              | *1h 20m*    
+**planning**                        | **30m**     
 
 **Total Work Time: 4h 15m**
-*Total Idle Time: 2h 5m*
 
 *Report generated on vie 25 jul 2025 08:27:32 -03*
 ```
 
 ### Report Features:
-- **Markdown Format**: Easy to copy into documents or notes
+- **Automatic Export**: All reports are automatically saved as markdown files
+- **Fixed-Width Tables**: Clean, aligned tables that render well in terminal and markdown
 - **Chronological Order**: Sessions displayed in natural work → idle → work flow
 - **Discrete Sessions**: Each work/off cycle creates clear session boundaries
 - **Automatic Break Tracking**: Breaks > 60 seconds are automatically captured
 - **Time Formatting**: Hours and minutes for readability
-- **Separate Totals**: Work time and idle time tracked separately
+- **Work Time Focus**: Only work time totals are highlighted (no idle totals)
 - **Configurable Periods**: Flexible time windows for analysis
+
+### Automatic Export
+
+All work reports are automatically exported to markdown files with predictable naming:
+
+```bash
+work report today        # → work-report-today-2025-07-25.md
+work report week         # → work-report-week-2025-07-25.md  
+work report month        # → work-report-month-2025-07.md
+work report custom 7     # → work-report-custom-7days-2025-07-25.md
+```
+
+**Benefits:**
+- **Easy Sharing**: Markdown files can be shared via email, chat, or documentation
+- **Automatic Archiving**: Reports are always saved for future reference
+- **Clean UX**: No need to specify filenames - automatic and predictable
+- **Markdown Ready**: Files render beautifully in markdown viewers
 
 ## Nudging System
 
