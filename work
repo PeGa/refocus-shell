@@ -150,17 +150,17 @@ call_installer() {
     local action="$1"
     local installer_path=""
     
-    # Try to find the installer script
-    if [[ -f "./install.sh" ]]; then
-        installer_path="./install.sh"
-    elif [[ -f "$(dirname "$0")/install.sh" ]]; then
-        installer_path="$(dirname "$0")/install.sh"
+    # Try to find the setup script
+    if [[ -f "./setup.sh" ]]; then
+        installer_path="./setup.sh"
+    elif [[ -f "$(dirname "$0")/setup.sh" ]]; then
+        installer_path="$(dirname "$0")/setup.sh"
     else
-        echo "Error: Could not find install.sh"
+        echo "Error: Could not find setup.sh"
         exit 1
     fi
     
-    echo "Calling installer for: $action"
+    echo "Calling setup script for: $action"
     # Always run interactive when called from work script
     bash "$installer_path" "$action"
 }
@@ -168,7 +168,7 @@ call_installer() {
 # Check installation and database status
 if ! check_installation; then
     echo "Work manager is not installed."
-    echo "Running installer to set up work manager..."
+    echo "Running setup script to set up work manager..."
     call_installer "install"
     exit 0
 elif ! [ -f "$DB" ]; then
@@ -176,9 +176,9 @@ elif ! [ -f "$DB" ]; then
     call_installer "init"
 fi
 
-# Check if notify-send is available (will be installed by installer if needed)
+# Check if notify-send is available (will be installed by setup script if needed)
 if ! command -v notify-send >/dev/null 2>&1; then
-    echo "Warning: notify-send not available. Run './install.sh deps' to install dependencies."
+    echo "Warning: notify-send not available. Run './setup.sh deps' to install dependencies."
 fi
 
 function work_on() {

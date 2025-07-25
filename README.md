@@ -18,10 +18,10 @@ A simple command-line work tracking tool that helps you track time spent on diff
 
 ### Quick Install
 ```bash
-./install.sh install
+./setup.sh install
 ```
 
-The installer will:
+The setup script will:
 - Install dependencies (`notify-send`, `sqlite3`)
 - Set up the database
 - Install the work script to your system
@@ -33,17 +33,17 @@ The installer will:
 
 1. **Install Dependencies**:
    ```bash
-   ./install.sh deps
+   ./setup.sh deps
    ```
 
 2. **Initialize Database**:
    ```bash
-   ./install.sh init
+   ./setup.sh init
    ```
 
 3. **Setup Shell Integration** (optional):
    ```bash
-   ./install.sh shell-setup
+   ./setup.sh shell-setup
    ```
 
 ## Usage
@@ -159,25 +159,25 @@ The shell integration:
 
 ```bash
 # Full installation with shell integration and nudging
-./install.sh install
+./setup.sh install
 
 # Install dependencies only
-./install.sh deps
+./setup.sh deps
 
 # Initialize database only
-./install.sh init
+./setup.sh init
 
 # Reset database (delete all data)
-./install.sh reset
+./setup.sh reset
 
 # Setup shell integration only
-./install.sh shell-setup
+./setup.sh shell-setup
 ```
 
 ## Uninstallation
 
 ```bash
-./install.sh uninstall
+./setup.sh uninstall
 ```
 
 **Note**: The uninstaller will remove shell integration from your RC file and remove the cron job for nudging, but you may need to manually restart your terminal or run `source ~/.bashrc` for changes to take effect.
@@ -225,7 +225,7 @@ Currently tested with:
 ## Troubleshooting
 
 ### Shell Integration Not Working
-1. Check if shell integration is installed: `./install.sh shell-setup`
+1. Check if shell integration is installed: `./setup.sh shell-setup`
 2. Restart your terminal or run `source ~/.bashrc`
 3. Verify the integration script exists: `ls ~/.local/work/shell_integration.sh`
 
@@ -241,7 +241,7 @@ Currently tested with:
 
 ### Database Issues
 - Reset the database: `work reset`
-- Reinitialize: `./install.sh init`
+- Reinitialize: `./setup.sh init`
 
 ### Import/Export Issues
 - Check if jq is installed: `jq --version`
@@ -254,7 +254,7 @@ Currently tested with:
 The work manager consists of:
 - `work`: Main work tracking script
 - `work-nudge`: Nudging script for periodic reminders
-- `install.sh`: Installation and setup script
+- `setup.sh`: Installation and setup script
 - `config.sh`: Configuration file template
 - `~/.local/work/`: Data directory with database, prompt files, and configuration
 
