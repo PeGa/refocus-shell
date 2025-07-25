@@ -687,8 +687,21 @@ function work_report_today() {
     local end_time
     end_time=$(date -Iseconds)
     
-    echo "# Work Report - Today ($(date +%Y-%m-%d))"
-    echo ""
+    local report_content
+    report_content=$(cat <<EOF
+# Work Report - Today ($(date +%Y-%m-%d))
+
+EOF
+)
+    
+    # Always export to predefined file
+    local export_file="work-report-today-$(date +%Y-%m-%d).md"
+    echo "$report_content" > "$export_file"
+    work_generate_report "$start_time" "$end_time" >> "$export_file"
+    echo "📄 Report exported to: $export_file"
+    
+    # Also display on screen
+    echo "$report_content"
     work_generate_report "$start_time" "$end_time"
 }
 
@@ -698,8 +711,21 @@ function work_report_week() {
     local end_time
     end_time=$(date -Iseconds)
     
-    echo "# Work Report - This Week ($(date -d "monday this week" +%Y-%m-%d) to $(date +%Y-%m-%d))"
-    echo ""
+    local report_content
+    report_content=$(cat <<EOF
+# Work Report - This Week ($(date -d "monday this week" +%Y-%m-%d) to $(date +%Y-%m-%d))
+
+EOF
+)
+    
+    # Always export to predefined file
+    local export_file="work-report-week-$(date +%Y-%m-%d).md"
+    echo "$report_content" > "$export_file"
+    work_generate_report "$start_time" "$end_time" >> "$export_file"
+    echo "📄 Report exported to: $export_file"
+    
+    # Also display on screen
+    echo "$report_content"
     work_generate_report "$start_time" "$end_time"
 }
 
@@ -709,8 +735,21 @@ function work_report_month() {
     local end_time
     end_time=$(date -Iseconds)
     
-    echo "# Work Report - This Month ($(date +%Y-%m-01) to $(date +%Y-%m-%d))"
-    echo ""
+    local report_content
+    report_content=$(cat <<EOF
+# Work Report - This Month ($(date +%Y-%m-01) to $(date +%Y-%m-%d))
+
+EOF
+)
+    
+    # Always export to predefined file
+    local export_file="work-report-month-$(date +%Y-%m).md"
+    echo "$report_content" > "$export_file"
+    work_generate_report "$start_time" "$end_time" >> "$export_file"
+    echo "📄 Report exported to: $export_file"
+    
+    # Also display on screen
+    echo "$report_content"
     work_generate_report "$start_time" "$end_time"
 }
 
@@ -737,8 +776,21 @@ function work_report_custom() {
     local end_time
     end_time=$(date -Iseconds)
     
-    echo "# Work Report - Last $days_back Days ($(date -d "$days_back days ago" +%Y-%m-%d) to $(date +%Y-%m-%d))"
-    echo ""
+    local report_content
+    report_content=$(cat <<EOF
+# Work Report - Last $days_back Days ($(date -d "$days_back days ago" +%Y-%m-%d) to $(date +%Y-%m-%d))
+
+EOF
+)
+    
+    # Always export to predefined file
+    local export_file="work-report-custom-${days_back}days-$(date +%Y-%m-%d).md"
+    echo "$report_content" > "$export_file"
+    work_generate_report "$start_time" "$end_time" >> "$export_file"
+    echo "📄 Report exported to: $export_file"
+    
+    # Also display on screen
+    echo "$report_content"
     work_generate_report "$start_time" "$end_time"
 }
 
@@ -814,13 +866,16 @@ function work_report_help() {
     echo "  work report custom <N>   # Last N days report"
     echo ""
     echo "Examples:"
-    echo "  work report today              # Today's work summary"
-    echo "  work report week               # This week's summary"
-    echo "  work report month              # This month's summary"
-    echo "  work report custom 7           # Last 7 days"
-    echo "  work report custom 30          # Last 30 days"
+    echo "  work report today        # Today's work summary + export"
+    echo "  work report week         # This week's summary + export"
+    echo "  work report month        # This month's summary + export"
+    echo "  work report custom 7     # Last 7 days + export"
     echo ""
-    echo "Note: Reports show work time totals and idleness for visibility"
+    echo "Note: Reports are automatically exported to markdown files:"
+    echo "      work-report-today-YYYY-MM-DD.md"
+    echo "      work-report-week-YYYY-MM-DD.md"
+    echo "      work-report-month-YYYY-MM.md"
+    echo "      work-report-custom-Ndays-YYYY-MM-DD.md"
 }
 
 function work_help() {
