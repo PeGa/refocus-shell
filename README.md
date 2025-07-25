@@ -7,6 +7,7 @@ A privacy-first, FLOSS command-line tool for tracking work sessions with intelli
 - **Core Work Tracking**: `work on/off/status` commands
 - **Smart Continuation**: `work on` without project continues last session
 - **Enhanced Status**: Rich context about last session and time tracking
+- **Past Session Management**: Add, modify, and delete historical work sessions
 - **Desktop Notifications**: `notify-send` integration
 - **Shell Integration**: Dynamic prompt modification with `⏳ [Project]` indicator
 - **Intelligent Nudging**: Periodic reminders every 10 minutes via cron
@@ -58,6 +59,9 @@ work on "project-name"    # Start tracking work on a project
 work on                   # Continue with last project (interactive)
 work off                  # Stop tracking work
 work status               # Show current work status
+work past add "project" <minutes>    # Add past work session
+work past modify "project" <minutes>  # Modify session duration
+work past delete "project"            # Delete a session
 ```
 
 ### Advanced Commands
@@ -88,6 +92,12 @@ work on
 
 # Check status (shows last session when not working)
 work status
+
+# Add a past work session (45 minutes)
+work past add "meeting" 45
+
+# Modify an existing session duration
+work past modify "coding" 120
 
 # Export your data
 work export my-backup.json
@@ -131,6 +141,31 @@ $ work status
 ✅ Not currently tracking work.
 📊 Last session: website-redesign (45m)
 ⏰ Time since last work: 2h 15m
+```
+
+## Past Session Management
+
+Work Manager allows you to manage historical work sessions that may have been missed or need adjustment:
+
+- **Add Past Sessions**: `work past add "project" <minutes>` - Add a session that ended X minutes ago
+- **Modify Sessions**: `work past modify "project" <minutes>` - Change the duration of an existing session
+- **Delete Sessions**: `work past delete "project"` - Remove a session with confirmation
+- **Smart Timestamps**: Sessions are created with end time = now, start time = X minutes ago
+- **Validation**: Input validation ensures proper project names and time values
+
+### Example:
+```bash
+$ work past add "team-meeting" 90
+✅ Added past session: team-meeting (90m)
+
+$ work past modify "coding" 180
+✅ Modified session: coding (180m)
+
+$ work past delete "old-project"
+🗑️  Deleting session: old-project (45m)
+Session: 2025-07-25T10:00:00-03:00 to 2025-07-25T10:45:00-03:00
+Are you sure? (y/N)
+✅ Session deleted: old-project
 ```
 
 ## Nudging System

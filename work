@@ -502,6 +502,130 @@ function work_import() {
     fi
 }
 
+function work_past_add() {
+    local project="$1"
+    local minutes="$2"
+    
+    if [[ -z "$project" || -z "$minutes" ]]; then
+        echo "❌ Please specify both project name and time in minutes."
+        echo "Usage: work past add \"project\" <minutes>"
+        exit 1
+    fi
+    
+    # Validate minutes is a number
+    if ! [[ "$minutes" =~ ^[0-9]+$ ]]; then
+        echo "❌ Time must be a positive integer (minutes)."
+        exit 1
+    fi
+    
+    # Calculate timestamps (session ended now, started X minutes ago)
+    local end_time
+    end_time=$(date -Iseconds)
+    local start_time
+    start_time=$(date -Iseconds -d "$minutes minutes ago")
+    local duration_seconds
+    duration_seconds=$((minutes * 60))
+    
+    # Insert the session
+    sqlite3 "$DB" "INSERT INTO $SESSIONS_TABLE (project, start_time, end_time, duration_seconds) VALUES ('$project', '$start_time', '$end_time', $duration_seconds);"
+    
+    echo "✅ Added past session: $project (${minutes}m)"
+    verbose_echo "Session: $start_time to $end_time (${duration_seconds}s)"
+}
+
+function work_past_modify() {
+    local project="$1"
+    local minutes="$2"
+    
+    if [[ -z "$project" || -z "$minutes" ]]; then
+        echo "❌ Please specify both project name and time in minutes."
+        echo "Usage: work past modify \"project\" <minutes>"
+        exit 1
+    fi
+    
+    # Validate minutes is a number
+    if ! [[ "$minutes" =~ ^[0-9]+$ ]]; then
+        echo "❌ Time must be a positive integer (minutes)."
+        exit 1
+    fi
+    
+    # Check if session exists
+    local session_count
+    session_count=$(sqlite3 "$DB" "SELECT COUNT(*) FROM $SESSIONS_TABLE WHERE project = '$project';" 2>/dev/null)
+    
+    if [[ "$session_count" -eq 0 ]]; then
+        echo "❌ No session found for project: $project"
+        echo "Use 'work past add \"$project\" <minutes>' to create a new session."
+        exit 1
+    fi
+    
+    # Calculate new timestamps
+    local end_time
+    end_time=$(date -Iseconds)
+    local start_time
+    start_time=$(date -Iseconds -d "$minutes minutes ago")
+    local duration_seconds
+    duration_seconds=$((minutes * 60))
+    
+    # Update the session
+    sqlite3 "$DB" "UPDATE $SESSIONS_TABLE SET start_time = '$start_time', end_time = '$end_time', duration_seconds = $duration_seconds WHERE project = '$project';"
+    
+    echo "✅ Modified session: $project (${minutes}m)"
+    verbose_echo "Updated session: $start_time to $end_time (${duration_seconds}s)"
+}
+
+function work_past_delete() {
+    local project="$1"
+    
+    if [[ -z "$project" ]]; then
+        echo "❌ Please specify a project name."
+        echo "Usage: work past delete \"project\""
+        exit 1
+    fi
+    
+    # Check if session exists
+    local session_count
+    session_count=$(sqlite3 "$DB" "SELECT COUNT(*) FROM $SESSIONS_TABLE WHERE project = '$project';" 2>/dev/null)
+    
+    if [[ "$session_count" -eq 0 ]]; then
+        echo "❌ No session found for project: $project"
+        exit 1
+    fi
+    
+    # Get session details for confirmation
+    local session_info
+    session_info=$(sqlite3 "$DB" "SELECT start_time, end_time, duration_seconds FROM $SESSIONS_TABLE WHERE project = '$project';" 2>/dev/null)
+    IFS='|' read -r start_time end_time duration <<< "$session_info"
+    local duration_min
+    duration_min=$((duration / 60))
+    
+    echo "🗑️  Deleting session: $project (${duration_min}m)"
+    echo "Session: $start_time to $end_time"
+    echo "Are you sure? (y/N)"
+    read -r response
+    
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        sqlite3 "$DB" "DELETE FROM $SESSIONS_TABLE WHERE project = '$project';"
+        echo "✅ Session deleted: $project"
+    else
+        echo "❌ Deletion cancelled."
+    fi
+}
+
+function work_past_help() {
+    echo "Past Session Management:"
+    echo "  work past add \"project\" <minutes>    # Add a past work session"
+    echo "  work past modify \"project\" <minutes>  # Modify existing session duration"
+    echo "  work past delete \"project\"            # Delete a session"
+    echo ""
+    echo "Examples:"
+    echo "  work past add \"meeting\" 30            # Add 30-minute meeting session"
+    echo "  work past modify \"coding\" 120         # Change coding session to 2 hours"
+    echo "  work past delete \"old-project\"        # Delete old project session"
+    echo ""
+    echo "Note: Sessions are created with end time = now, start time = X minutes ago"
+}
+
 function work_help() {
     echo "Usage:"
     echo "  work on \"project\"      Start tracking"
@@ -513,6 +637,9 @@ function work_help() {
     echo "  work test-nudge         Send manual nudge (testing)"
     echo "  work export [file]      Export data to JSON"
     echo "  work import <file>      Import data from JSON"
+    echo "  work past add \"project\" <minutes>    # Add past session"
+    echo "  work past modify \"project\" <minutes>  # Modify session"
+    echo "  work past delete \"project\"            # Delete session"
     echo "  work reset              Reset database (delete all data)"
     echo ""
     echo "Options:"
@@ -521,6 +648,8 @@ function work_help() {
     echo "Examples:"
     echo "  work on \"my-project\"        # Start tracking specific project"
     echo "  work on                     # Continue with last project"
+    echo "  work past add \"meeting\" 30  # Add 30-minute past session"
+    echo "  work past modify \"coding\" 120 # Change session to 2 hours"
     echo "  work export                    # Export to timestamped file"
     echo "  work export my-data.json      # Export to specific file"
     echo "  work import backup.json       # Import from JSON file"
@@ -577,6 +706,26 @@ case "$1" in
     import)
         shift
         work_import "$@"
+        ;;
+    past)
+        shift
+        case "$1" in
+            add)
+                shift
+                work_past_add "$@"
+                ;;
+            modify)
+                shift
+                work_past_modify "$@"
+                ;;
+            delete)
+                shift
+                work_past_delete "$@"
+                ;;
+            *)
+                work_past_help
+                ;;
+        esac
         ;;
     reset)
         work_reset
