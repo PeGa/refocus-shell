@@ -31,12 +31,16 @@
 - [Future Features](#future-features)
 - [License](#license)
 
-## Who It's For
+## Who Should Use This?
 
-- Neurodivergent developers and sysadmins who need **low-friction structure**
-- Freelancers tired of guessing where their hours went
-- Anyone who wants a **terminal-first**, privacy-respecting time tracker
-- People who don't want their productivity tools to spy on them
+- **Neurodivergent users** (ADHD/autistic) seeking better time awareness without overwhelming complexity
+- **Developers and sysadmins** who need **low-friction structure** for billable hour tracking
+- **Freelancers** tired of guessing where their hours went
+- **People who want to respect their own pace**, not corporate metrics
+- **Anyone who wants local-first, privacy-respecting workflow tools**
+- **People who don't want their productivity tools to spy on them**
+
+> 💡 **Pro Tip**: The `⏳ [project]` prompt tag works **across all terminals** - start work in one terminal, and every new terminal you open will show your current project!
 
 ## Features
 
@@ -526,6 +530,18 @@ If you fork or extend this project, you're very welcome to — as long as your v
 
 **This isn't viral licensing.  
 This is licensing with purpose.**
+
+## What Not To Build
+
+This project has a clear philosophy. Please **don't** build:
+
+- **Centralized cloud-first versions** that compromise user privacy
+- **"Always-on" surveillance productivity clones** that track every keystroke
+- **Closed-source forks** masquerading as improvements
+- **Proprietary integrations** that lock users into specific platforms
+- **Telemetry-heavy versions** that send data to third parties
+
+If you're considering a fork, ask yourself: *Does this respect user sovereignty and privacy?* If not, please build something else.
 
 ### What This Means for Users
 
