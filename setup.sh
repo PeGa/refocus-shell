@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Work Manager Setup - A privacy-first, FLOSS productivity tool
-# Copyright (C) 2024 [Your Name]
+# Copyright (C) 2025 Pablo Gonzalez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
