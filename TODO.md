@@ -4,19 +4,21 @@
 
 This is a project lovingly evocating Ubuntu's 100 paper cuts, with the idea of fixing small issues that bother a lot. We don't have 100 paper cuts, but we do hame a few nasty annoyances that can make life better.
 
-- Some concern separation is due to prevent the spahettification of the project.
+1. A full code sanity check is due. I know there hidden gems here and there.
 
-- A refactor is also due, where some code can be elegantly reutilized.
+2.  Some concern separation is due to prevent the spahettification of the project.
 
-- Project is using .bash_functions, which is a custom implementation for the developer. This won't exist anywhere else, so the idea is to make .bashrc source another script where to put work manager's shenanigans (akin to bash_functions), not messing with user's infrastructure/implementation.
+3. A refactor is also due, where some code can be elegantly reutilized.
 
-- Project is not only .bash_functions, but leaves tons of backups, and backups of backups. Not tolerable.
+4. Project is using .bash_functions, which is a custom implementation for the developer. This won't exist anywhere else, so the idea is to make .bashrc source another script where to put work manager's shenanigans (akin to bash_functions), not messing with user's infrastructure/implementation.
 
-- I think that same goes to the prompt backup (tons of backups, and backups of backups)
+5. Project is not only .bash_functions, but leaves tons of backups, and backups of backups. Not tolerable.
 
-- When uninstalling, work directory (namely $HOME/.local/work) is left full of crap, without even noticing the user. It would be interesting to ask the user to clean up the mess automatically, or at least let the user knowthe situation.
+6. I think that same goes to the prompt backup (tons of backups, and backups of backups)
 
-- When installing, the y/n prompt defaults to N, preventing the user to install just by hitting enter:
+7. When uninstalling, work directory (namely $HOME/.local/work) is left full of crap, without even noticing the user. It would be interesting to ask the user to clean up the mess automatically, or at least let the user knowthe situation.
+
+8. When installing, the y/n prompt defaults to N, preventing the user to install just by hitting enter:
 
 ```
 $ ./setup.sh install
@@ -31,11 +33,11 @@ Create directory '/home/pega/.local/work'? (y/N):
 Installation aborted.
 ```
 
-- Same goes for the bin/ directory. I'm not sure what will happen if the directory doesn't exist.
+9. Same goes for the bin/ directory. I'm not sure what will happen if the directory doesn't exist.
 
-- `work status` should include time elapsed on the current status.
+10. `work status` should include time elapsed on the current status.
 
-- Prompt should be updated. How does virtualenv do then? (alright, this one might be a wild piece of engineering). 
+11. Prompt should be updated. How does virtualenv do then? (alright, this one might be a wild piece of engineering). 
 
 ```
 pega@temple:~$ work on something
@@ -58,7 +60,7 @@ testing my PS1: pega@temple:~$ oldprompt
 pega@temple:~$ 
 ```
 
-- `update-prompt` is missing on a clean installation:
+12. `update-prompt` is missing on a clean installation:
 
 ```
 pega@temple:~/dev/personal/work-manager$ work off
