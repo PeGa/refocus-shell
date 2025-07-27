@@ -75,3 +75,5 @@ pega@temple:~/dev/personal/work-manager$ whereis update-prompt
 update-prompt:
 pega@temple:~/dev/personal/work-manager$
 ```
+
+13. After working on a project named X, issuing work on X resumes normally, which is good, to some extent. Ideally, it should ask the user whether hey want to resume working on that project, or start a new one. Which brings the new restriction: there shouldn't be two different projects with the same name. They could be called the same, but adding just a different word, a number, or a clarification to specify it's just a sequel but not the _exact same_ project would suffice to prevent collissions in the database.
