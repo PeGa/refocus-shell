@@ -351,7 +351,8 @@ init_database() {
             active INTEGER DEFAULT 0,
             project TEXT,
             start_time TEXT,
-            prompt_file TEXT,
+            prompt_content TEXT,
+            prompt_type TEXT DEFAULT 'default',
             nudging_enabled BOOLEAN DEFAULT 1,
             work_disabled BOOLEAN DEFAULT 0,
             last_work_off_time TEXT
@@ -365,8 +366,8 @@ init_database() {
             duration_seconds INTEGER NOT NULL
         );
         
-        INSERT OR IGNORE INTO state (id, active, project, start_time, prompt_file, nudging_enabled, work_disabled, last_work_off_time) 
-        VALUES (1, 0, NULL, NULL, NULL, 1, 0, NULL);
+        INSERT OR IGNORE INTO state (id, active, project, start_time, prompt_content, prompt_type, nudging_enabled, work_disabled, last_work_off_time) 
+        VALUES (1, 0, NULL, NULL, NULL, 'default', 1, 0, NULL);
     "
     
     # Fix ownership if running with sudo
@@ -654,14 +655,14 @@ function update-prompt(){
     # Get the database path
     WORK_DB="$HOME/.local/work/timelog.db"
 
-    # Check if database exists and get current prompt file
+    # Check if database exists and get current prompt content
     if [[ -f "$WORK_DB" ]]; then
-        # Get the prompt file from database
-        PROMPT_FILE=$(sqlite3 "$WORK_DB" "SELECT prompt_file FROM state WHERE id = 1;" 2>/dev/null)
+        # Get the prompt content from database
+        PROMPT_CONTENT=$(sqlite3 "$WORK_DB" "SELECT prompt_content FROM state WHERE id = 1;" 2>/dev/null)
         
-        if [[ -n "$PROMPT_FILE" ]] && [[ -f "$PROMPT_FILE" ]]; then
-            # Source the prompt file to set PS1
-            source "$PROMPT_FILE"
+        if [[ -n "$PROMPT_CONTENT" ]]; then
+            # Set PS1 directly from database content
+            export PS1="$PROMPT_CONTENT"
         fi
     fi
 }

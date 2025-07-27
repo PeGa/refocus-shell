@@ -28,6 +28,13 @@ SESSIONS_TABLE="sessions"
 # Verbose mode flag
 VERBOSE=false
 
+# Function to safely escape SQL strings
+sql_escape() {
+    local input="$1"
+    # Replace single quotes with double single quotes (SQL escaping)
+    echo "$input" | sed "s/'/''/g"
+}
+
 # Function to print verbose messages
 verbose_echo() {
     if [[ "$VERBOSE" == "true" ]]; then
@@ -41,37 +48,32 @@ get_current_prompt() {
     echo '${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 }
 
-# Function to save current prompt to temporary file
+# Function to save current prompt to database
 save_current_prompt() {
-    local original_prompt_file="/tmp/work_original_prompt_$$"
-    
-    # Save current PS1 to temporary file
     local current_prompt
     current_prompt=$(get_current_prompt)
     
-    cat > "$original_prompt_file" << EOF
-# Original prompt saved by work manager
-PS1='$current_prompt'
-EOF
-    verbose_echo "Original prompt saved to temporary file: $original_prompt_file"
+    # Save current prompt to database
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET prompt_content = '$current_prompt', prompt_type = 'original' WHERE id = 1;"
+    verbose_echo "Original prompt saved to database"
 }
 
-# Function to set work prompt using temporary files
+# Function to set work prompt using database
 set_work_prompt() {
     local project="$1"
-    local work_prompt_file="/tmp/work_active_prompt_$$"
     
     # Save current prompt first
     save_current_prompt
     
     # Create work prompt with indicator at the front
-    cat > "$work_prompt_file" << EOF
-# Work manager prompt - active work session
-PS1='⏳ [$project] \${debian_chroot:+(\$debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
-EOF
+    local escaped_project
+    escaped_project=$(sql_escape "$project")
+    local work_prompt='⏳ ['$escaped_project'] ${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
     
-    # Update database with prompt file location
-    sqlite3 "$DB" "UPDATE $STATE_TABLE SET prompt_file = '$work_prompt_file' WHERE id = 1;"
+    # Update database with work prompt (escape the entire prompt content)
+    local escaped_work_prompt
+    escaped_work_prompt=$(sql_escape "$work_prompt")
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET prompt_content = '$escaped_work_prompt', prompt_type = 'work' WHERE id = 1;"
     
     # Update current terminal prompt using the function
     # Try to call update-prompt function if available
@@ -81,7 +83,7 @@ EOF
         verbose_echo "Current terminal prompt updated - press Enter to see the change."
     else
         # Fallback: export PS1 directly
-        export PS1='⏳ ['$project'] ${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+        export PS1="$work_prompt"
         verbose_echo "Work prompt set for: $project"
         verbose_echo "Note: New terminals will show the work indicator. Current terminal updated."
     fi
@@ -92,20 +94,17 @@ EOF
 
 # Function to restore original prompt
 restore_original_prompt() {
-    local original_prompt_file="/tmp/work_original_prompt_$$"
-    local default_prompt_file="/tmp/work_default_prompt_$$"
+    # Get original prompt from database
+    local original_prompt
+    original_prompt=$(sqlite3 "$DB" "SELECT prompt_content FROM $STATE_TABLE WHERE prompt_type = 'original' AND id = 1;" 2>/dev/null)
     
-    # Clear prompt file from database
-    sqlite3 "$DB" "UPDATE $STATE_TABLE SET prompt_file = NULL WHERE id = 1;"
+    # If no original prompt found, use default
+    if [[ -z "$original_prompt" ]]; then
+        original_prompt='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+    fi
     
-    # Create default prompt file
-    cat > "$default_prompt_file" << 'EOF'
-# Default Ubuntu prompt (no work session active)
-PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
-EOF
-    
-    # Update database with default prompt file
-    sqlite3 "$DB" "UPDATE $STATE_TABLE SET prompt_file = '$default_prompt_file' WHERE id = 1;"
+    # Update database with default prompt
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET prompt_content = '$original_prompt', prompt_type = 'default' WHERE id = 1;"
     
     # Update current terminal prompt using the function
     # Try to call update-prompt function if available
@@ -115,13 +114,7 @@ EOF
         verbose_echo "Current terminal prompt updated - press Enter to see the change."
     else
         # Fallback: export PS1 directly
-        if [[ -f "$original_prompt_file" ]]; then
-            # Source the original prompt to get the PS1 value
-            source "$original_prompt_file"
-        else
-            # Use default Ubuntu prompt
-            export PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
-        fi
+        export PS1="$original_prompt"
         verbose_echo "Original prompt restored"
         verbose_echo "Note: New terminals will show the normal prompt. Current terminal updated."
     fi
@@ -132,15 +125,15 @@ EOF
 
 # Function to get current prompt from database
 get_current_prompt_from_db() {
-    local prompt_file
-    prompt_file=$(sqlite3 "$DB" "SELECT prompt_file FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null)
+    local prompt_content
+    prompt_content=$(sqlite3 "$DB" "SELECT prompt_content FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null)
     
-    if [[ -n "$prompt_file" ]] && [[ -f "$prompt_file" ]]; then
-        # Source the prompt file to get PS1
-        source "$prompt_file"
+    if [[ -n "$prompt_content" ]]; then
+        # Set PS1 from database content
+        export PS1="$prompt_content"
         return 0
     else
-        # No active session or prompt file doesn't exist, use default
+        # No active session or prompt content doesn't exist, use default
         export PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
         return 1
     fi
@@ -245,7 +238,9 @@ function work_on() {
         if [[ -n "$last_project" ]]; then
             # Calculate total time for the last project to show in prompt
             local total_project_time
-            total_project_time=$(sqlite3 "$DB" "SELECT COALESCE(SUM(duration_seconds), 0) FROM $SESSIONS_TABLE WHERE project = '$last_project' AND project != '[idle]';" 2>/dev/null)
+            local escaped_last_project
+    escaped_last_project=$(sql_escape "$last_project")
+    total_project_time=$(sqlite3 "$DB" "SELECT COALESCE(SUM(duration_seconds), 0) FROM $SESSIONS_TABLE WHERE project = '$escaped_last_project' AND project != '[idle]';" 2>/dev/null)
             local total_minutes
             total_minutes=$((total_project_time / 60))
             
@@ -273,11 +268,15 @@ function work_on() {
 
     # Calculate total time for this project (including previous sessions)
     local total_project_time
-    total_project_time=$(sqlite3 "$DB" "SELECT COALESCE(SUM(duration_seconds), 0) FROM $SESSIONS_TABLE WHERE project = '$project' AND project != '[idle]';" 2>/dev/null)
+    local escaped_project
+    escaped_project=$(sql_escape "$project")
+    total_project_time=$(sqlite3 "$DB" "SELECT COALESCE(SUM(duration_seconds), 0) FROM $SESSIONS_TABLE WHERE project = '$escaped_project' AND project != '[idle]';" 2>/dev/null)
     local total_minutes
     total_minutes=$((total_project_time / 60))
     
-    sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = 1, project = '$project', start_time = '$start_time' WHERE id = 1;"
+    local escaped_project
+    escaped_project=$(sql_escape "$project")
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = 1, project = '$escaped_project', start_time = '$start_time' WHERE id = 1;"
     
     if [[ $total_minutes -gt 0 ]]; then
         echo "Started work on: $project (Total: ${total_minutes}m)"
@@ -309,11 +308,13 @@ function work_off() {
     end_ts=$(date --date="$now" +%s)
     duration=$((end_ts - start_ts))
 
+    local escaped_project
+    escaped_project=$(sql_escape "$project")
     sqlite3 "$DB" \
         "INSERT INTO $SESSIONS_TABLE (project, start_time, end_time, duration_seconds) \
-         VALUES ('$project', '$start_time', '$now', $duration);"
+         VALUES ('$escaped_project', '$start_time', '$now', $duration);"
 
-    sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = 0, project = NULL, start_time = NULL, prompt_file = NULL, last_work_off_time = '$now' WHERE id = 1;"
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = 0, project = NULL, start_time = NULL, last_work_off_time = '$now' WHERE id = 1;"
     echo "Stopped work on: $project (Duration: $((duration / 60)) min)"
 
     # Restore original prompt
@@ -335,7 +336,9 @@ function work_status() {
         
         # Calculate total time for this project (including previous sessions)
         local total_project_time
-        total_project_time=$(sqlite3 "$DB" "SELECT COALESCE(SUM(duration_seconds), 0) FROM $SESSIONS_TABLE WHERE project = '$project' AND project != '[idle]';" 2>/dev/null)
+        local escaped_project
+        escaped_project=$(sql_escape "$project")
+        total_project_time=$(sqlite3 "$DB" "SELECT COALESCE(SUM(duration_seconds), 0) FROM $SESSIONS_TABLE WHERE project = '$escaped_project' AND project != '[idle]';" 2>/dev/null)
         local total_minutes
         total_minutes=$((total_project_time / 60))
         local current_minutes
@@ -532,11 +535,16 @@ function work_import() {
         local active=$(echo "$state_json" | jq -r '.active // 0')
         local project=$(echo "$state_json" | jq -r '.project // null')
         local start_time=$(echo "$state_json" | jq -r '.start_time // null')
-        local prompt_file=$(echo "$state_json" | jq -r '.prompt_file // null')
+        local prompt_content=$(echo "$state_json" | jq -r '.prompt_content // null')
+        local prompt_type=$(echo "$state_json" | jq -r '.prompt_type // "default"')
         local nudging_enabled=$(echo "$state_json" | jq -r '.nudging_enabled // 1')
         local work_disabled=$(echo "$state_json" | jq -r '.work_disabled // 0')
         
-        sqlite3 "$DB" "UPDATE state SET active = $active, project = '$project', start_time = '$start_time', prompt_file = '$prompt_file', nudging_enabled = $nudging_enabled, work_disabled = $work_disabled WHERE id = 1;"
+        local escaped_project
+        escaped_project=$(sql_escape "$project")
+        local escaped_prompt_content
+        escaped_prompt_content=$(sql_escape "$prompt_content")
+        sqlite3 "$DB" "UPDATE state SET active = $active, project = '$escaped_project', start_time = '$start_time', prompt_content = '$escaped_prompt_content', prompt_type = '$prompt_type', nudging_enabled = $nudging_enabled, work_disabled = $work_disabled WHERE id = 1;"
         verbose_echo "Imported state data"
     fi
     
@@ -544,7 +552,9 @@ function work_import() {
     local sessions_count=$(jq -r '.sessions | length' "$input_file" 2>/dev/null)
     if [[ "$sessions_count" -gt 0 ]]; then
         jq -r '.sessions[] | [.project, .start_time, .end_time, .duration_seconds] | @tsv' "$input_file" 2>/dev/null | while IFS=$'\t' read -r project start_time end_time duration; do
-            sqlite3 "$DB" "INSERT INTO sessions (project, start_time, end_time, duration_seconds) VALUES ('$project', '$start_time', '$end_time', $duration);"
+            local escaped_project
+            escaped_project=$(sql_escape "$project")
+            sqlite3 "$DB" "INSERT INTO sessions (project, start_time, end_time, duration_seconds) VALUES ('$escaped_project', '$start_time', '$end_time', $duration);"
         done
         verbose_echo "Imported $sessions_count sessions"
     fi
@@ -582,7 +592,9 @@ function work_past_add() {
     duration_seconds=$((minutes * 60))
     
     # Insert the session
-    sqlite3 "$DB" "INSERT INTO $SESSIONS_TABLE (project, start_time, end_time, duration_seconds) VALUES ('$project', '$start_time', '$end_time', $duration_seconds);"
+    local escaped_project
+    escaped_project=$(sql_escape "$project")
+    sqlite3 "$DB" "INSERT INTO $SESSIONS_TABLE (project, start_time, end_time, duration_seconds) VALUES ('$escaped_project', '$start_time', '$end_time', $duration_seconds);"
     
     echo "✅ Added past session: $project (${minutes}m)"
     verbose_echo "Session: $start_time to $end_time (${duration_seconds}s)"
@@ -606,7 +618,9 @@ function work_past_modify() {
     
     # Check if session exists
     local session_count
-    session_count=$(sqlite3 "$DB" "SELECT COUNT(*) FROM $SESSIONS_TABLE WHERE project = '$project';" 2>/dev/null)
+    local escaped_project
+    escaped_project=$(sql_escape "$project")
+    session_count=$(sqlite3 "$DB" "SELECT COUNT(*) FROM $SESSIONS_TABLE WHERE project = '$escaped_project';" 2>/dev/null)
     
     if [[ "$session_count" -eq 0 ]]; then
         echo "❌ No session found for project: $project"
@@ -623,7 +637,7 @@ function work_past_modify() {
     duration_seconds=$((minutes * 60))
     
     # Update the session
-    sqlite3 "$DB" "UPDATE $SESSIONS_TABLE SET start_time = '$start_time', end_time = '$end_time', duration_seconds = $duration_seconds WHERE project = '$project';"
+    sqlite3 "$DB" "UPDATE $SESSIONS_TABLE SET start_time = '$start_time', end_time = '$end_time', duration_seconds = $duration_seconds WHERE project = '$escaped_project';"
     
     echo "✅ Modified session: $project (${minutes}m)"
     verbose_echo "Updated session: $start_time to $end_time (${duration_seconds}s)"
@@ -640,7 +654,9 @@ function work_past_delete() {
     
     # Check if session exists
     local session_count
-    session_count=$(sqlite3 "$DB" "SELECT COUNT(*) FROM $SESSIONS_TABLE WHERE project = '$project';" 2>/dev/null)
+    local escaped_project
+    escaped_project=$(sql_escape "$project")
+    session_count=$(sqlite3 "$DB" "SELECT COUNT(*) FROM $SESSIONS_TABLE WHERE project = '$escaped_project';" 2>/dev/null)
     
     if [[ "$session_count" -eq 0 ]]; then
         echo "❌ No session found for project: $project"
@@ -649,7 +665,7 @@ function work_past_delete() {
     
     # Get session details for confirmation
     local session_info
-    session_info=$(sqlite3 "$DB" "SELECT start_time, end_time, duration_seconds FROM $SESSIONS_TABLE WHERE project = '$project';" 2>/dev/null)
+    session_info=$(sqlite3 "$DB" "SELECT start_time, end_time, duration_seconds FROM $SESSIONS_TABLE WHERE project = '$escaped_project';" 2>/dev/null)
     IFS='|' read -r start_time end_time duration <<< "$session_info"
     local duration_min
     duration_min=$((duration / 60))
@@ -660,7 +676,7 @@ function work_past_delete() {
     read -r response
     
     if [[ "$response" =~ ^[Yy]$ ]]; then
-        sqlite3 "$DB" "DELETE FROM $SESSIONS_TABLE WHERE project = '$project';"
+        sqlite3 "$DB" "DELETE FROM $SESSIONS_TABLE WHERE project = '$escaped_project';"
         echo "✅ Session deleted: $project"
     else
         echo "❌ Deletion cancelled."
@@ -921,6 +937,10 @@ while [[ $# -gt 0 ]]; do
         --verbose)
             VERBOSE=true
             shift
+            ;;
+        --help|-h)
+            work_help
+            exit 0
             ;;
         -*)
             echo "Unknown option: $1"
