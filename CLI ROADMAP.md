@@ -1,4 +1,4 @@
-# Work Manager CLI Roadmap
+# Refocus Shell CLI Roadmap
 
 ## Completed Phases ✅
 

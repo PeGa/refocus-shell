@@ -1,0 +1,526 @@
+#!/usr/bin/env bash
+# Refocus Shell Utilities Library
+# Copyright (C) 2025 Pablo Gonzalez
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+# Verbose mode flag
+VERBOSE="${VERBOSE:-false}"
+
+# Function to print verbose messages
+verbose_echo() {
+    if [[ "$VERBOSE" == "true" ]]; then
+        echo "$1"
+    fi
+}
+
+# Function to get current timestamp in ISO format
+get_current_timestamp() {
+    date -Iseconds
+}
+
+# Function to get timestamp for a specific time
+get_timestamp_for_time() {
+    local time_spec="$1"
+    date -Iseconds -d "$time_spec"
+}
+
+# Function to calculate duration between two timestamps
+calculate_duration() {
+    local start_time="$1"
+    local end_time="$2"
+    
+    local start_ts
+    start_ts=$(date --date="$start_time" +%s)
+    local end_ts
+    end_ts=$(date --date="$end_time" +%s)
+    
+    echo $((end_ts - start_ts))
+}
+
+# Function to format duration in minutes
+format_duration_minutes() {
+    local duration_seconds="$1"
+    echo $((duration_seconds / 60))
+}
+
+# Function to format duration in hours and minutes
+format_duration_hours_minutes() {
+    local duration_seconds="$1"
+    local hours=$((duration_seconds / 3600))
+    local minutes=$(((duration_seconds % 3600) / 60))
+    echo "${hours}h ${minutes}m"
+}
+
+# Function to validate numeric input
+validate_numeric_input() {
+    local input="$1"
+    local description="$2"
+    
+    if ! [[ "$input" =~ ^[0-9]+$ ]]; then
+        echo "❌ $description must be a positive integer."
+        return 1
+    fi
+    return 0
+}
+
+# Function to validate project name
+validate_project_name() {
+    local project="$1"
+    
+    if [[ -z "$project" ]]; then
+        echo "❌ Project name cannot be empty."
+        return 1
+    fi
+    
+    # Check for maximum length (reasonable limit)
+    if [[ ${#project} -gt 100 ]]; then
+        echo "❌ Project name is too long (max 100 characters)."
+        return 1
+    fi
+    
+    # Check for dangerous characters that could cause SQL issues
+    if [[ "$project" =~ [\"\\] ]]; then
+        echo "❌ Project name contains invalid characters (quotes or backslashes)."
+        return 1
+    fi
+    
+    # Check for control characters
+    if [[ "$project" =~ [[:cntrl:]] ]]; then
+        echo "❌ Project name contains control characters."
+        return 1
+    fi
+    
+    return 0
+}
+
+# Function to validate and convert timestamp format
+validate_timestamp() {
+    local timestamp="$1"
+    local description="${2:-timestamp}"
+    
+    if [[ -z "$timestamp" ]]; then
+        echo "❌ $description cannot be empty."
+        return 1
+    fi
+    
+    # Check if it's already in ISO format
+    if [[ "$timestamp" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}([+-][0-9]{2}:[0-9]{2}|Z)?$ ]]; then
+        # Already in ISO format, just validate it
+        if ! date --date="$timestamp" >/dev/null 2>&1; then
+            echo "❌ $description is not a valid date/time."
+            return 1
+        fi
+        return 0
+    fi
+    
+    # Check for new YYYY/MM/DD-HH:MM format
+    if [[ "$timestamp" =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}-[0-9]{2}:[0-9]{2}$ ]]; then
+        # Convert YYYY/MM/DD-HH:MM to ISO format
+        local year month day hour minute
+        
+        # Parse YYYY/MM/DD-HH:MM format
+        year=$(echo "$timestamp" | cut -d'/' -f1)
+        month=$(echo "$timestamp" | cut -d'/' -f2)
+        day=$(echo "$timestamp" | cut -d'/' -f3 | cut -d'-' -f1)
+        hour=$(echo "$timestamp" | cut -d'-' -f2 | cut -d':' -f1)
+        minute=$(echo "$timestamp" | cut -d'-' -f2 | cut -d':' -f2)
+        
+        # Validate the components
+        if [[ "$year" -lt 1900 ]] || [[ "$year" -gt 2100 ]]; then
+            echo "❌ $description has invalid year: $year"
+            return 1
+        fi
+        
+        if [[ "$month" -lt 1 ]] || [[ "$month" -gt 12 ]]; then
+            echo "❌ $description has invalid month: $month"
+            return 1
+        fi
+        
+        if [[ "$day" -lt 1 ]] || [[ "$day" -gt 31 ]]; then
+            echo "❌ $description has invalid day: $day"
+            return 1
+        fi
+        
+        if [[ "$hour" -lt 0 ]] || [[ "$hour" -gt 23 ]]; then
+            echo "❌ $description has invalid hour: $hour"
+            return 1
+        fi
+        
+        if [[ "$minute" -lt 0 ]] || [[ "$minute" -gt 59 ]]; then
+            echo "❌ $description has invalid minute: $minute"
+            return 1
+        fi
+        
+        # Convert to ISO format
+        local iso_timestamp
+        iso_timestamp=$(date --date="$year-$month-$day $hour:$minute" -Iseconds 2>/dev/null)
+        
+        if [[ $? -ne 0 ]]; then
+            echo "❌ $description is not a valid date/time."
+            return 1
+        fi
+        
+        echo "$iso_timestamp"
+        return 0
+    fi
+    
+    # Try to parse and convert to ISO format (for backward compatibility)
+    local converted_timestamp
+    converted_timestamp=$(date --date="$timestamp" -Iseconds 2>/dev/null)
+    
+    if [[ $? -ne 0 ]]; then
+        echo "❌ $description format not recognized."
+        echo "Supported formats:"
+        echo "  - YYYY/MM/DD-HH:MM (recommended: 2025/07/30-14:30)"
+        echo "  - HH:MM (today's date)"
+        echo "  - 'YYYY-MM-DD HH:MM' (quoted datetime)"
+        echo "  - 'YYYY-MM-DDTHH:MM' (ISO format)"
+        echo "  - Full ISO format (YYYY-MM-DDTHH:MM:SS±HH:MM)"
+        echo "  - Relative dates ('yesterday 14:30', '2 hours ago', etc.)"
+        echo ""
+        echo "Examples:"
+        echo "  work past add meeting 2025/07/30-14:15 2025/07/30-15:30"
+        echo "  work past add meeting 14:15 15:30  # Today's date"
+        echo "  work past add meeting 'yesterday 14:30' 'yesterday 15:30'"
+        return 1
+    fi
+    
+    # Return the converted timestamp
+    echo "$converted_timestamp"
+    return 0
+}
+
+# Function to validate time range
+validate_time_range() {
+    local start_time="$1"
+    local end_time="$2"
+    
+    if ! validate_timestamp "$start_time" "Start time"; then
+        return 1
+    fi
+    
+    if ! validate_timestamp "$end_time" "End time"; then
+        return 1
+    fi
+    
+    # Check that end time is after start time
+    local start_ts
+    start_ts=$(date --date="$start_time" +%s)
+    local end_ts
+    end_ts=$(date --date="$end_time" +%s)
+    
+    if [[ $end_ts -le $start_ts ]]; then
+        echo "❌ End time must be after start time."
+        return 1
+    fi
+    
+    return 0
+}
+
+# Function to validate file path
+validate_file_path() {
+    local file_path="$1"
+    local description="${2:-file}"
+    
+    if [[ -z "$file_path" ]]; then
+        echo "❌ $description path cannot be empty."
+        return 1
+    fi
+    
+    # Check for dangerous characters
+    if [[ "$file_path" =~ [\"\\] ]]; then
+        echo "❌ $description path contains invalid characters."
+        return 1
+    fi
+    
+    # Check for control characters
+    if [[ "$file_path" =~ [[:cntrl:]] ]]; then
+        echo "❌ $description path contains control characters."
+        return 1
+    fi
+    
+    return 0
+}
+
+# Function to sanitize project name
+sanitize_project_name() {
+    local project="$1"
+    
+    # Remove leading/trailing whitespace
+    project=$(echo "$project" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    
+    # Replace multiple spaces with single space
+    project=$(echo "$project" | sed 's/[[:space:]]\+/ /g')
+    
+    # Truncate if too long
+    if [[ ${#project} -gt 100 ]]; then
+        project="${project:0:97}..."
+    fi
+    
+    echo "$project"
+}
+
+# Function to validate session ID
+validate_session_id() {
+    local session_id="$1"
+    
+    if ! validate_numeric_input "$session_id" "Session ID"; then
+        return 1
+    fi
+    
+    # Check if session exists in database
+    if [[ -f "$(dirname "$0")/work-db.sh" ]]; then
+        source "$(dirname "$0")/work-db.sh"
+    fi
+    
+    local session_exists
+    session_exists=$(sqlite3 "$DB" "SELECT COUNT(*) FROM $SESSIONS_TABLE WHERE rowid = $session_id;" 2>/dev/null)
+    
+    if [[ "$session_exists" -eq 0 ]]; then
+        echo "❌ Session ID $session_id does not exist."
+        return 1
+    fi
+    
+    return 0
+}
+
+# Function to check if work is active
+is_work_active() {
+    # Source the database library to use its functions
+    if [[ -f "$(dirname "$0")/work-db.sh" ]]; then
+        source "$(dirname "$0")/work-db.sh"
+    fi
+    
+    local state
+    local old_ifs
+    local active
+    local current_project
+    local start_time
+    state=$(get_work_state)
+    if [[ -n "$state" ]]; then
+        old_ifs="$IFS"
+        IFS='|' read -r active current_project start_time <<< "$state"
+        IFS="$old_ifs"
+        if [[ "$active" -eq 1 ]]; then
+            return 0  # Active
+        fi
+    fi
+    return 1  # Not active
+}
+
+# Function to check if refocus shell is disabled
+is_work_disabled() {
+    # Source the database library to use its functions
+    if [[ -f "$(dirname "$0")/work-db.sh" ]]; then
+        source "$(dirname "$0")/work-db.sh"
+    fi
+    
+    local work_disabled
+    work_disabled=$(get_work_disabled)
+    if [[ "$work_disabled" -eq 1 ]]; then
+        return 0  # Disabled
+    fi
+    return 1  # Enabled
+}
+
+# Function to send notification if available
+send_notification() {
+    local title="$1"
+    local message="$2"
+    
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send "$title" "$message"
+    fi
+}
+
+# Function to check if update-prompt function is available
+is_update_prompt_available() {
+    type update-prompt >/dev/null 2>&1
+}
+
+# Function to get the current prompt or fallback to default
+get_current_prompt() {
+    # Always use the standard Ubuntu prompt as fallback since current PS1 is broken
+    echo '${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+}
+
+# Function to create work prompt string
+create_work_prompt() {
+    local project="$1"
+    echo '⏳ ['$project'] ${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01:34m\]\w\[\033[00m\]\$ '
+}
+
+# Function to create default prompt string
+create_default_prompt() {
+    echo '${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01:34m\]\w\[\033[00m\]\$ '
+}
+
+# Function to set work prompt
+set_work_prompt() {
+    local project="$1"
+    
+    # Create work prompt
+    local work_prompt
+    work_prompt=$(create_work_prompt "$project")
+    
+    # Update database with work prompt
+    update_prompt_content "$work_prompt" "work"
+    
+    # Try multiple methods to update the prompt
+    local prompt_updated=false
+    
+    # Method 1: Try to call update-prompt function if available
+    if type update-prompt >/dev/null 2>&1; then
+        update-prompt
+        prompt_updated=true
+        verbose_echo "Work prompt set via update-prompt function"
+    fi
+    
+    # Method 2: Try to source the shell integration directly
+    if [[ "$prompt_updated" == "false" ]] && [[ -f "$HOME/.local/work/shell-integration.sh" ]]; then
+        source "$HOME/.local/work/shell-integration.sh" 2>/dev/null
+        if type update-prompt >/dev/null 2>&1; then
+            update-prompt
+            prompt_updated=true
+            verbose_echo "Work prompt set via sourced shell integration"
+        fi
+    fi
+    
+    # Method 3: Direct PS1 export as fallback
+    if [[ "$prompt_updated" == "false" ]]; then
+        export PS1="$work_prompt"
+        prompt_updated=true
+        verbose_echo "Work prompt set via direct PS1 export"
+    fi
+    
+    verbose_echo "Work prompt set for project: $project"
+    
+    # Show appropriate message based on method used
+    if [[ "$prompt_updated" == "true" ]]; then
+        verbose_echo "Tip: Run 'update-prompt' to update the current terminal prompt"
+        verbose_echo "Note: New terminals will automatically show the work prompt"
+    else
+        echo "Warning: Could not update prompt automatically"
+        echo "Run 'update-prompt' to update the current terminal prompt"
+    fi
+}
+
+# Function to restore original prompt
+restore_original_prompt() {
+    # Get original prompt from database
+    local original_prompt
+    original_prompt=$(get_prompt_content_by_type "original")
+    
+    # If no original prompt found, use default
+    if [[ -z "$original_prompt" ]]; then
+        original_prompt=$(create_default_prompt)
+    fi
+    
+    # Update database with default prompt
+    update_prompt_content "$original_prompt" "default"
+    
+    # Try multiple methods to update the prompt
+    local prompt_updated=false
+    
+    # Method 1: Try to call update-prompt function if available
+    if type update-prompt >/dev/null 2>&1; then
+        update-prompt
+        prompt_updated=true
+        verbose_echo "Original prompt restored via update-prompt function"
+    fi
+    
+    # Method 2: Try to source the shell integration directly
+    if [[ "$prompt_updated" == "false" ]] && [[ -f "$HOME/.local/work/shell-integration.sh" ]]; then
+        source "$HOME/.local/work/shell-integration.sh" 2>/dev/null
+        if type update-prompt >/dev/null 2>&1; then
+            update-prompt
+            prompt_updated=true
+            verbose_echo "Original prompt restored via sourced shell integration"
+        fi
+    fi
+    
+    # Method 3: Direct PS1 export as fallback
+    if [[ "$prompt_updated" == "false" ]]; then
+        export PS1="$original_prompt"
+        prompt_updated=true
+        verbose_echo "Original prompt restored via direct PS1 export"
+    fi
+    
+    verbose_echo "Original prompt restored"
+    
+    # Show appropriate message based on method used
+    if [[ "$prompt_updated" == "true" ]]; then
+        verbose_echo "Tip: Run 'update-prompt' to update the current terminal prompt"
+        verbose_echo "Note: New terminals will automatically show the normal prompt"
+    else
+        echo "Warning: Could not restore prompt automatically"
+        echo "Run 'update-prompt' to update the current terminal prompt"
+    fi
+}
+
+# Function to truncate long project names for display
+truncate_project_name() {
+    local project="$1"
+    local max_length="${2:-33}"
+    
+    if [[ ${#project} -gt $max_length ]]; then
+        echo "${project:0:$((max_length-3))}..."
+    else
+        echo "$project"
+    fi
+}
+
+# Function to get time period start/end for reports
+get_today_period() {
+    local start_time
+    start_time=$(get_timestamp_for_time "today 00:00")
+    local end_time
+    end_time=$(get_current_timestamp)
+    echo "$start_time|$end_time"
+}
+
+get_week_period() {
+    local start_time
+    # Use "monday last week" if today is sunday, otherwise "monday this week"
+    local day_of_week
+    day_of_week=$(date +%u)
+    if [[ $day_of_week -eq 7 ]]; then
+        # Sunday - use last monday
+        start_time=$(get_timestamp_for_time "monday last week 00:00")
+    else
+        # Other days - use this monday
+        start_time=$(get_timestamp_for_time "monday this week 00:00")
+    fi
+    local end_time
+    end_time=$(get_current_timestamp)
+    echo "$start_time|$end_time"
+}
+
+get_month_period() {
+    local start_time
+    start_time=$(get_timestamp_for_time "$(date +%Y-%m-01) 00:00")
+    local end_time
+    end_time=$(get_current_timestamp)
+    echo "$start_time|$end_time"
+}
+
+get_custom_period() {
+    local days_back="$1"
+    local start_time
+    start_time=$(get_timestamp_for_time "$days_back days ago 00:00")
+    local end_time
+    end_time=$(get_current_timestamp)
+    echo "$start_time|$end_time"
+} 

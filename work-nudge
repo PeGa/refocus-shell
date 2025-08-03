@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Work Manager Nudge - A privacy-first, FLOSS productivity tool
+# Refocus Shell Nudge - A privacy-first, FLOSS productivity tool
 # Copyright (C) 2025 Pablo Gonzalez
 #
 # This program is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-# Work Manager Nudge Script
+# Refocus Shell Nudge Script
 # This script is executed by cron to send periodic notifications
 
 # Configuration
@@ -52,7 +52,7 @@ send_notification() {
     fi
 }
 
-# Check if work manager is disabled
+# Check if refocus shell is disabled
 check_work_disabled() {
     if [[ ! -f "$WORK_DB" ]]; then
         log_message "database not found"
@@ -63,7 +63,7 @@ check_work_disabled() {
     work_disabled=$(sqlite3 "$WORK_DB" "SELECT work_disabled FROM state WHERE id = 1;" 2>/dev/null)
     
     if [[ "$work_disabled" -eq 1 ]]; then
-        log_message "work manager is disabled"
+        log_message "refocus shell is disabled"
         return 1
     fi
     
@@ -123,7 +123,7 @@ get_work_status() {
 main() {
     log_message "nudge script started"
     
-    # Check if work manager is disabled
+    # Check if refocus shell is disabled
     if ! check_work_disabled; then
         exit 0
     fi

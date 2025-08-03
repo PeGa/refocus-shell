@@ -1,0 +1,216 @@
+#!/usr/bin/env bash
+# Refocus Shell Database Functions Library
+# Copyright (C) 2025 Pablo Gonzalez
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+# Database configuration
+DB_DEFAULT="$HOME/.local/work/timelog.db"
+DB="${WORK_DB:-$DB_DEFAULT}"
+# Table names - these should match what's used in the main script
+STATE_TABLE="${STATE_TABLE:-state}"
+SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
+
+# Function to safely escape SQL strings
+sql_escape() {
+    local input="$1"
+    # Replace single quotes with double single quotes (SQL escaping)
+    echo "$input" | sed "s/'/''/g"
+}
+
+# Function to get the last project from sessions
+get_last_project() {
+    sqlite3 "$DB" "SELECT project FROM $SESSIONS_TABLE WHERE project != '[idle]' ORDER BY end_time DESC LIMIT 1;" 2>/dev/null
+}
+
+# Function to get the last session details
+get_last_session() {
+    sqlite3 "$DB" "SELECT project, end_time, duration_seconds FROM $SESSIONS_TABLE WHERE project != '[idle]' ORDER BY end_time DESC LIMIT 1;" 2>/dev/null
+}
+
+# Function to get total time for a project
+get_total_project_time() {
+    local project="$1"
+    local escaped_project
+    escaped_project=$(sql_escape "$project")
+    sqlite3 "$DB" "SELECT COALESCE(SUM(duration_seconds), 0) FROM $SESSIONS_TABLE WHERE project = '$escaped_project' AND project != '[idle]';" 2>/dev/null
+}
+
+# Function to count sessions for a project
+count_sessions_for_project() {
+    local project="$1"
+    local escaped_project
+    escaped_project=$(sql_escape "$project")
+    sqlite3 "$DB" "SELECT COUNT(*) FROM $SESSIONS_TABLE WHERE project = '$escaped_project';" 2>/dev/null
+}
+
+# Function to get sessions in a time range
+get_sessions_in_range() {
+    local start_time="$1"
+    local end_time="$2"
+    sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds FROM $SESSIONS_TABLE WHERE end_time >= '$start_time' AND end_time <= '$end_time' ORDER BY start_time;" 2>/dev/null
+}
+
+# Function to get current work state
+get_work_state() {
+    sqlite3 "$DB" "SELECT active, project, start_time FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null
+}
+
+# Function to get work disabled status
+get_work_disabled() {
+    sqlite3 "$DB" "SELECT work_disabled FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null
+}
+
+# Function to get nudging enabled status
+get_nudging_enabled() {
+    sqlite3 "$DB" "SELECT nudging_enabled FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null
+}
+
+# Function to get last work off time
+get_last_work_off_time() {
+    sqlite3 "$DB" "SELECT last_work_off_time FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null
+}
+
+# Function to get current prompt content
+get_prompt_content() {
+    sqlite3 "$DB" "SELECT prompt_content FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null
+}
+
+# Function to get prompt content by type
+get_prompt_content_by_type() {
+    local prompt_type="$1"
+    sqlite3 "$DB" "SELECT prompt_content FROM $STATE_TABLE WHERE prompt_type = '$prompt_type' AND id = 1;" 2>/dev/null
+}
+
+# Function to update work state
+update_work_state() {
+    local active="$1"
+    local project="$2"
+    local start_time="$3"
+    local last_work_off_time="$4"
+    
+    local escaped_project
+    if [[ -n "$project" ]]; then
+        escaped_project="'$(sql_escape "$project")'"
+    else
+        escaped_project="NULL"
+    fi
+    
+    local escaped_start_time
+    if [[ -n "$start_time" ]]; then
+        escaped_start_time="'$(sql_escape "$start_time")'"
+    else
+        escaped_start_time="NULL"
+    fi
+    
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = $active, project = $escaped_project, start_time = $escaped_start_time, last_work_off_time = '$last_work_off_time' WHERE id = 1;"
+}
+
+# Function to update prompt content
+update_prompt_content() {
+    local prompt_content="$1"
+    local prompt_type="$2"
+    
+    local escaped_prompt_content
+    escaped_prompt_content=$(sql_escape "$prompt_content")
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET prompt_content = '$escaped_prompt_content', prompt_type = '$prompt_type' WHERE id = 1;"
+}
+
+# Function to insert a session
+insert_session() {
+    local project="$1"
+    local start_time="$2"
+    local end_time="$3"
+    local duration="$4"
+    
+    local escaped_project
+    escaped_project=$(sql_escape "$project")
+    sqlite3 "$DB" "INSERT INTO $SESSIONS_TABLE (project, start_time, end_time, duration_seconds) VALUES ('$escaped_project', '$start_time', '$end_time', $duration);"
+}
+
+# Function to update a session
+update_session() {
+    local project="$1"
+    local start_time="$2"
+    local end_time="$3"
+    local duration="$4"
+    
+    local escaped_project
+    escaped_project=$(sql_escape "$project")
+    sqlite3 "$DB" "UPDATE $SESSIONS_TABLE SET start_time = '$start_time', end_time = '$end_time', duration_seconds = $duration WHERE project = '$escaped_project';"
+}
+
+# Function to delete sessions for a project
+delete_sessions_for_project() {
+    local project="$1"
+    local escaped_project
+    escaped_project=$(sql_escape "$project")
+    sqlite3 "$DB" "DELETE FROM $SESSIONS_TABLE WHERE project = '$escaped_project';"
+}
+
+# Function to get session info for a project
+get_session_info() {
+    local project="$1"
+    local escaped_project
+    escaped_project=$(sql_escape "$project")
+    sqlite3 "$DB" "SELECT start_time, end_time, duration_seconds FROM $SESSIONS_TABLE WHERE project = '$escaped_project';" 2>/dev/null
+}
+
+# Function to update work disabled status
+update_work_disabled() {
+    local disabled="$1"
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET work_disabled = $disabled WHERE id = 1;"
+}
+
+# Function to update entire state record (for imports)
+update_state_record() {
+    local active="$1"
+    local project="$2"
+    local start_time="$3"
+    local prompt_content="$4"
+    local prompt_type="$5"
+    local nudging_enabled="$6"
+    local work_disabled="$7"
+    
+    local escaped_project
+    if [[ -n "$project" && "$project" != "null" ]]; then
+        escaped_project=$(sql_escape "$project")
+    else
+        escaped_project="NULL"
+    fi
+    
+    # Use a simple approach with proper escaping
+    local escaped_prompt_content
+    if [[ -n "$prompt_content" && "$prompt_content" != "null" ]]; then
+        # Escape single quotes in prompt_content
+        escaped_prompt_content=$(echo "$prompt_content" | sed "s/'/''/g")
+        escaped_prompt_content="'$escaped_prompt_content'"
+    else
+        escaped_prompt_content="NULL"
+    fi
+    
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = $active, project = $escaped_project, start_time = '$start_time', prompt_content = $escaped_prompt_content, prompt_type = '$prompt_type', nudging_enabled = $nudging_enabled, work_disabled = $work_disabled WHERE id = 1;"
+}
+
+
+
+# Function to clear all sessions
+clear_all_sessions() {
+    sqlite3 "$DB" "DELETE FROM sessions;"
+}
+
+# Function to clear additional state records
+clear_additional_state() {
+    sqlite3 "$DB" "DELETE FROM state WHERE id > 1;"
+} 

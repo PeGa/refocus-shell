@@ -1,6 +1,6 @@
-# Work Manager Roadmap
+# Refocus Shell Roadmap
 
-## Current Status: Bash Work Manager ✅
+## Current Status: Bash Refocus Shell ✅
 
 The current bash implementation is **feature-complete** and serves as a personal productivity tool with the following capabilities:
 
@@ -10,7 +10,7 @@ The current bash implementation is **feature-complete** and serves as a personal
 - **Desktop Notifications**: `notify-send` integration
 - **Shell Integration**: Dynamic prompt modification with `⏳ [Project]` indicator
 - **Intelligent Nudging**: Periodic reminders every 10 minutes via cron
-- **Work Manager Control**: `work enable/disable` commands
+- **Refocus Shell Control**: `work enable/disable` commands
 - **Data Import/Export**: JSON-based backup and restore functionality
 - **Professional Installation**: `setup.sh` with interactive installation
 - **Cross-Distribution Support**: Ubuntu/Debian, Arch/Manjaro, Fedora/RHEL, openSUSE
