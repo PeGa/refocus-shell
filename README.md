@@ -6,7 +6,7 @@
 [![Database: SQLite](https://img.shields.io/badge/Database-SQLite-yellow.svg)](https://www.sqlite.org/)
 [![Privacy: Local-First](https://img.shields.io/badge/Privacy-Local--First-brightgreen.svg)](https://en.wikipedia.org/wiki/Local-first_software)
 
-> 🧠 **Built for neurodivergent devs, sysadmins, and anyone tired of forgetting where their time went.**  
+> 🧠 **Built for neurodivergent devs, sysadmins, and anyone tired of forgetting where their time went (e.g. me).**  
 > Refocus Shell is a terminal-first, privacy-conscious time tracker that nudges, reflects, and gets out of your way.
 
 ## 📚 Table of Contents
@@ -575,4 +575,4 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 
 ---
 
-**Made with ❤️ for neurodivergent developers and sysadmins who need better time awareness without overwhelming complexity.** 
+**Made with ❤️ by and for neurodivergent developers and sysadmins who need better time awareness without overwhelming complexity.** 
