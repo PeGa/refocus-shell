@@ -16,7 +16,7 @@ This document outlines the different approaches to managing the system prompt in
 **File**: `setup.sh` → `setup_shell_integration()`
 
 **How it works**:
-- Creates `~/.local/focus/shell-integration.sh` with `update-prompt` function
+- Creates `~/.local/refocus/shell-integration.sh` with `update-prompt` function
 - Adds sourcing to `.bashrc`, `.bash_profile`, and `.profile`
 - Auto-updates prompt on shell startup if focus is active
 - Provides fallback to default prompt if database is unavailable
@@ -61,7 +61,7 @@ This document outlines the different approaches to managing the system prompt in
 ./setup.sh function-setup
 
 # Or manually source it
-source ~/.local/focus/lib/focus-function.sh
+source ~/.local/refocus/lib/focus-function.sh
 
 # Use it
 focus on project
@@ -218,7 +218,7 @@ work-safe off
 
 ### Shell integration not working
 - Use work function as alternative
-- Or manually source: `source ~/.local/focus/shell-integration.sh`
+- Or manually source: `source ~/.local/refocus/shell-integration.sh`
 
 ## Future Improvements
 

@@ -5,9 +5,9 @@
 
 # Source libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/focus/lib/focus-db.sh" ]]; then
-    source "$HOME/.local/focus/lib/focus-db.sh"
-    source "$HOME/.local/focus/lib/focus-utils.sh"
+if [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
+    source "$HOME/.local/refocus/lib/focus-db.sh"
+    source "$HOME/.local/refocus/lib/focus-utils.sh"
 else
     source "$SCRIPT_DIR/../lib/focus-db.sh"
     source "$SCRIPT_DIR/../lib/focus-utils.sh"
@@ -16,8 +16,8 @@ fi
 # Source configuration
 if [[ -f "$SCRIPT_DIR/../config.sh" ]]; then
     source "$SCRIPT_DIR/../config.sh"
-elif [[ -f "$HOME/.local/focus/config.sh" ]]; then
-    source "$HOME/.local/focus/config.sh"
+elif [[ -f "$HOME/.local/refocus/config.sh" ]]; then
+    source "$HOME/.local/refocus/config.sh"
 elif [[ -f "$HOME/dev/personal/refocus-shell/config.sh" ]]; then
     source "$HOME/dev/personal/refocus-shell/config.sh"
 else

@@ -5,9 +5,9 @@
 
 # Source libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/focus/lib/focus-db.sh" ]]; then
-    source "$HOME/.local/focus/lib/focus-db.sh"
-    source "$HOME/.local/focus/lib/focus-utils.sh"
+if [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
+    source "$HOME/.local/refocus/lib/focus-db.sh"
+    source "$HOME/.local/refocus/lib/focus-utils.sh"
 else
     source "$SCRIPT_DIR/../lib/focus-db.sh"
     source "$SCRIPT_DIR/../lib/focus-utils.sh"
@@ -91,8 +91,8 @@ function focus_reset() {
         
         # Get database path
         local db_path
-        if [[ -f "$HOME/.local/focus/timelog.db" ]]; then
-            db_path="$HOME/.local/focus/timelog.db"
+        if [[ -f "$HOME/.local/refocus/timelog.db" ]]; then
+            db_path="$HOME/.local/refocus/timelog.db"
         else
             echo "❌ Database not found. Please install refocus shell first."
             exit 1

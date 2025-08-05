@@ -4,7 +4,7 @@
 # Licensed under the GNU General Public License v3
 
 # This function can be sourced directly into the shell environment
-# Usage: source ~/.local/focus/lib/focus-function.sh
+# Usage: source ~/.local/refocus/lib/focus-function.sh
 
 # Store original PS1 if not already stored
 if [[ -z "$FOCUS_ORIGINAL_PS1" ]]; then
@@ -20,8 +20,8 @@ focus() {
     local focus_script
     if [[ -f "$HOME/.local/bin/focus" ]]; then
         focus_script="$HOME/.local/bin/focus"
-    elif [[ -f "$HOME/.local/focus/focus" ]]; then
-        focus_script="$HOME/.local/focus/focus"
+    elif [[ -f "$HOME/.local/refocus/focus" ]]; then
+        focus_script="$HOME/.local/refocus/focus"
     elif [[ -f "$HOME/dev/personal/refocus-shell/focus" ]]; then
         focus_script="$HOME/dev/personal/refocus-shell/focus"
     else
@@ -40,7 +40,7 @@ focus() {
 
 # Function to update prompt from database
 focus-update-prompt() {
-    local focus_db="$HOME/.local/focus/timelog.db"
+    local focus_db="$HOME/.local/refocus/timelog.db"
     
     if [[ -f "$focus_db" ]]; then
         # Get current prompt from database
@@ -73,9 +73,9 @@ focus-restore-prompt() {
 }
 
 # Auto-update prompt on function load if focus is active
-if [[ -f "$HOME/.local/focus/timelog.db" ]]; then
+if [[ -f "$HOME/.local/refocus/timelog.db" ]]; then
     # Check if focus is currently active
-    ACTIVE_STATE=$(sqlite3 "$HOME/.local/focus/timelog.db" "SELECT active FROM state WHERE id = 1;" 2>/dev/null)
+    ACTIVE_STATE=$(sqlite3 "$HOME/.local/refocus/timelog.db" "SELECT active FROM state WHERE id = 1;" 2>/dev/null)
     if [[ "$ACTIVE_STATE" == "1" ]]; then
         focus-update-prompt
     fi

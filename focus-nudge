@@ -19,8 +19,8 @@
 # This script is executed by cron to send periodic notifications
 
 # Configuration
-FOCUS_DB="$HOME/.local/focus/timelog.db"
-FOCUS_CONFIG="$HOME/.local/focus/config.sh"
+FOCUS_DB="$HOME/.local/refocus/timelog.db"
+FOCUS_CONFIG="$HOME/.local/refocus/config.sh"
 
 # Load configuration if it exists
 if [[ -f "$FOCUS_CONFIG" ]]; then

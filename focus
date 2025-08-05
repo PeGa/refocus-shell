@@ -12,8 +12,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Function to get the command directory
 get_command_dir() {
     # First check installed location
-    if [[ -d "$HOME/.local/focus/commands" ]]; then
-        echo "$HOME/.local/focus/commands"
+    if [[ -d "$HOME/.local/refocus/commands" ]]; then
+        echo "$HOME/.local/refocus/commands"
     else
         # Fallback to source directory
         echo "$SCRIPT_DIR/commands"
@@ -31,9 +31,9 @@ execute_subcommand() {
     
     if [[ -f "$command_file" ]]; then
         # Source the libraries first
-        if [[ -f "$HOME/.local/focus/lib/focus-db.sh" ]]; then
-            source "$HOME/.local/focus/lib/focus-db.sh"
-            source "$HOME/.local/focus/lib/focus-utils.sh"
+        if [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
+            source "$HOME/.local/refocus/lib/focus-db.sh"
+            source "$HOME/.local/refocus/lib/focus-utils.sh"
         else
             source "$SCRIPT_DIR/lib/focus-db.sh"
             source "$SCRIPT_DIR/lib/focus-utils.sh"

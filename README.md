@@ -413,7 +413,7 @@ sudo zypper install sqlite3 libnotify-tools
 
 Refocus Shell uses SQLite for data storage:
 
-- **Location**: `~/.local/focus/timelog.db`
+- **Location**: `~/.local/refocus/timelog.db`
 - **Tables**: `state` (current session), `sessions` (historical data)
 - **Backup**: Use `focus export` for data backup
 - **Reset**: Use `focus reset` to clear all data
@@ -490,7 +490,7 @@ focus init
 source ~/.bashrc
 
 # Or manually source
-source ~/.local/focus/shell-integration.sh
+source ~/.local/refocus/shell-integration.sh
 ```
 
 ### Verbose Mode
@@ -509,7 +509,7 @@ focus config set VERBOSE true
 
 Refocus Shell logs to:
 - **Installation logs**: Check terminal output during setup
-- **Database**: All data stored in `~/.local/focus/timelog.db`
+- **Database**: All data stored in `~/.local/refocus/timelog.db`
 - **Configuration**: Settings in `~/.config/refocus-shell/config.sh`
 
 ## Development

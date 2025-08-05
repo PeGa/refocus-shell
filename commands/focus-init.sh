@@ -5,9 +5,9 @@
 
 # Source libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/focus/lib/focus-db.sh" ]]; then
-    source "$HOME/.local/focus/lib/focus-db.sh"
-    source "$HOME/.local/focus/lib/focus-utils.sh"
+if [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
+    source "$HOME/.local/refocus/lib/focus-db.sh"
+    source "$HOME/.local/refocus/lib/focus-utils.sh"
 else
     source "$SCRIPT_DIR/../lib/focus-db.sh"
     source "$SCRIPT_DIR/../lib/focus-utils.sh"
@@ -18,10 +18,10 @@ function focus_init() {
     
     # Use default database path if not provided
     if [[ -z "$db_path" ]]; then
-        if [[ -f "$HOME/.local/focus/timelog.db" ]]; then
-            db_path="$HOME/.local/focus/timelog.db"
+        if [[ -f "$HOME/.local/refocus/timelog.db" ]]; then
+            db_path="$HOME/.local/refocus/timelog.db"
         else
-            db_path="$HOME/.local/focus/timelog.db"
+            db_path="$HOME/.local/refocus/timelog.db"
         fi
     fi
     
@@ -76,7 +76,7 @@ case "${1:-}" in
         echo ""
         echo "This command initializes a new refocus shell database with the required"
         echo "tables and default state. If no database path is provided, it will"
-        echo "use the default location: ~/.local/focus/timelog.db"
+        echo "use the default location: ~/.local/refocus/timelog.db"
         echo ""
         echo "Examples:"
         echo "  focus init                    # Initialize with default path"

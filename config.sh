@@ -8,7 +8,7 @@
 # =============================================================================
 
 # Default database path
-FOCUS_DB_DEFAULT="$HOME/.local/focus/timelog.db"
+FOCUS_DB_DEFAULT="$HOME/.local/refocus/timelog.db"
 
 # Database path (can be overridden by environment variable)
 FOCUS_DB_PATH="${FOCUS_DB_PATH:-$FOCUS_DB_DEFAULT}"
@@ -28,7 +28,7 @@ FOCUS_INSTALL_DIR_DEFAULT="$HOME/.local/bin"
 FOCUS_INSTALL_DIR="${FOCUS_INSTALL_DIR:-$FOCUS_INSTALL_DIR_DEFAULT}"
 
 # Focus data directory
-FOCUS_DATA_DIR="$HOME/.local/focus"
+FOCUS_DATA_DIR="$HOME/.local/refocus"
 
 # Library directory
 FOCUS_LIB_DIR="$FOCUS_DATA_DIR/lib"

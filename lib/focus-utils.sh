@@ -390,8 +390,8 @@ set_focus_prompt() {
     fi
     
     # Method 2: Try to source the shell integration directly
-    if [[ "$prompt_updated" == "false" ]] && [[ -f "$HOME/.local/focus/shell-integration.sh" ]]; then
-        source "$HOME/.local/focus/shell-integration.sh" 2>/dev/null
+    if [[ "$prompt_updated" == "false" ]] && [[ -f "$HOME/.local/refocus/shell-integration.sh" ]]; then
+        source "$HOME/.local/refocus/shell-integration.sh" 2>/dev/null
         if type update-prompt >/dev/null 2>&1; then
             update-prompt
             prompt_updated=true
@@ -443,8 +443,8 @@ restore_original_prompt() {
     fi
     
     # Method 2: Try to source the shell integration directly
-    if [[ "$prompt_updated" == "false" ]] && [[ -f "$HOME/.local/focus/shell-integration.sh" ]]; then
-        source "$HOME/.local/focus/shell-integration.sh" 2>/dev/null
+    if [[ "$prompt_updated" == "false" ]] && [[ -f "$HOME/.local/refocus/shell-integration.sh" ]]; then
+        source "$HOME/.local/refocus/shell-integration.sh" 2>/dev/null
         if type update-prompt >/dev/null 2>&1; then
             update-prompt
             prompt_updated=true

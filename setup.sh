@@ -49,8 +49,8 @@ set_abort_message() {
 SCRIPT_NAME="focus"
 # Use the real user's home directory, not the effective user's
 REAL_USER_HOME=$(eval echo ~$(logname 2>/dev/null || echo $SUDO_USER 2>/dev/null || echo $USER))
-DB_DEFAULT="$REAL_USER_HOME/.local/focus/timelog.db"
-FOCUS_DATA_PATH="$REAL_USER_HOME/.local/focus"
+DB_DEFAULT="$REAL_USER_HOME/.local/refocus/timelog.db"
+FOCUS_DATA_PATH="$REAL_USER_HOME/.local/refocus"
 
 # Detect if running with sudo and set appropriate default
 if [[ "$EUID" -eq 0 ]]; then
@@ -761,7 +761,7 @@ setup_shell_integration() {
     fi
     
     # Create refocus shell shell integration file
-    local focus_shell_file="$REAL_USER_HOME/.local/focus/shell-integration.sh"
+    local focus_shell_file="$REAL_USER_HOME/.local/refocus/shell-integration.sh"
     local focus_dir=$(dirname "$focus_shell_file")
     
     # Create focus directory if it doesn't exist
@@ -780,7 +780,7 @@ function update-prompt(){
     # This function is automatically managed by refocus shell
 
     # Get the database path
-    FOCUS_DB="$HOME/.local/focus/timelog.db"
+    FOCUS_DB="$HOME/.local/refocus/timelog.db"
 
     # Check if database exists and get current prompt content
     if [[ -f "$FOCUS_DB" ]]; then
@@ -800,9 +800,9 @@ function update-prompt(){
 }
 
 # Auto-update prompt on shell startup if focus is active
-if [[ -f "$HOME/.local/focus/timelog.db" ]]; then
+if [[ -f "$HOME/.local/refocus/timelog.db" ]]; then
     # Check if focus is currently active
-    ACTIVE_STATE=$(sqlite3 "$HOME/.local/focus/timelog.db" "SELECT active FROM state WHERE id = 1;" 2>/dev/null)
+    ACTIVE_STATE=$(sqlite3 "$HOME/.local/refocus/timelog.db" "SELECT active FROM state WHERE id = 1;" 2>/dev/null)
     if [[ "$ACTIVE_STATE" == "1" ]]; then
         update-prompt
     fi
@@ -914,7 +914,7 @@ remove_shell_integration() {
     fi
     
     # Remove the shell integration file
-    local focus_shell_file="$REAL_USER_HOME/.local/focus/shell-integration.sh"
+    local focus_shell_file="$REAL_USER_HOME/.local/refocus/shell-integration.sh"
     if [[ -f "$focus_shell_file" ]]; then
         rm -f "$focus_shell_file"
         echo "Removed refocus shell shell integration file: $focus_shell_file"
@@ -950,7 +950,7 @@ setup_focus_function() {
     fi
     
     # Copy focus function to installed location
-    local focus_function_file="$REAL_USER_HOME/.local/focus/lib/focus-function.sh"
+    local focus_function_file="$REAL_USER_HOME/.local/refocus/lib/focus-function.sh"
     local focus_dir=$(dirname "$focus_function_file")
     
     # Create focus directory if it doesn't exist
@@ -1029,7 +1029,7 @@ function update-prompt(){
     # This function is automatically managed by refocus shell
 
     # Get the database path
-    FOCUS_DB="$HOME/.local/focus/timelog.db"
+    FOCUS_DB="$HOME/.local/refocus/timelog.db"
 
     # Check if database exists and get current prompt file
     if [[ -f "$FOCUS_DB" ]]; then
@@ -1083,7 +1083,7 @@ remove_focus_function() {
     fi
     
     # Remove focus function file
-    local focus_function_file="$REAL_USER_HOME/.local/focus/lib/focus-function.sh"
+    local focus_function_file="$REAL_USER_HOME/.local/refocus/lib/focus-function.sh"
     if [[ -f "$focus_function_file" ]]; then
         rm "$focus_function_file"
         echo "Removed focus function file: $focus_function_file"
@@ -1276,17 +1276,17 @@ if [[ -f "$INSTALL_DIR/focus" ]]; then
     print_success "Focus script uninstalled from $INSTALL_DIR/focus"
 fi
 
-if [[ -f "$REAL_USER_HOME/.local/focus/focus" ]]; then
-    print_status "Uninstalling focus script from: $REAL_USER_HOME/.local/focus/focus"
-    rm -f "$REAL_USER_HOME/.local/focus/focus"
-    print_success "Focus script uninstalled from $REAL_USER_HOME/.local/focus/focus"
+if [[ -f "$REAL_USER_HOME/.local/refocus/focus" ]]; then
+    print_status "Uninstalling focus script from: $REAL_USER_HOME/.local/refocus/focus"
+    rm -f "$REAL_USER_HOME/.local/refocus/focus"
+    print_success "Focus script uninstalled from $REAL_USER_HOME/.local/refocus/focus"
 fi
         
         # Remove focus-nudge script
-        if [[ -f "$REAL_USER_HOME/.local/focus/focus-nudge" ]]; then
-            print_status "Uninstalling focus-nudge script from: $REAL_USER_HOME/.local/focus/focus-nudge"
-            rm -f "$REAL_USER_HOME/.local/focus/focus-nudge"
-            print_success "Focus-nudge script uninstalled from $REAL_USER_HOME/.local/focus/focus-nudge"
+        if [[ -f "$REAL_USER_HOME/.local/refocus/focus-nudge" ]]; then
+            print_status "Uninstalling focus-nudge script from: $REAL_USER_HOME/.local/refocus/focus-nudge"
+            rm -f "$REAL_USER_HOME/.local/refocus/focus-nudge"
+            print_success "Focus-nudge script uninstalled from $REAL_USER_HOME/.local/refocus/focus-nudge"
         fi
         
         # Remove cron job
