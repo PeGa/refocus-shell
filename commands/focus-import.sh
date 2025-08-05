@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Refocus Shell - Import Work Data Subcommand
+# Refocus Shell - Import Focus Data Subcommand
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 
@@ -66,7 +66,7 @@ function focus_import() {
     sqlite3 "$DB" < "$input_file"
     
     if [[ $? -eq 0 ]]; then
-        echo "✅ Work data imported successfully from: $input_file"
+        echo "✅ Focus data imported successfully from: $input_file"
         echo "📊 Import summary:"
         echo "   - Database restored from SQLite dump"
         echo "   - All tables and data imported"

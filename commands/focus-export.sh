@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Refocus Shell - Export Work Data Subcommand
+# Refocus Shell - Export Focus Data Subcommand
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 

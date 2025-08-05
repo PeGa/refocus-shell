@@ -37,11 +37,11 @@ This document outlines the different approaches to managing the system prompt in
 
 ### 2. Work Function Approach (Recommended)
 
-**File**: `lib/work-function.sh`
+**File**: `lib/focus-function.sh`
 
 **How it works**:
-- Creates a `work()` function that can be sourced directly
-- Automatically updates prompt after `work on` and `work off` commands
+- Creates a `focus()` function that can be sourced directly
+- Automatically updates prompt after `focus on` and `focus off` commands
 - Stores original PS1 and provides restoration functions
 - No dependency on external shell integration
 
@@ -57,15 +57,15 @@ This document outlines the different approaches to managing the system prompt in
 
 **Usage**:
 ```bash
-# Install the work function
+# Install the focus function
 ./setup.sh function-setup
 
 # Or manually source it
-source ~/.local/work/lib/work-function.sh
+source ~/.local/focus/lib/focus-function.sh
 
 # Use it
-work on project
-work off
+focus on project
+focus off
 ```
 
 ### 3. Safe Alias Approach (Alternative)
@@ -139,18 +139,18 @@ echo "source ~/.local/work/lib/work-function.sh" >> ~/.bashrc
 ### Test Enhanced Shell Integration
 ```bash
 # In a new terminal
-work on test
+focus on test
 # Should show work prompt automatically
-work off
+focus off
 # Should restore original prompt automatically
 ```
 
 ### Test Work Function
 ```bash
 source lib/work-function.sh
-work on test
+focus on test
 # Should show work prompt immediately
-work off
+focus off
 # Should restore original prompt immediately
 ```
 

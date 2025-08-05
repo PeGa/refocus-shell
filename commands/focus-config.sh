@@ -139,7 +139,7 @@ function focus_config_get() {
     fi
     
     # Get the configuration value directly from environment variable
-    local env_var="WORK_${key^^}"
+    local env_var="FOCUS_${key^^}"
     if [[ -n "${!env_var}" ]]; then
         echo "${!env_var}"
     else

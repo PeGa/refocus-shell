@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Refocus Shell - Stop Work Session Subcommand
+# Refocus Shell - Stop Focus Session Subcommand
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 

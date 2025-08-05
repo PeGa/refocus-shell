@@ -62,14 +62,14 @@ get_sessions_in_range() {
     sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds FROM $SESSIONS_TABLE WHERE end_time >= '$start_time' AND end_time <= '$end_time' ORDER BY start_time;" 2>/dev/null
 }
 
-# Function to get current work state
+# Function to get current focus state
 get_focus_state() {
     sqlite3 "$DB" "SELECT active, project, start_time FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null
 }
 
-# Function to get work disabled status
+# Function to get focus disabled status
 get_focus_disabled() {
-    sqlite3 "$DB" "SELECT work_disabled FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null
+    sqlite3 "$DB" "SELECT focus_disabled FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null
 }
 
 # Function to get nudging enabled status
@@ -77,9 +77,9 @@ get_nudging_enabled() {
     sqlite3 "$DB" "SELECT nudging_enabled FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null
 }
 
-# Function to get last work off time
+# Function to get last focus off time
 get_last_focus_off_time() {
-    sqlite3 "$DB" "SELECT last_work_off_time FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null
+    sqlite3 "$DB" "SELECT last_focus_off_time FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null
 }
 
 # Function to get current prompt content
@@ -93,13 +93,14 @@ get_prompt_content_by_type() {
     sqlite3 "$DB" "SELECT prompt_content FROM $STATE_TABLE WHERE prompt_type = '$prompt_type' AND id = 1;" 2>/dev/null
 }
 
-# Function to update work state
+# Function to update focus state
 update_focus_state() {
     local active="$1"
     local project="$2"
     local start_time="$3"
-    local last_work_off_time="$4"
+    local last_focus_off_time="$4"
     
+    # Escape project name for SQL
     local escaped_project
     if [[ -n "$project" ]]; then
         escaped_project="'$(sql_escape "$project")'"
@@ -107,6 +108,7 @@ update_focus_state() {
         escaped_project="NULL"
     fi
     
+    # Escape start_time for SQL
     local escaped_start_time
     if [[ -n "$start_time" ]]; then
         escaped_start_time="'$(sql_escape "$start_time")'"
@@ -114,7 +116,7 @@ update_focus_state() {
         escaped_start_time="NULL"
     fi
     
-    sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = $active, project = $escaped_project, start_time = $escaped_start_time, last_work_off_time = '$last_work_off_time' WHERE id = 1;"
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = $active, project = $escaped_project, start_time = $escaped_start_time, last_focus_off_time = '$last_focus_off_time' WHERE id = 1;"
 }
 
 # Function to update prompt content
@@ -167,10 +169,10 @@ get_session_info() {
     sqlite3 "$DB" "SELECT start_time, end_time, duration_seconds FROM $SESSIONS_TABLE WHERE project = '$escaped_project';" 2>/dev/null
 }
 
-# Function to update work disabled status
+# Function to update focus disabled status
 update_focus_disabled() {
     local disabled="$1"
-    sqlite3 "$DB" "UPDATE $STATE_TABLE SET work_disabled = $disabled WHERE id = 1;"
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET focus_disabled = $disabled WHERE id = 1;"
 }
 
 # Function to update entire state record (for imports)
@@ -181,26 +183,25 @@ update_state_record() {
     local prompt_content="$4"
     local prompt_type="$5"
     local nudging_enabled="$6"
-    local work_disabled="$7"
+    local focus_disabled="$7"
     
+    # Escape project name for SQL
     local escaped_project
     if [[ -n "$project" && "$project" != "null" ]]; then
-        escaped_project=$(sql_escape "$project")
+        escaped_project="'$(sql_escape "$project")'"
     else
         escaped_project="NULL"
     fi
     
-    # Use a simple approach with proper escaping
+    # Escape prompt_content for SQL
     local escaped_prompt_content
     if [[ -n "$prompt_content" && "$prompt_content" != "null" ]]; then
-        # Escape single quotes in prompt_content
-        escaped_prompt_content=$(echo "$prompt_content" | sed "s/'/''/g")
-        escaped_prompt_content="'$escaped_prompt_content'"
+        escaped_prompt_content="'$(sql_escape "$prompt_content")'"
     else
         escaped_prompt_content="NULL"
     fi
     
-    sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = $active, project = $escaped_project, start_time = '$start_time', prompt_content = $escaped_prompt_content, prompt_type = '$prompt_type', nudging_enabled = $nudging_enabled, work_disabled = $work_disabled WHERE id = 1;"
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = $active, project = $escaped_project, start_time = '$start_time', prompt_content = $escaped_prompt_content, prompt_type = '$prompt_type', nudging_enabled = $nudging_enabled, focus_disabled = $focus_disabled WHERE id = 1;"
 }
 
 

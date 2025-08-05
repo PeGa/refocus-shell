@@ -127,7 +127,7 @@ setup_paths() {
     echo ""
     echo "Installation Summary:"
     echo "  Database: $DB_PATH"
-    echo "  Script: $INSTALL_DIR/work"
+    echo "  Script: $INSTALL_DIR/focus"
     if [[ "$INSTALL_METHOD" == "a" ]]; then
         echo "  Method: Function installation (automatic prompt updates)"
     else
@@ -393,8 +393,8 @@ init_database() {
             prompt_content TEXT,
             prompt_type TEXT DEFAULT 'default',
             nudging_enabled BOOLEAN DEFAULT 1,
-            work_disabled BOOLEAN DEFAULT 0,
-            last_work_off_time TEXT
+            focus_disabled BOOLEAN DEFAULT 0,
+            last_focus_off_time TEXT
         );
         
         CREATE TABLE IF NOT EXISTS sessions (
@@ -405,7 +405,8 @@ init_database() {
             duration_seconds INTEGER NOT NULL
         );
         
-        INSERT OR IGNORE INTO state (id, active, project, start_time, prompt_content, prompt_type, nudging_enabled, work_disabled, last_work_off_time) 
+        -- Insert initial state
+        INSERT OR IGNORE INTO state (id, active, project, start_time, prompt_content, prompt_type, nudging_enabled, focus_disabled, last_focus_off_time)
         VALUES (1, 0, NULL, NULL, NULL, 'default', 1, 0, NULL);
     "
     
@@ -592,7 +593,7 @@ install_nudge_script() {
     
     local nudge_script_path="$(readlink -f "$nudge_script")"
     
-    # Create work data directory if it doesn't exist
+    # Create focus data directory if it doesn't exist
     mkdir -p "$FOCUS_DATA_PATH"
     
     print_verbose "Installing focus-nudge script to: $target_path"
@@ -668,7 +669,7 @@ setup_cron_job() {
 # Function to remove cron job for nudging
 remove_cron_job() {
     local nudge_script="$FOCUS_DATA_PATH/focus-nudge"
-    local temp_cron_file="/tmp/work_cron_$$"
+    local temp_cron_file="/tmp/focus_cron_$$"
     
     print_verbose "Removing cron job for nudging..."
     
@@ -760,16 +761,16 @@ setup_shell_integration() {
     fi
     
     # Create refocus shell shell integration file
-    local work_shell_file="$REAL_USER_HOME/.local/focus/shell-integration.sh"
-    local work_dir=$(dirname "$work_shell_file")
+    local focus_shell_file="$REAL_USER_HOME/.local/focus/shell-integration.sh"
+    local focus_dir=$(dirname "$focus_shell_file")
     
-    # Create work directory if it doesn't exist
-    if [[ ! -d "$work_dir" ]]; then
-        mkdir -p "$work_dir"
+    # Create focus directory if it doesn't exist
+    if [[ ! -d "$focus_dir" ]]; then
+        mkdir -p "$focus_dir"
     fi
     
     # Create refocus shell shell integration file with improved error handling
-    cat > "$work_shell_file" << 'EOF'
+    cat > "$focus_shell_file" << 'EOF'
 #!/usr/bin/env bash
 # Refocus Shell Shell Integration
 # This file is automatically managed by refocus shell
@@ -779,12 +780,12 @@ function update-prompt(){
     # This function is automatically managed by refocus shell
 
     # Get the database path
-    WORK_DB="$HOME/.local/focus/timelog.db"
+    FOCUS_DB="$HOME/.local/focus/timelog.db"
 
     # Check if database exists and get current prompt content
-    if [[ -f "$WORK_DB" ]]; then
+    if [[ -f "$FOCUS_DB" ]]; then
         # Get the prompt content from database with better error handling
-        PROMPT_CONTENT=$(sqlite3 "$WORK_DB" "SELECT prompt_content FROM state WHERE id = 1;" 2>/dev/null)
+        PROMPT_CONTENT=$(sqlite3 "$FOCUS_DB" "SELECT prompt_content FROM state WHERE id = 1;" 2>/dev/null)
         
         if [[ -n "$PROMPT_CONTENT" ]]; then
             # Set PS1 directly from database content
@@ -798,9 +799,9 @@ function update-prompt(){
     return 0
 }
 
-# Auto-update prompt on shell startup if work is active
+# Auto-update prompt on shell startup if focus is active
 if [[ -f "$HOME/.local/focus/timelog.db" ]]; then
-    # Check if work is currently active
+    # Check if focus is currently active
     ACTIVE_STATE=$(sqlite3 "$HOME/.local/focus/timelog.db" "SELECT active FROM state WHERE id = 1;" 2>/dev/null)
     if [[ "$ACTIVE_STATE" == "1" ]]; then
         update-prompt
@@ -809,14 +810,14 @@ fi
 EOF
     
     # Make the file executable
-    chmod +x "$work_shell_file"
-    echo "Created refocus shell shell integration: $work_shell_file"
+    chmod +x "$focus_shell_file"
+    echo "Created refocus shell shell integration: $focus_shell_file"
     
     # Add shell integration to bashrc
     if ! grep -q "source.*focus/shell-integration.sh" "$rc_file" 2>/dev/null; then
         echo "" >> "$rc_file"
         echo "# Refocus shell shell integration" >> "$rc_file"
-        echo "source $work_shell_file" >> "$rc_file"
+        echo "source $focus_shell_file" >> "$rc_file"
         echo "Added refocus shell shell integration to $rc_file"
     else
         echo "Refocus shell shell integration already sourced in $rc_file"
@@ -913,10 +914,10 @@ remove_shell_integration() {
     fi
     
     # Remove the shell integration file
-    local work_shell_file="$REAL_USER_HOME/.local/focus/shell-integration.sh"
-    if [[ -f "$work_shell_file" ]]; then
-        rm -f "$work_shell_file"
-        echo "Removed refocus shell shell integration file: $work_shell_file"
+    local focus_shell_file="$REAL_USER_HOME/.local/focus/shell-integration.sh"
+    if [[ -f "$focus_shell_file" ]]; then
+        rm -f "$focus_shell_file"
+        echo "Removed refocus shell shell integration file: $focus_shell_file"
     fi
 }
 
@@ -996,7 +997,7 @@ if [ -n "$BASH_VERSION" ]; then
     fi
 fi
 EOF
-        echo "Created .bash_profile to ensure work function works in login shells"
+        echo "Created .bash_profile to ensure focus function works in login shells"
     elif ! grep -q "\.bashrc" "$bash_profile" 2>/dev/null; then
         # Add bashrc sourcing to existing bash_profile
         echo "" >> "$bash_profile"
@@ -1028,12 +1029,12 @@ function update-prompt(){
     # This function is automatically managed by refocus shell
 
     # Get the database path
-    WORK_DB="$HOME/.local/focus/timelog.db"
+    FOCUS_DB="$HOME/.local/focus/timelog.db"
 
     # Check if database exists and get current prompt file
-    if [[ -f "$WORK_DB" ]]; then
+    if [[ -f "$FOCUS_DB" ]]; then
         # Get the prompt file from database
-        PROMPT_FILE=$(sqlite3 "$WORK_DB" "SELECT prompt_file FROM state WHERE id = 1;" 2>/dev/null)
+        PROMPT_FILE=$(sqlite3 "$FOCUS_DB" "SELECT prompt_file FROM state WHERE id = 1;" 2>/dev/null)
         
         if [[ -n "$PROMPT_FILE" ]] && [[ -f "$PROMPT_FILE" ]]; then
             # Source the prompt file to set PS1
@@ -1048,10 +1049,9 @@ EOF
     fi
     
     echo ""
-    print_success "Work function configured successfully"
-        echo "Usage: work on <project> or work off"
-        echo ""
-        print_verbose_note "You may need to restart your terminal or run 'source $rc_file' for changes to take effect"
+    print_success "Focus function configured successfully"
+    print_verbose_note "Run 'source ~/.bashrc' or restart your terminal to use the 'focus' function immediately."
+    print_verbose_note "The focus function will be available in new terminals automatically."
 }
 
 # Function to remove focus function
@@ -1064,32 +1064,32 @@ remove_focus_function() {
     echo "Detected shell: $shell_name"
     echo "RC file: $rc_file"
     
-    # Remove work function from bashrc
-    if grep -q "source.*work/lib/work-function.sh" "$rc_file" 2>/dev/null; then
+    # Remove focus function from bashrc
+    if grep -q "source.*focus/lib/focus-function.sh" "$rc_file" 2>/dev/null; then
         # Create backup of bashrc before modifying
         local backup_file="${rc_file}.backup.$(date +%Y%m%d_%H%M%S)"
         cp "$rc_file" "$backup_file"
         
-        # Remove work function lines
-        sed -i '/# Refocus shell function (alternative to shell integration)/,/source.*work\/lib\/work-function.sh/d' "$rc_file"
+        # Remove focus function lines
+        sed -i '/# Refocus shell function (alternative to shell integration)/,/source.*focus\/lib\/focus-function.sh/d' "$rc_file"
         
-        echo "Work function removed from $rc_file"
+        echo "Focus function removed from $rc_file"
         echo "Backup created at $backup_file"
         
         # Clean up old bashrc backups
         cleanup_old_bashrc_backups
     else
-        echo "Work function not found in $rc_file"
+        echo "Focus function not found in $rc_file"
     fi
     
-    # Remove work function file
-    local work_function_file="$REAL_USER_HOME/.local/focus/lib/focus-function.sh"
-    if [[ -f "$work_function_file" ]]; then
-        rm "$work_function_file"
-        echo "Removed work function file: $work_function_file"
+    # Remove focus function file
+    local focus_function_file="$REAL_USER_HOME/.local/focus/lib/focus-function.sh"
+    if [[ -f "$focus_function_file" ]]; then
+        rm "$focus_function_file"
+        echo "Removed focus function file: $focus_function_file"
     fi
     
-    echo "Work function removed successfully"
+    echo "Focus function removed successfully"
     
     # Remove update-prompt function from .bashrc if it exists
     if grep -q "function update-prompt" "$rc_file" 2>/dev/null; then
@@ -1104,9 +1104,9 @@ remove_focus_function() {
         echo "Backup created at $backup_file"
     fi
     
-    # Unset work-related functions from current shell session if they exist
-    local work_functions=("focus" "update-prompt" "focus-update-prompt" "focus-restore-prompt")
-    for func in "${work_functions[@]}"; do
+    # Unset focus-related functions from current shell session if they exist
+    local focus_functions=("focus" "update-prompt" "focus-update-prompt" "focus-restore-prompt")
+    for func in "${focus_functions[@]}"; do
         if type "$func" >/dev/null 2>&1; then
             unset -f "$func"
             echo "Function '$func' unset from current shell session"

@@ -191,9 +191,9 @@ validate_timestamp() {
         echo "  - Relative dates ('yesterday 14:30', '2 hours ago', etc.)"
         echo ""
         echo "Examples:"
-        echo "  work past add meeting 2025/07/30-14:15 2025/07/30-15:30"
-        echo "  work past add meeting 14:15 15:30  # Today's date"
-        echo "  work past add meeting 'yesterday 14:30' 'yesterday 15:30'"
+        echo "  focus past add meeting 2025/07/30-14:15 2025/07/30-15:30"
+        echo "  focus past add meeting 14:15 15:30  # Today's date"
+        echo "  focus past add meeting 'yesterday 14:30' 'yesterday 15:30'"
         return 1
     fi
     
@@ -281,8 +281,8 @@ validate_session_id() {
     fi
     
     # Check if session exists in database
-    if [[ -f "$(dirname "$0")/work-db.sh" ]]; then
-        source "$(dirname "$0")/work-db.sh"
+    if [[ -f "$(dirname "$0")/focus-db.sh" ]]; then
+        source "$(dirname "$0")/focus-db.sh"
     fi
     
     local session_exists
@@ -296,11 +296,11 @@ validate_session_id() {
     return 0
 }
 
-# Function to check if work is active
+# Function to check if focus is active
 is_focus_active() {
     # Source the database library to use its functions
-    if [[ -f "$(dirname "$0")/work-db.sh" ]]; then
-        source "$(dirname "$0")/work-db.sh"
+    if [[ -f "$(dirname "$0")/focus-db.sh" ]]; then
+        source "$(dirname "$0")/focus-db.sh"
     fi
     
     local state
@@ -308,7 +308,7 @@ is_focus_active() {
     local active
     local current_project
     local start_time
-    state=$(get_work_state)
+    state=$(get_focus_state)
     if [[ -n "$state" ]]; then
         old_ifs="$IFS"
         IFS='|' read -r active current_project start_time <<< "$state"
@@ -323,15 +323,16 @@ is_focus_active() {
 # Function to check if refocus shell is disabled
 is_focus_disabled() {
     # Source the database library to use its functions
-    if [[ -f "$(dirname "$0")/work-db.sh" ]]; then
-        source "$(dirname "$0")/work-db.sh"
+    if [[ -f "$(dirname "$0")/focus-db.sh" ]]; then
+        source "$(dirname "$0")/focus-db.sh"
     fi
     
-    local work_disabled
-    work_disabled=$(get_focus_disabled)
-    if [[ "$work_disabled" -eq 1 ]]; then
+    local focus_disabled
+    focus_disabled=$(get_focus_disabled)
+    if [[ "$focus_disabled" -eq 1 ]]; then
         return 0  # Disabled
     fi
+    
     return 1  # Enabled
 }
 
@@ -356,18 +357,18 @@ get_current_prompt() {
     echo '${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 }
 
-# Function to create work prompt string
+# Function to create focus prompt string
 create_focus_prompt() {
     local project="$1"
-    echo '⏳ ['$project'] ${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01:34m\]\w\[\033[00m\]\$ '
+    echo '⏳ ['$project'] ${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 }
 
 # Function to create default prompt string
 create_default_prompt() {
-    echo '${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01:34m\]\w\[\033[00m\]\$ '
+    echo '${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 }
 
-# Function to set work prompt
+# Function to set focus prompt
 set_focus_prompt() {
     local project="$1"
     
@@ -400,7 +401,7 @@ set_focus_prompt() {
     
     # Method 3: Direct PS1 export as fallback
     if [[ "$prompt_updated" == "false" ]]; then
-        export PS1="$work_prompt"
+        export PS1="$focus_prompt"
         prompt_updated=true
         verbose_echo "Focus prompt set via direct PS1 export"
     fi

@@ -27,7 +27,7 @@ function focus_report_today() {
     echo "Period: $(date --date="$start_time" +"%Y-%m-%d")"
     echo
     
-    work_generate_report "$start_time" "$end_time"
+    focus_generate_report "$start_time" "$end_time"
 }
 
 function focus_report_week() {
@@ -40,7 +40,7 @@ function focus_report_week() {
     echo "Period: $(date --date="$start_time" +"%Y-%m-%d") to $(date --date="$end_time" +"%Y-%m-%d")"
     echo
     
-    work_generate_report "$start_time" "$end_time"
+    focus_generate_report "$start_time" "$end_time"
 }
 
 function focus_report_month() {
@@ -53,7 +53,7 @@ function focus_report_month() {
     echo "Period: $(date --date="$start_time" +"%Y-%m-%d") to $(date --date="$end_time" +"%Y-%m-%d")"
     echo
     
-    work_generate_report "$start_time" "$end_time"
+    focus_generate_report "$start_time" "$end_time"
 }
 
 function focus_report_custom() {
@@ -79,7 +79,7 @@ function focus_report_custom() {
     echo "Period: $(date --date="$start_time" +"%Y-%m-%d") to $(date --date="$end_time" +"%Y-%m-%d")"
     echo
     
-    work_generate_report "$start_time" "$end_time"
+    focus_generate_report "$start_time" "$end_time"
 }
 
 function focus_generate_report() {

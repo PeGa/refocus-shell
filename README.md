@@ -39,7 +39,7 @@
 - **Anyone who wants local-first, privacy-respecting workflow tools**
 - **People who don't want their productivity tools to spy on them**
 
-> 💡 **Pro Tip**: The `⏳ [project]` prompt tag works **across all terminals** - start work in one terminal, and every new terminal you open will show your current project!
+> 💡 **Pro Tip**: The `⏳ [project]` prompt tag works **across all terminals** - start focus in one terminal, and every new terminal you open will show your current project!
 
 ## Features
 
@@ -122,16 +122,16 @@ For automated deployments or CI/CD:
 ### Basic Commands
 
 ```bash
-focus on "project"     # Start working on a project
-focus off              # Stop current work session
-focus status           # Show current work status
+focus on "project"     # Start focusing on a project
+focus off              # Stop current focus session
+focus status           # Show current focus status
 focus help             # Show all available commands
 ```
 
 ### Quick Examples
 
 ```bash
-# Start working
+# Start focusing
 focus on "coding"
 focus on "meeting"
 focus on "planning"
@@ -139,7 +139,7 @@ focus on "planning"
 # Check status
 focus status
 
-# Stop working
+# Stop focusing
 focus off
 
 # Add past sessions with flexible timestamps
@@ -166,18 +166,18 @@ Refocus Shell remembers your last project and session:
 
 ```bash
 $ focus on "coding"
-Started work on: coding
+Started focus on: coding
 
 $ focus off
-Stopped work on: coding (Duration: 2h 15m)
+Stopped focus on: coding (Duration: 2h 15m)
 
 $ focus on  # No project specified
-Started work on: coding  # Continues last project
+Started focus on: coding  # Continues last project
 ```
 
 ### Enhanced Status Information
 
-Get rich context about your work:
+Get rich context about your focus:
 
 ```bash
 $ focus status
@@ -196,7 +196,7 @@ $ focus report today
 📊 Today's Work Summary
 =======================
 
-⏰ Total work time: 6h 30m
+⏰ Total focus time: 6h 30m
 📋 Total sessions: 4
 🎯 Active projects: 2
 
@@ -213,7 +213,7 @@ $ focus report today
 
 ### Past Session Management
 
-Add, modify, and delete historical work sessions with flexible timestamp formats:
+Add, modify, and delete historical focus sessions with flexible timestamp formats:
 
 ```bash
 # Add past sessions
@@ -248,14 +248,14 @@ focus past delete 1
 
 ### Discrete Session Management
 
-Track work and idle sessions separately:
+Track focus and idle sessions separately:
 
 ```bash
 $ focus on "coding"
-Started work on: coding
+Started focus on: coding
 
 $ focus off
-Stopped work on: coding (Duration: 1h 30m)
+Stopped focus on: coding (Duration: 1h 30m)
 Idle time detected: 15m (will be tracked separately)
 
 $ focus status
@@ -307,7 +307,7 @@ Example report output:
 
 ### Nudging System
 
-Get periodic reminders to check your work status:
+Get periodic reminders to check your focus status:
 
 ```bash
 # Test notifications
@@ -327,7 +327,7 @@ Nudging occurs every 10 minutes via cron and shows:
 
 ### Data Import/Export
 
-Backup and restore your work data:
+Backup and restore your focus data:
 
 ```bash
 # Export all data to SQLite dump

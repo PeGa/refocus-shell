@@ -40,7 +40,7 @@ function focus_disable() {
     echo "🚫 Refocus shell disabled"
     echo "No focus sessions or nudging will be available until you run 'focus enable'"
     
-    send_notification "Refocus Shell Disabled" "Work tracking and nudging are now inactive."
+    send_notification "Refocus Shell Disabled" "Focus tracking and nudging are now inactive."
 }
 
 # Main execution

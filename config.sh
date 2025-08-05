@@ -52,7 +52,7 @@ FOCUS_MAX_PROJECT_LENGTH="${FOCUS_MAX_PROJECT_LENGTH:-100}"
 # Default prompt format
 FOCUS_DEFAULT_PROMPT='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 
-# Work prompt format (with project placeholder)
+# Focus prompt format (with project placeholder)
 FOCUS_PROMPT_FORMAT='⏳ [%s] ${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 
 # =============================================================================
@@ -76,7 +76,7 @@ FOCUS_NUDGING="${FOCUS_NUDGING:-true}"
 FOCUS_NUDGE_INTERVAL="${FOCUS_NUDGE_INTERVAL:-10}"
 
 # Nudge message format
-FOCUS_NUDGE_MESSAGE="⏰ Time to check your work status! Run 'focus status' to see current progress."
+FOCUS_NUDGE_MESSAGE="⏰ Time to check your focus status! Run 'focus status' to see current progress."
 
 # =============================================================================
 # REPORTING CONFIGURATION

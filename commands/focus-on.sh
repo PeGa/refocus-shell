@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Refocus Shell - Start Work Session Subcommand
+# Refocus Shell - Start Focus Session Subcommand
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 
@@ -32,7 +32,7 @@ function focus_on() {
 
     # Check if refocus shell is disabled
     if is_focus_disabled; then
-        echo "❌ Refocus shell is disabled. Run 'focus enable' to re-enable."
+        echo "❌ Refocus shell is disabled. Run 'focus enable' first."
         exit 1
     fi
 

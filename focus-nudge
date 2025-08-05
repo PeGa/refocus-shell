@@ -60,7 +60,7 @@ check_focus_disabled() {
     fi
     
     local focus_disabled
-    focus_disabled=$(sqlite3 "$FOCUS_DB" "SELECT work_disabled FROM state WHERE id = 1;" 2>/dev/null)
+    focus_disabled=$(sqlite3 "$FOCUS_DB" "SELECT focus_disabled FROM state WHERE id = 1;" 2>/dev/null)
     
     if [[ "$focus_disabled" -eq 1 ]]; then
         log_message "refocus shell is disabled"
@@ -72,12 +72,12 @@ check_focus_disabled() {
 
 # Check if nudging is enabled
 check_nudging_enabled() {
-    if [[ ! -f "$WORK_DB" ]]; then
+    if [[ ! -f "$FOCUS_DB" ]]; then
         return 1
     fi
     
     local nudging_enabled
-    nudging_enabled=$(sqlite3 "$WORK_DB" "SELECT nudging_enabled FROM state WHERE id = 1;" 2>/dev/null)
+    nudging_enabled=$(sqlite3 "$FOCUS_DB" "SELECT nudging_enabled FROM state WHERE id = 1;" 2>/dev/null)
     
     if [[ "$nudging_enabled" -eq 0 ]]; then
         log_message "nudging is disabled"
@@ -97,6 +97,7 @@ get_focus_status() {
     state=$(sqlite3 "$FOCUS_DB" "SELECT active, project, start_time FROM state WHERE id = 1;" 2>/dev/null)
     
     if [[ -z "$state" ]]; then
+        log_message "error: could not get focus status"
         return 1
     fi
     
@@ -124,7 +125,7 @@ main() {
     log_message "nudge script started"
     
     # Check if refocus shell is disabled
-    if ! check_work_disabled; then
+    if ! check_focus_disabled; then
         exit 0
     fi
     
@@ -133,22 +134,22 @@ main() {
         exit 0
     fi
     
-    # Get current work status
+    # Get current focus status
     local status
-    status=$(get_work_status)
+    status=$(get_focus_status)
     
     if [[ $? -ne 0 ]]; then
-        log_message "error: could not get work status"
+        log_message "error: could not get focus status"
         exit 1
     fi
     
     # Send appropriate notification
     if [[ "$status" == "inactive" ]]; then
-        send_notification "Work Reminder" "You're not working on any project."
+        send_notification "Focus Reminder" "You're not focusing on any project."
     else
         IFS='|' read -r state project minutes <<< "$status"
         if [[ "$state" == "active" ]]; then
-            send_notification "Work Reminder" "You're working on: $project (${minutes}m elapsed)"
+            send_notification "Focus Reminder" "You're focusing on: $project (${minutes}m elapsed)"
         fi
     fi
     

@@ -52,8 +52,8 @@ init_database() {
             prompt_content TEXT,
             prompt_type TEXT DEFAULT 'default',
             nudging_enabled BOOLEAN DEFAULT 1,
-            work_disabled BOOLEAN DEFAULT 0,
-            last_work_off_time TEXT
+            focus_disabled BOOLEAN DEFAULT 0,
+            last_focus_off_time TEXT
         );
         
         CREATE TABLE IF NOT EXISTS sessions (
@@ -64,7 +64,8 @@ init_database() {
             duration_seconds INTEGER NOT NULL
         );
         
-        INSERT OR IGNORE INTO state (id, active, project, start_time, prompt_content, prompt_type, nudging_enabled, work_disabled, last_work_off_time) 
+        -- Insert initial state
+        INSERT OR IGNORE INTO state (id, active, project, start_time, prompt_content, prompt_type, nudging_enabled, focus_disabled, last_focus_off_time)
         VALUES (1, 0, NULL, NULL, NULL, 'default', 1, 0, NULL);
     "
     

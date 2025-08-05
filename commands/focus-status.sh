@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Refocus Shell - Work Status Subcommand
+# Refocus Shell - Focus Status Subcommand
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 

@@ -20,10 +20,12 @@ SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
 function focus_enable() {
     # Check if refocus shell is disabled
     if is_focus_disabled; then
+        echo "✅ Re-enabling refocus shell..."
         update_focus_disabled 0
         echo "✅ Refocus shell enabled"
+        echo "Focus sessions and nudging are now available"
         
-        send_notification "Refocus Shell Enabled" "Work tracking and nudging are now active."
+        send_notification "Refocus Shell Enabled" "Focus tracking and nudging are now active."
     else
         echo "✅ Refocus shell is already enabled"
     fi
