@@ -25,8 +25,8 @@ work-manager/
 ├── work-nudge             # Cron-executed nudging script
 ├── setup.sh               # Installation and setup script
 ├── config.sh              # Configuration template
-└── ~/.local/work/        # Data directory
-    ├── timelog.db        # SQLite database
+└── ~/.local/refocus/        # Data directory
+    ├── refocus.db        # SQLite database
     ├── work-nudge        # Installed nudging script
     └── config.sh         # User configuration
 ```

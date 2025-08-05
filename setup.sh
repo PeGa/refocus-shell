@@ -49,8 +49,8 @@ set_abort_message() {
 SCRIPT_NAME="focus"
 # Use the real user's home directory, not the effective user's
 REAL_USER_HOME=$(eval echo ~$(logname 2>/dev/null || echo $SUDO_USER 2>/dev/null || echo $USER))
-DB_DEFAULT="$REAL_USER_HOME/.local/refocus/timelog.db"
-FOCUS_DATA_PATH="$REAL_USER_HOME/.local/refocus"
+DB_DEFAULT="$REAL_USER_HOME/.local/refocus/refocus.db"
+REFOCUS_DATA_PATH="$REAL_USER_HOME/.local/refocus"
 
 # Detect if running with sudo and set appropriate default
 if [[ "$EUID" -eq 0 ]]; then
@@ -490,7 +490,7 @@ install_script() {
 
 # Function to install libraries
 install_libraries() {
-    local lib_dir="$FOCUS_DATA_PATH/lib"
+    local lib_dir="$REFOCUS_DATA_PATH/lib"
     
     # Create lib directory if it doesn't exist
     mkdir -p "$lib_dir"
@@ -524,7 +524,7 @@ install_libraries() {
 
 # Function to install commands
 install_commands() {
-    local commands_dir="$FOCUS_DATA_PATH/commands"
+    local commands_dir="$REFOCUS_DATA_PATH/commands"
     
     # Create commands directory if it doesn't exist
     mkdir -p "$commands_dir"
@@ -579,7 +579,7 @@ uninstall_script() {
 # Function to install focus-nudge script
 install_nudge_script() {
     local nudge_script=""
-    local target_path="$FOCUS_DATA_PATH/focus-nudge"
+    local target_path="$REFOCUS_DATA_PATH/focus-nudge"
     
     # Find the focus-nudge script
     if [[ -f "./focus-nudge" ]]; then
@@ -594,7 +594,7 @@ install_nudge_script() {
     local nudge_script_path="$(readlink -f "$nudge_script")"
     
     # Create focus data directory if it doesn't exist
-    mkdir -p "$FOCUS_DATA_PATH"
+    mkdir -p "$REFOCUS_DATA_PATH"
     
     print_verbose "Installing focus-nudge script to: $target_path"
     
@@ -612,7 +612,7 @@ install_nudge_script() {
 
 # Function to uninstall focus-nudge script
 uninstall_nudge_script() {
-    local target_path="$FOCUS_DATA_PATH/focus-nudge"
+    local target_path="$REFOCUS_DATA_PATH/focus-nudge"
     
     print_verbose "Uninstalling focus-nudge script from: $target_path"
     
@@ -628,7 +628,7 @@ uninstall_nudge_script() {
 
 # Function to setup cron job for nudging
 setup_cron_job() {
-    local nudge_script="$FOCUS_DATA_PATH/focus-nudge"
+    local nudge_script="$REFOCUS_DATA_PATH/focus-nudge"
     local cron_entry="*/10 * * * * $nudge_script"
     local temp_cron_file="/tmp/focus_cron_$$"
     
@@ -668,7 +668,7 @@ setup_cron_job() {
 
 # Function to remove cron job for nudging
 remove_cron_job() {
-    local nudge_script="$FOCUS_DATA_PATH/focus-nudge"
+    local nudge_script="$REFOCUS_DATA_PATH/focus-nudge"
     local temp_cron_file="/tmp/focus_cron_$$"
     
     print_verbose "Removing cron job for nudging..."
@@ -780,12 +780,12 @@ function update-prompt(){
     # This function is automatically managed by refocus shell
 
     # Get the database path
-    FOCUS_DB="$HOME/.local/refocus/timelog.db"
+    REFOCUS_DB="$HOME/.local/refocus/refocus.db"
 
     # Check if database exists and get current prompt content
-    if [[ -f "$FOCUS_DB" ]]; then
+    if [[ -f "$REFOCUS_DB" ]]; then
         # Get the prompt content from database with better error handling
-        PROMPT_CONTENT=$(sqlite3 "$FOCUS_DB" "SELECT prompt_content FROM state WHERE id = 1;" 2>/dev/null)
+        PROMPT_CONTENT=$(sqlite3 "$REFOCUS_DB" "SELECT prompt_content FROM state WHERE id = 1;" 2>/dev/null)
         
         if [[ -n "$PROMPT_CONTENT" ]]; then
             # Set PS1 directly from database content
@@ -800,9 +800,9 @@ function update-prompt(){
 }
 
 # Auto-update prompt on shell startup if focus is active
-if [[ -f "$HOME/.local/refocus/timelog.db" ]]; then
+if [[ -f "$HOME/.local/refocus/refocus.db" ]]; then
     # Check if focus is currently active
-    ACTIVE_STATE=$(sqlite3 "$HOME/.local/refocus/timelog.db" "SELECT active FROM state WHERE id = 1;" 2>/dev/null)
+    ACTIVE_STATE=$(sqlite3 "$HOME/.local/refocus/refocus.db" "SELECT active FROM state WHERE id = 1;" 2>/dev/null)
     if [[ "$ACTIVE_STATE" == "1" ]]; then
         update-prompt
     fi
@@ -1029,12 +1029,12 @@ function update-prompt(){
     # This function is automatically managed by refocus shell
 
     # Get the database path
-    FOCUS_DB="$HOME/.local/refocus/timelog.db"
+    REFOCUS_DB="$HOME/.local/refocus/refocus.db"
 
     # Check if database exists and get current prompt file
-    if [[ -f "$FOCUS_DB" ]]; then
+    if [[ -f "$REFOCUS_DB" ]]; then
         # Get the prompt file from database
-        PROMPT_FILE=$(sqlite3 "$FOCUS_DB" "SELECT prompt_file FROM state WHERE id = 1;" 2>/dev/null)
+        PROMPT_FILE=$(sqlite3 "$REFOCUS_DB" "SELECT prompt_file FROM state WHERE id = 1;" 2>/dev/null)
         
         if [[ -n "$PROMPT_FILE" ]] && [[ -f "$PROMPT_FILE" ]]; then
             # Source the prompt file to set PS1

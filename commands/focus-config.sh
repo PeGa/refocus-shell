@@ -37,62 +37,62 @@ function focus_config_validate() {
     local errors=0
     
     # Validate database path
-    if [[ -z "$FOCUS_DB_PATH" ]]; then
-        echo "❌ FOCUS_DB_PATH is not set"
+    if [[ -z "$REFOCUS_DB_PATH" ]]; then
+        echo "❌ REFOCUS_DB_PATH is not set"
         ((errors++))
     else
-        echo "✅ FOCUS_DB_PATH: $FOCUS_DB_PATH"
+        echo "✅ REFOCUS_DB_PATH: $REFOCUS_DB_PATH"
     fi
     
     # Validate installation directory
-    if [[ -z "$FOCUS_INSTALL_DIR" ]]; then
-        echo "❌ FOCUS_INSTALL_DIR is not set"
+    if [[ -z "$REFOCUS_INSTALL_DIR" ]]; then
+        echo "❌ REFOCUS_INSTALL_DIR is not set"
         ((errors++))
     else
-        echo "✅ FOCUS_INSTALL_DIR: $FOCUS_INSTALL_DIR"
+        echo "✅ REFOCUS_INSTALL_DIR: $REFOCUS_INSTALL_DIR"
     fi
     
     # Validate numeric values
-    if ! [[ "$FOCUS_IDLE_THRESHOLD" =~ ^[0-9]+$ ]]; then
-        echo "❌ FOCUS_IDLE_THRESHOLD must be a positive integer (current: $FOCUS_IDLE_THRESHOLD)"
+    if ! [[ "$REFOCUS_IDLE_THRESHOLD" =~ ^[0-9]+$ ]]; then
+        echo "❌ REFOCUS_IDLE_THRESHOLD must be a positive integer (current: $REFOCUS_IDLE_THRESHOLD)"
         ((errors++))
     else
-        echo "✅ FOCUS_IDLE_THRESHOLD: ${FOCUS_IDLE_THRESHOLD}s"
+        echo "✅ REFOCUS_IDLE_THRESHOLD: ${REFOCUS_IDLE_THRESHOLD}s"
     fi
     
-    if ! [[ "$FOCUS_MAX_PROJECT_LENGTH" =~ ^[0-9]+$ ]]; then
-        echo "❌ FOCUS_MAX_PROJECT_LENGTH must be a positive integer (current: $FOCUS_MAX_PROJECT_LENGTH)"
+    if ! [[ "$REFOCUS_MAX_PROJECT_LENGTH" =~ ^[0-9]+$ ]]; then
+        echo "❌ REFOCUS_MAX_PROJECT_LENGTH must be a positive integer (current: $REFOCUS_MAX_PROJECT_LENGTH)"
         ((errors++))
     else
-        echo "✅ FOCUS_MAX_PROJECT_LENGTH: ${FOCUS_MAX_PROJECT_LENGTH} chars"
+        echo "✅ REFOCUS_MAX_PROJECT_LENGTH: ${REFOCUS_MAX_PROJECT_LENGTH} chars"
     fi
     
-    if ! [[ "$FOCUS_NUDGE_INTERVAL" =~ ^[0-9]+$ ]]; then
-        echo "❌ FOCUS_NUDGE_INTERVAL must be a positive integer (current: $FOCUS_NUDGE_INTERVAL)"
+    if ! [[ "$REFOCUS_NUDGE_INTERVAL" =~ ^[0-9]+$ ]]; then
+        echo "❌ REFOCUS_NUDGE_INTERVAL must be a positive integer (current: $REFOCUS_NUDGE_INTERVAL)"
         ((errors++))
     else
-        echo "✅ FOCUS_NUDGE_INTERVAL: ${FOCUS_NUDGE_INTERVAL} minutes"
+        echo "✅ REFOCUS_NUDGE_INTERVAL: ${REFOCUS_NUDGE_INTERVAL} minutes"
     fi
     
-    if ! [[ "$FOCUS_REPORT_LIMIT" =~ ^[0-9]+$ ]]; then
-        echo "❌ FOCUS_REPORT_LIMIT must be a positive integer (current: $FOCUS_REPORT_LIMIT)"
+    if ! [[ "$REFOCUS_REPORT_LIMIT" =~ ^[0-9]+$ ]]; then
+        echo "❌ REFOCUS_REPORT_LIMIT must be a positive integer (current: $REFOCUS_REPORT_LIMIT)"
         ((errors++))
     else
-        echo "✅ FOCUS_REPORT_LIMIT: $FOCUS_REPORT_LIMIT"
+        echo "✅ REFOCUS_REPORT_LIMIT: $REFOCUS_REPORT_LIMIT"
     fi
     
     # Check if database exists
-    if [[ -f "$FOCUS_DB_PATH" ]]; then
-        echo "✅ Database exists: $FOCUS_DB_PATH"
+    if [[ -f "$REFOCUS_DB_PATH" ]]; then
+        echo "✅ Database exists: $REFOCUS_DB_PATH"
     else
-        echo "⚠️  Database does not exist: $FOCUS_DB_PATH"
+        echo "⚠️  Database does not exist: $REFOCUS_DB_PATH"
     fi
     
     # Check if installation directory exists
-    if [[ -d "$FOCUS_INSTALL_DIR" ]]; then
-        echo "✅ Installation directory exists: $FOCUS_INSTALL_DIR"
+    if [[ -d "$REFOCUS_INSTALL_DIR" ]]; then
+        echo "✅ Installation directory exists: $REFOCUS_INSTALL_DIR"
     else
-        echo "⚠️  Installation directory does not exist: $FOCUS_INSTALL_DIR"
+        echo "⚠️  Installation directory does not exist: $REFOCUS_INSTALL_DIR"
     fi
     
     echo
@@ -122,7 +122,7 @@ function focus_config_set() {
     fi
     
     # Set the configuration value directly
-    export "FOCUS_${key^^}=$value"
+    export "REFOCUS_${key^^}=$value"
     
     echo "✅ Set $key = $value"
     echo "Note: This change is temporary. Use 'focus config save' to make it permanent."
@@ -139,7 +139,7 @@ function focus_config_get() {
     fi
     
     # Get the configuration value directly from environment variable
-    local env_var="FOCUS_${key^^}"
+    local env_var="REFOCUS_${key^^}"
     if [[ -n "${!env_var}" ]]; then
         echo "${!env_var}"
     else

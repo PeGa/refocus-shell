@@ -89,7 +89,7 @@ focus off
 
 **Usage**:
 ```bash
-source ~/.local/work/lib/work-alias.sh
+source ~/.local/refocus/lib/focus-alias.sh
 work-safe on project
 work-safe off
 ```
@@ -130,8 +130,8 @@ work-safe off
 ### Option 3: Manual Setup
 ```bash
 # Copy work function to your shell
-cp lib/work-function.sh ~/.local/work/lib/
-echo "source ~/.local/work/lib/work-function.sh" >> ~/.bashrc
+cp lib/focus-function.sh ~/.local/refocus/lib/
+echo "source ~/.local/refocus/lib/focus-function.sh" >> ~/.bashrc
 ```
 
 ## Testing the Solutions

@@ -16,8 +16,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # Database configuration
-DB_DEFAULT="$HOME/.local/refocus/timelog.db"
-DB="${FOCUS_DB:-$DB_DEFAULT}"
+DB_DEFAULT="$HOME/.local/refocus/refocus.db"
+DB="${REFOCUS_DB:-$DB_DEFAULT}"
 # Table names - these should match what's used in the main script
 STATE_TABLE="${STATE_TABLE:-state}"
 SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"

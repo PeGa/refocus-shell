@@ -16,7 +16,7 @@ This is a project lovingly evocating Ubuntu's 100 paper cuts, with the idea of f
 
 6. I think that same goes to the prompt backup (tons of backups, and backups of backups)
 
-7. When uninstalling, work directory (namely $HOME/.local/work) is left full of crap, without even noticing the user. It would be interesting to ask the user to clean up the mess automatically, or at least let the user knowthe situation.
+7. When uninstalling, refocus directory (namely $HOME/.local/refocus) is left full of crap, without even noticing the user. It would be interesting to ask the user to clean up the mess automatically, or at least let the user knowthe situation.
 
 8. When installing, the y/n prompt defaults to N, preventing the user to install just by hitting enter:
 
@@ -26,10 +26,10 @@ Work Manager Installation
 ========================
 
 Where should the database be stored?
-Database path (default: /home/pega/.local/work/timelog.db): 
+Database path (default: /home/pega/.local/refocus/refocus.db): 
 
-Directory does not exist: /home/pega/.local/work
-Create directory '/home/pega/.local/work'? (y/N): 
+Directory does not exist: /home/pega/.local/refocus
+Create directory '/home/pega/.local/refocus'? (y/N): 
 Installation aborted.
 ```
 

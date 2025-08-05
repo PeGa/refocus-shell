@@ -19,23 +19,23 @@
 # This script is executed by cron to send periodic notifications
 
 # Configuration
-FOCUS_DB="$HOME/.local/refocus/timelog.db"
-FOCUS_CONFIG="$HOME/.local/refocus/config.sh"
+REFOCUS_DB="$HOME/.local/refocus/refocus.db"
+REFOCUS_CONFIG="$HOME/.local/refocus/config.sh"
 
 # Load configuration if it exists
-if [[ -f "$FOCUS_CONFIG" ]]; then
-    source "$FOCUS_CONFIG"
+if [[ -f "$REFOCUS_CONFIG" ]]; then
+    source "$REFOCUS_CONFIG"
 else
     # Default values
-    FOCUS_NUDGE_INTERVAL=10
-    FOCUS_LOG_FACILITY="user"
-    FOCUS_LOG_PRIORITY="notice"
+    REFOCUS_NUDGE_INTERVAL=10
+    REFOCUS_LOG_FACILITY="user"
+    REFOCUS_LOG_PRIORITY="notice"
 fi
 
 # Function to log messages
 log_message() {
     local message="$1"
-    logger -p "$FOCUS_LOG_FACILITY.$FOCUS_LOG_PRIORITY" "focus-nudge: $message"
+    logger -p "$REFOCUS_LOG_FACILITY.$REFOCUS_LOG_PRIORITY" "focus-nudge: $message"
 }
 
 # Function to send notification
@@ -54,13 +54,13 @@ send_notification() {
 
 # Check if refocus shell is disabled
 check_focus_disabled() {
-    if [[ ! -f "$FOCUS_DB" ]]; then
+    if [[ ! -f "$REFOCUS_DB" ]]; then
         log_message "database not found"
         return 1
     fi
     
     local focus_disabled
-    focus_disabled=$(sqlite3 "$FOCUS_DB" "SELECT focus_disabled FROM state WHERE id = 1;" 2>/dev/null)
+    focus_disabled=$(sqlite3 "$REFOCUS_DB" "SELECT focus_disabled FROM state WHERE id = 1;" 2>/dev/null)
     
     if [[ "$focus_disabled" -eq 1 ]]; then
         log_message "refocus shell is disabled"
@@ -72,12 +72,12 @@ check_focus_disabled() {
 
 # Check if nudging is enabled
 check_nudging_enabled() {
-    if [[ ! -f "$FOCUS_DB" ]]; then
+    if [[ ! -f "$REFOCUS_DB" ]]; then
         return 1
     fi
     
     local nudging_enabled
-    nudging_enabled=$(sqlite3 "$FOCUS_DB" "SELECT nudging_enabled FROM state WHERE id = 1;" 2>/dev/null)
+    nudging_enabled=$(sqlite3 "$REFOCUS_DB" "SELECT nudging_enabled FROM state WHERE id = 1;" 2>/dev/null)
     
     if [[ "$nudging_enabled" -eq 0 ]]; then
         log_message "nudging is disabled"
@@ -89,12 +89,12 @@ check_nudging_enabled() {
 
 # Get current focus status
 get_focus_status() {
-    if [[ ! -f "$FOCUS_DB" ]]; then
+    if [[ ! -f "$REFOCUS_DB" ]]; then
         return 1
     fi
     
     local state
-    state=$(sqlite3 "$FOCUS_DB" "SELECT active, project, start_time FROM state WHERE id = 1;" 2>/dev/null)
+    state=$(sqlite3 "$REFOCUS_DB" "SELECT active, project, start_time FROM state WHERE id = 1;" 2>/dev/null)
     
     if [[ -z "$state" ]]; then
         log_message "error: could not get focus status"

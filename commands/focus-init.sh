@@ -18,10 +18,10 @@ function focus_init() {
     
     # Use default database path if not provided
     if [[ -z "$db_path" ]]; then
-        if [[ -f "$HOME/.local/refocus/timelog.db" ]]; then
-            db_path="$HOME/.local/refocus/timelog.db"
+        if [[ -f "$HOME/.local/refocus/refocus.db" ]]; then
+            db_path="$HOME/.local/refocus/refocus.db"
         else
-            db_path="$HOME/.local/refocus/timelog.db"
+            db_path="$HOME/.local/refocus/refocus.db"
         fi
     fi
     
@@ -76,7 +76,7 @@ case "${1:-}" in
         echo ""
         echo "This command initializes a new refocus shell database with the required"
         echo "tables and default state. If no database path is provided, it will"
-        echo "use the default location: ~/.local/refocus/timelog.db"
+        echo "use the default location: ~/.local/refocus/refocus.db"
         echo ""
         echo "Examples:"
         echo "  focus init                    # Initialize with default path"

@@ -8,118 +8,118 @@
 # =============================================================================
 
 # Default database path
-FOCUS_DB_DEFAULT="$HOME/.local/refocus/timelog.db"
+REFOCUS_DB_DEFAULT="$HOME/.local/refocus/refocus.db"
 
 # Database path (can be overridden by environment variable)
-FOCUS_DB_PATH="${FOCUS_DB_PATH:-$FOCUS_DB_DEFAULT}"
+REFOCUS_DB_PATH="${REFOCUS_DB_PATH:-$REFOCUS_DB_DEFAULT}"
 
 # Database table names
-FOCUS_STATE_TABLE="${FOCUS_STATE_TABLE:-state}"
-FOCUS_SESSIONS_TABLE="${FOCUS_SESSIONS_TABLE:-sessions}"
+REFOCUS_STATE_TABLE="${REFOCUS_STATE_TABLE:-state}"
+REFOCUS_SESSIONS_TABLE="${REFOCUS_SESSIONS_TABLE:-sessions}"
 
 # =============================================================================
 # INSTALLATION PATHS
 # =============================================================================
 
 # Default installation directory
-FOCUS_INSTALL_DIR_DEFAULT="$HOME/.local/bin"
+REFOCUS_INSTALL_DIR_DEFAULT="$HOME/.local/bin"
 
 # Installation directory (can be overridden by environment variable)
-FOCUS_INSTALL_DIR="${FOCUS_INSTALL_DIR:-$FOCUS_INSTALL_DIR_DEFAULT}"
+REFOCUS_INSTALL_DIR="${REFOCUS_INSTALL_DIR:-$REFOCUS_INSTALL_DIR_DEFAULT}"
 
 # Focus data directory
-FOCUS_DATA_DIR="$HOME/.local/refocus"
+REFOCUS_DATA_DIR="$HOME/.local/refocus"
 
 # Library directory
-FOCUS_LIB_DIR="$FOCUS_DATA_DIR/lib"
+REFOCUS_LIB_DIR="$REFOCUS_DATA_DIR/lib"
 
 # Commands directory
-FOCUS_COMMANDS_DIR="$FOCUS_DATA_DIR/commands"
+REFOCUS_COMMANDS_DIR="$REFOCUS_DATA_DIR/commands"
 
 # =============================================================================
 # BEHAVIOR CONFIGURATION
 # =============================================================================
 
 # Verbose mode (can be overridden by environment variable)
-FOCUS_VERBOSE="${FOCUS_VERBOSE:-false}"
+REFOCUS_VERBOSE="${REFOCUS_VERBOSE:-false}"
 
 # Default idle session threshold (in seconds)
-FOCUS_IDLE_THRESHOLD="${FOCUS_IDLE_THRESHOLD:-60}"
+REFOCUS_IDLE_THRESHOLD="${REFOCUS_IDLE_THRESHOLD:-60}"
 
 # Maximum project name length
-FOCUS_MAX_PROJECT_LENGTH="${FOCUS_MAX_PROJECT_LENGTH:-100}"
+REFOCUS_MAX_PROJECT_LENGTH="${REFOCUS_MAX_PROJECT_LENGTH:-100}"
 
 # Default prompt format
-FOCUS_DEFAULT_PROMPT='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+REFOCUS_DEFAULT_PROMPT='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 
 # Focus prompt format (with project placeholder)
-FOCUS_PROMPT_FORMAT='⏳ [%s] ${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+REFOCUS_PROMPT_FORMAT='⏳ [%s] ${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 
 # =============================================================================
 # NOTIFICATION CONFIGURATION
 # =============================================================================
 
 # Enable notifications (can be overridden by environment variable)
-FOCUS_NOTIFICATIONS="${FOCUS_NOTIFICATIONS:-true}"
+REFOCUS_NOTIFICATIONS="${REFOCUS_NOTIFICATIONS:-true}"
 
 # Notification timeout (in milliseconds)
-FOCUS_NOTIFICATION_TIMEOUT="${FOCUS_NOTIFICATION_TIMEOUT:-5000}"
+REFOCUS_NOTIFICATION_TIMEOUT="${REFOCUS_NOTIFICATION_TIMEOUT:-5000}"
 
 # =============================================================================
 # NUDGING CONFIGURATION
 # =============================================================================
 
 # Enable nudging (can be overridden by environment variable)
-FOCUS_NUDGING="${FOCUS_NUDGING:-true}"
+REFOCUS_NUDGING="${REFOCUS_NUDGING:-true}"
 
 # Nudging interval (in minutes)
-FOCUS_NUDGE_INTERVAL="${FOCUS_NUDGE_INTERVAL:-10}"
+REFOCUS_NUDGE_INTERVAL="${REFOCUS_NUDGE_INTERVAL:-10}"
 
 # Nudge message format
-FOCUS_NUDGE_MESSAGE="⏰ Time to check your focus status! Run 'focus status' to see current progress."
+REFOCUS_NUDGE_MESSAGE="⏰ Time to check your focus status! Run 'focus status' to see current progress."
 
 # =============================================================================
 # REPORTING CONFIGURATION
 # =============================================================================
 
 # Default report limit (number of sessions to show)
-FOCUS_REPORT_LIMIT="${FOCUS_REPORT_LIMIT:-20}"
+REFOCUS_REPORT_LIMIT="${REFOCUS_REPORT_LIMIT:-20}"
 
 # Date format for reports
-FOCUS_DATE_FORMAT="${FOCUS_DATE_FORMAT:-%Y-%m-%d %H:%M}"
+REFOCUS_DATE_FORMAT="${REFOCUS_DATE_FORMAT:-%Y-%m-%d %H:%M}"
 
 # Time format for reports
-FOCUS_TIME_FORMAT="${FOCUS_TIME_FORMAT:-%H:%M}"
+REFOCUS_TIME_FORMAT="${REFOCUS_TIME_FORMAT:-%H:%M}"
 
 # =============================================================================
 # EXPORT/IMPORT CONFIGURATION
 # =============================================================================
 
 # Default export filename format
-FOCUS_EXPORT_FORMAT="focus-export-%Y%m%d_%H%M%S.sql"
+REFOCUS_EXPORT_FORMAT="refocus-export-%Y%m%d_%H%M%S.sql"
 
 # Export directory (optional, defaults to current directory)
-FOCUS_EXPORT_DIR="${FOCUS_EXPORT_DIR:-}"
+REFOCUS_EXPORT_DIR="${REFOCUS_EXPORT_DIR:-}"
 
 # =============================================================================
 # VALIDATION CONFIGURATION
 # =============================================================================
 
 # Maximum session duration (in hours) - for validation
-FOCUS_MAX_SESSION_HOURS="${FOCUS_MAX_SESSION_HOURS:-24}"
+REFOCUS_MAX_SESSION_HOURS="${REFOCUS_MAX_SESSION_HOURS:-24}"
 
 # Minimum session duration (in seconds) - for validation
-FOCUS_MIN_SESSION_SECONDS="${FOCUS_MIN_SESSION_SECONDS:-1}"
+REFOCUS_MIN_SESSION_SECONDS="${REFOCUS_MIN_SESSION_SECONDS:-1}"
 
 # =============================================================================
 # DEBUG CONFIGURATION
 # =============================================================================
 
 # Debug mode (can be overridden by environment variable)
-FOCUS_DEBUG="${FOCUS_DEBUG:-false}"
+REFOCUS_DEBUG="${REFOCUS_DEBUG:-false}"
 
 # Log file path (optional)
-FOCUS_LOG_FILE="${FOCUS_LOG_FILE:-}"
+REFOCUS_LOG_FILE="${REFOCUS_LOG_FILE:-}"
 
 # =============================================================================
 # UTILITY FUNCTIONS
@@ -131,7 +131,7 @@ get_config() {
     local default="$2"
     
     # Check if environment variable exists
-    local env_var="FOCUS_${key^^}"
+    local env_var="REFOCUS_${key^^}"
     if [[ -n "${!env_var}" ]]; then
         echo "${!env_var}"
         return 0
@@ -147,7 +147,7 @@ set_config() {
     local value="$2"
     
     # Export the environment variable
-    export "FOCUS_${key^^}=$value"
+    export "REFOCUS_${key^^}=$value"
 }
 
 # Function to load configuration from file
@@ -175,43 +175,43 @@ save_config() {
 # Generated on $(date)
 
 # Database Configuration
-FOCUS_DB_PATH="$FOCUS_DB_PATH"
-FOCUS_STATE_TABLE="$FOCUS_STATE_TABLE"
-FOCUS_SESSIONS_TABLE="$FOCUS_SESSIONS_TABLE"
+REFOCUS_DB_PATH="$REFOCUS_DB_PATH"
+REFOCUS_STATE_TABLE="$REFOCUS_STATE_TABLE"
+REFOCUS_SESSIONS_TABLE="$REFOCUS_SESSIONS_TABLE"
 
 # Installation Paths
-FOCUS_INSTALL_DIR="$FOCUS_INSTALL_DIR"
-FOCUS_DATA_DIR="$FOCUS_DATA_DIR"
+REFOCUS_INSTALL_DIR="$REFOCUS_INSTALL_DIR"
+REFOCUS_DATA_DIR="$REFOCUS_DATA_DIR"
 
 # Behavior Configuration
-FOCUS_VERBOSE="$FOCUS_VERBOSE"
-FOCUS_IDLE_THRESHOLD="$FOCUS_IDLE_THRESHOLD"
-FOCUS_MAX_PROJECT_LENGTH="$FOCUS_MAX_PROJECT_LENGTH"
+REFOCUS_VERBOSE="$REFOCUS_VERBOSE"
+REFOCUS_IDLE_THRESHOLD="$REFOCUS_IDLE_THRESHOLD"
+REFOCUS_MAX_PROJECT_LENGTH="$REFOCUS_MAX_PROJECT_LENGTH"
 
 # Notification Configuration
-FOCUS_NOTIFICATIONS="$FOCUS_NOTIFICATIONS"
-FOCUS_NOTIFICATION_TIMEOUT="$FOCUS_NOTIFICATION_TIMEOUT"
+REFOCUS_NOTIFICATIONS="$REFOCUS_NOTIFICATIONS"
+REFOCUS_NOTIFICATION_TIMEOUT="$REFOCUS_NOTIFICATION_TIMEOUT"
 
 # Nudging Configuration
-FOCUS_NUDGING="$FOCUS_NUDGING"
-FOCUS_NUDGE_INTERVAL="$FOCUS_NUDGE_INTERVAL"
+REFOCUS_NUDGING="$REFOCUS_NUDGING"
+REFOCUS_NUDGE_INTERVAL="$REFOCUS_NUDGE_INTERVAL"
 
 # Reporting Configuration
-FOCUS_REPORT_LIMIT="$FOCUS_REPORT_LIMIT"
-FOCUS_DATE_FORMAT="$FOCUS_DATE_FORMAT"
-FOCUS_TIME_FORMAT="$FOCUS_TIME_FORMAT"
+REFOCUS_REPORT_LIMIT="$REFOCUS_REPORT_LIMIT"
+REFOCUS_DATE_FORMAT="$REFOCUS_DATE_FORMAT"
+REFOCUS_TIME_FORMAT="$REFOCUS_TIME_FORMAT"
 
 # Export/Import Configuration
-FOCUS_EXPORT_FORMAT="$FOCUS_EXPORT_FORMAT"
-FOCUS_EXPORT_DIR="$FOCUS_EXPORT_DIR"
+REFOCUS_EXPORT_FORMAT="$REFOCUS_EXPORT_FORMAT"
+REFOCUS_EXPORT_DIR="$REFOCUS_EXPORT_DIR"
 
 # Validation Configuration
-FOCUS_MAX_SESSION_HOURS="$FOCUS_MAX_SESSION_HOURS"
-FOCUS_MIN_SESSION_SECONDS="$FOCUS_MIN_SESSION_SECONDS"
+REFOCUS_MAX_SESSION_HOURS="$REFOCUS_MAX_SESSION_HOURS"
+REFOCUS_MIN_SESSION_SECONDS="$REFOCUS_MIN_SESSION_SECONDS"
 
 # Debug Configuration
-FOCUS_DEBUG="$FOCUS_DEBUG"
-FOCUS_LOG_FILE="$FOCUS_LOG_FILE"
+REFOCUS_DEBUG="$REFOCUS_DEBUG"
+REFOCUS_LOG_FILE="$REFOCUS_LOG_FILE"
 EOF
 }
 
@@ -220,35 +220,35 @@ validate_config() {
     local errors=0
     
     # Validate database path
-    if [[ -z "$FOCUS_DB_PATH" ]]; then
-        echo "❌ FOCUS_DB_PATH is not set"
+    if [[ -z "$REFOCUS_DB_PATH" ]]; then
+        echo "❌ REFOCUS_DB_PATH is not set"
         ((errors++))
     fi
     
     # Validate installation directory
-    if [[ -z "$FOCUS_INSTALL_DIR" ]]; then
-        echo "❌ FOCUS_INSTALL_DIR is not set"
+    if [[ -z "$REFOCUS_INSTALL_DIR" ]]; then
+        echo "❌ REFOCUS_INSTALL_DIR is not set"
         ((errors++))
     fi
     
     # Validate numeric values
-    if ! [[ "$FOCUS_IDLE_THRESHOLD" =~ ^[0-9]+$ ]]; then
-        echo "❌ FOCUS_IDLE_THRESHOLD must be a positive integer"
+    if ! [[ "$REFOCUS_IDLE_THRESHOLD" =~ ^[0-9]+$ ]]; then
+        echo "❌ REFOCUS_IDLE_THRESHOLD must be a positive integer"
         ((errors++))
     fi
     
-    if ! [[ "$FOCUS_MAX_PROJECT_LENGTH" =~ ^[0-9]+$ ]]; then
-        echo "❌ FOCUS_MAX_PROJECT_LENGTH must be a positive integer"
+    if ! [[ "$REFOCUS_MAX_PROJECT_LENGTH" =~ ^[0-9]+$ ]]; then
+        echo "❌ REFOCUS_MAX_PROJECT_LENGTH must be a positive integer"
         ((errors++))
     fi
     
-    if ! [[ "$FOCUS_NUDGE_INTERVAL" =~ ^[0-9]+$ ]]; then
-        echo "❌ FOCUS_NUDGE_INTERVAL must be a positive integer"
+    if ! [[ "$REFOCUS_NUDGE_INTERVAL" =~ ^[0-9]+$ ]]; then
+        echo "❌ REFOCUS_NUDGE_INTERVAL must be a positive integer"
         ((errors++))
     fi
     
-    if ! [[ "$FOCUS_REPORT_LIMIT" =~ ^[0-9]+$ ]]; then
-        echo "❌ FOCUS_REPORT_LIMIT must be a positive integer"
+    if ! [[ "$REFOCUS_REPORT_LIMIT" =~ ^[0-9]+$ ]]; then
+        echo "❌ REFOCUS_REPORT_LIMIT must be a positive integer"
         ((errors++))
     fi
     
@@ -262,41 +262,41 @@ show_config() {
     echo "========================="
     echo
     echo "Database:"
-    echo "  DB Path: $FOCUS_DB_PATH"
-    echo "  State Table: $FOCUS_STATE_TABLE"
-    echo "  Sessions Table: $FOCUS_SESSIONS_TABLE"
+    echo "  DB Path: $REFOCUS_DB_PATH"
+    echo "  State Table: $REFOCUS_STATE_TABLE"
+    echo "  Sessions Table: $REFOCUS_SESSIONS_TABLE"
     echo
     echo "Installation:"
-    echo "  Install Dir: $FOCUS_INSTALL_DIR"
-    echo "  Data Dir: $FOCUS_DATA_DIR"
-    echo "  Lib Dir: $FOCUS_LIB_DIR"
-    echo "  Commands Dir: $FOCUS_COMMANDS_DIR"
+    echo "  Install Dir: $REFOCUS_INSTALL_DIR"
+    echo "  Data Dir: $REFOCUS_DATA_DIR"
+    echo "  Lib Dir: $REFOCUS_LIB_DIR"
+    echo "  Commands Dir: $REFOCUS_COMMANDS_DIR"
     echo
     echo "Behavior:"
-    echo "  Verbose: $FOCUS_VERBOSE"
-    echo "  Idle Threshold: ${FOCUS_IDLE_THRESHOLD}s"
-    echo "  Max Project Length: ${FOCUS_MAX_PROJECT_LENGTH} chars"
+    echo "  Verbose: $REFOCUS_VERBOSE"
+    echo "  Idle Threshold: ${REFOCUS_IDLE_THRESHOLD}s"
+    echo "  Max Project Length: ${REFOCUS_MAX_PROJECT_LENGTH} chars"
     echo
     echo "Notifications:"
-    echo "  Enabled: $FOCUS_NOTIFICATIONS"
-    echo "  Timeout: ${FOCUS_NOTIFICATION_TIMEOUT}ms"
+    echo "  Enabled: $REFOCUS_NOTIFICATIONS"
+    echo "  Timeout: ${REFOCUS_NOTIFICATION_TIMEOUT}ms"
     echo
     echo "Nudging:"
-    echo "  Enabled: $FOCUS_NUDGING"
-    echo "  Interval: ${FOCUS_NUDGE_INTERVAL} minutes"
+    echo "  Enabled: $REFOCUS_NUDGING"
+    echo "  Interval: ${REFOCUS_NUDGE_INTERVAL} minutes"
     echo
     echo "Reporting:"
-    echo "  Report Limit: $FOCUS_REPORT_LIMIT"
-    echo "  Date Format: $FOCUS_DATE_FORMAT"
-    echo "  Time Format: $FOCUS_TIME_FORMAT"
+    echo "  Report Limit: $REFOCUS_REPORT_LIMIT"
+    echo "  Date Format: $REFOCUS_DATE_FORMAT"
+    echo "  Time Format: $REFOCUS_TIME_FORMAT"
     echo
     echo "Validation:"
-    echo "  Max Session Hours: $FOCUS_MAX_SESSION_HOURS"
-    echo "  Min Session Seconds: $FOCUS_MIN_SESSION_SECONDS"
+    echo "  Max Session Hours: $REFOCUS_MAX_SESSION_HOURS"
+    echo "  Min Session Seconds: $REFOCUS_MIN_SESSION_SECONDS"
     echo
     echo "Debug:"
-    echo "  Debug Mode: $FOCUS_DEBUG"
-    echo "  Log File: ${FOCUS_LOG_FILE:-none}"
+    echo "  Debug Mode: $REFOCUS_DEBUG"
+    echo "  Log File: ${REFOCUS_LOG_FILE:-none}"
 }
 
 # Load user configuration if it exists
@@ -306,7 +306,7 @@ if [[ -f "$USER_CONFIG" ]]; then
 fi
 
 # Validate configuration on load
-if [[ "${FOCUS_VALIDATE_CONFIG:-true}" == "true" ]]; then
+if [[ "${REFOCUS_VALIDATE_CONFIG:-true}" == "true" ]]; then
     if ! validate_config >/dev/null 2>&1; then
         echo "Warning: Some configuration values are invalid. Run 'focus config validate' to see details."
     fi

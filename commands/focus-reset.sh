@@ -91,8 +91,8 @@ function focus_reset() {
         
         # Get database path
         local db_path
-        if [[ -f "$HOME/.local/refocus/timelog.db" ]]; then
-            db_path="$HOME/.local/refocus/timelog.db"
+        if [[ -f "$HOME/.local/refocus/refocus.db" ]]; then
+            db_path="$HOME/.local/refocus/refocus.db"
         else
             echo "❌ Database not found. Please install refocus shell first."
             exit 1

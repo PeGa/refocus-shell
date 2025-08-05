@@ -7,8 +7,8 @@
 # Usage: source ~/.local/refocus/lib/focus-alias.sh
 
 # Store original PS1 if not already stored
-if [[ -z "$FOCUS_ORIGINAL_PS1" ]]; then
-    export FOCUS_ORIGINAL_PS1="$PS1"
+if [[ -z "$REFOCUS_ORIGINAL_PS1" ]]; then
+    export REFOCUS_ORIGINAL_PS1="$PS1"
 fi
 
 # Safe focus function that sources the focus script
@@ -50,7 +50,7 @@ focus-safe() {
 
 # Function to update prompt from database (safe version)
 focus-update-prompt-safe() {
-    local focus_db="$HOME/.local/refocus/timelog.db"
+    local focus_db="$HOME/.local/refocus/refocus.db"
     
     if [[ -f "$focus_db" ]]; then
         # Get current prompt from database
@@ -64,8 +64,8 @@ focus-update-prompt-safe() {
     fi
     
     # Fallback to original prompt
-    if [[ -n "$FOCUS_ORIGINAL_PS1" ]]; then
-        export PS1="$FOCUS_ORIGINAL_PS1"
+    if [[ -n "$REFOCUS_ORIGINAL_PS1" ]]; then
+        export PS1="$REFOCUS_ORIGINAL_PS1"
     else
         # Default prompt if no original stored
         export PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01:34m\]\w\[\033[00m\]\$ '
@@ -74,8 +74,8 @@ focus-update-prompt-safe() {
 
 # Function to restore original prompt (safe version)
 focus-restore-prompt-safe() {
-    if [[ -n "$FOCUS_ORIGINAL_PS1" ]]; then
-        export PS1="$FOCUS_ORIGINAL_PS1"
+    if [[ -n "$REFOCUS_ORIGINAL_PS1" ]]; then
+        export PS1="$REFOCUS_ORIGINAL_PS1"
     else
         # Default prompt if no original stored
         export PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01:34m\]\w\[\033[00m\]\$ '
@@ -83,9 +83,9 @@ focus-restore-prompt-safe() {
 }
 
 # Auto-update prompt on function load if focus is active
-if [[ -f "$HOME/.local/refocus/timelog.db" ]]; then
+if [[ -f "$HOME/.local/refocus/refocus.db" ]]; then
     # Check if focus is currently active
-    ACTIVE_STATE=$(sqlite3 "$HOME/.local/refocus/timelog.db" "SELECT active FROM state WHERE id = 1;" 2>/dev/null)
+    ACTIVE_STATE=$(sqlite3 "$HOME/.local/refocus/refocus.db" "SELECT active FROM state WHERE id = 1;" 2>/dev/null)
     if [[ "$ACTIVE_STATE" == "1" ]]; then
         focus-update-prompt-safe
     fi
