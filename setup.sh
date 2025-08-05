@@ -46,11 +46,11 @@ set_abort_message() {
 }
 
 # Default installation paths
-SCRIPT_NAME="work"
+SCRIPT_NAME="focus"
 # Use the real user's home directory, not the effective user's
 REAL_USER_HOME=$(eval echo ~$(logname 2>/dev/null || echo $SUDO_USER 2>/dev/null || echo $USER))
-DB_DEFAULT="$REAL_USER_HOME/.local/work/timelog.db"
-WORK_DATA_PATH="$REAL_USER_HOME/.local/work"
+DB_DEFAULT="$REAL_USER_HOME/.local/focus/timelog.db"
+FOCUS_DATA_PATH="$REAL_USER_HOME/.local/focus"
 
 # Detect if running with sudo and set appropriate default
 if [[ "$EUID" -eq 0 ]]; then
@@ -100,7 +100,7 @@ setup_paths() {
     
     # Installation directory
     echo ""
-    echo "Where should the work script be installed?"
+    echo "Where should the focus script be installed?"
             print_verbose_note "/usr/local/bin requires sudo, ~/.local/bin is recommended for users"
     read -p "Installation directory (default: $INSTALL_DIR_DEFAULT): " INSTALL_INPUT
     INSTALL_DIR="${INSTALL_INPUT:-$INSTALL_DIR_DEFAULT}"
@@ -160,7 +160,7 @@ validate_paths_exist() {
     
     # Check if script exists
     if [[ ! -f "$script_path" ]]; then
-        echo "Error: Work script is not installed at: $script_path"
+        echo "Error: Focus script is not installed at: $script_path"
         has_error=true
     fi
     
@@ -188,7 +188,7 @@ setup_uninstall_paths() {
     
     while true; do
         # Installation directory
-        echo "Where is the work script installed?"
+        echo "Where is the focus script installed?"
         if [[ "$EUID" -eq 0 ]]; then
             print_verbose_note "Running with sudo - checking system-wide installation"
         else
@@ -205,12 +205,12 @@ setup_uninstall_paths() {
         
         echo ""
         echo "Uninstallation Summary:"
-        echo "  Script: $INSTALL_DIR/work"
+        echo "  Script: $INSTALL_DIR/focus"
         echo "  Database: $DB_PATH"
         echo ""
         
         # Validate paths exist
-        if validate_paths_exist "$INSTALL_DIR/work" "$DB_PATH"; then
+        if validate_paths_exist "$INSTALL_DIR/focus" "$DB_PATH"; then
             break
         else
             echo ""
@@ -434,38 +434,38 @@ reset_database() {
     print_success "Database reset complete."
 }
 
-# Function to install the work script
+# Function to install the focus script
 install_script() {
     # Always install to PATH first
     local target_path="$INSTALL_DIR/$SCRIPT_NAME"
     
-    local work_script=""
+    local focus_script=""
     
-    # Find the work script
-    if [[ -f "./work" ]]; then
-        work_script="./work"
-    elif [[ -f "$(dirname "$0")/work" ]]; then
-        work_script="$(dirname "$0")/work"
+    # Find the focus script
+    if [[ -f "./focus" ]]; then
+        focus_script="./focus"
+    elif [[ -f "$(dirname "$0")/focus" ]]; then
+        focus_script="$(dirname "$0")/focus"
     else
-        print_error "Could not find work script"
+        print_error "Could not find focus script"
         exit 1
     fi
     
-    local work_script_path="$(readlink -f "$work_script")"
+    local focus_script_path="$(readlink -f "$focus_script")"
     
     # Check if already installed and up to date
     if [[ -f "$target_path" ]]; then
         local installed_hash=$(sha256sum "$target_path" 2>/dev/null | cut -d' ' -f1)
-        local current_hash=$(sha256sum "$work_script_path" 2>/dev/null | cut -d' ' -f1)
+        local current_hash=$(sha256sum "$focus_script_path" 2>/dev/null | cut -d' ' -f1)
         
         if [[ "$installed_hash" == "$current_hash" ]]; then
-            print_verbose "Work script already installed and up to date at $target_path"
+            print_verbose "Focus script already installed and up to date at $target_path"
         else
             print_verbose "Updating existing installation at $target_path"
         fi
     fi
     
-    print_verbose "Installing work script to: $target_path"
+    print_verbose "Installing focus script to: $target_path"
     
     # Check if we have write permissions
     local install_dir=$(dirname "$target_path")
@@ -474,13 +474,13 @@ install_script() {
         exit 1
     fi
     
-    # Copy the work script
-    cp "$work_script_path" "$target_path"
+    # Copy the focus script
+    cp "$focus_script_path" "$target_path"
     chmod +x "$target_path"
     
-    print_success "Work script installed successfully to $target_path"
+    print_success "Focus script installed successfully to $target_path"
     if [[ "$INSTALL_METHOD" != "a" ]]; then
-        print_verbose "You can now use 'work' command from anywhere"
+        print_verbose "You can now use 'focus' command from anywhere"
     fi
     
     # Install libraries
@@ -489,7 +489,7 @@ install_script() {
 
 # Function to install libraries
 install_libraries() {
-    local lib_dir="$WORK_DATA_PATH/lib"
+    local lib_dir="$FOCUS_DATA_PATH/lib"
     
     # Create lib directory if it doesn't exist
     mkdir -p "$lib_dir"
@@ -508,14 +508,14 @@ install_libraries() {
     print_verbose "Installing libraries to: $lib_dir"
     
     # Copy all .sh files from lib directory
-    if [[ -f "$source_lib_dir/work-db.sh" ]]; then
-        cp "$source_lib_dir/work-db.sh" "$lib_dir/"
-        chmod +x "$lib_dir/work-db.sh"
+    if [[ -f "$source_lib_dir/focus-db.sh" ]]; then
+        cp "$source_lib_dir/focus-db.sh" "$lib_dir/"
+        chmod +x "$lib_dir/focus-db.sh"
     fi
     
-    if [[ -f "$source_lib_dir/work-utils.sh" ]]; then
-        cp "$source_lib_dir/work-utils.sh" "$lib_dir/"
-        chmod +x "$lib_dir/work-utils.sh"
+    if [[ -f "$source_lib_dir/focus-utils.sh" ]]; then
+        cp "$source_lib_dir/focus-utils.sh" "$lib_dir/"
+        chmod +x "$lib_dir/focus-utils.sh"
     fi
     
     print_verbose "Libraries installed successfully to $lib_dir"
@@ -523,7 +523,7 @@ install_libraries() {
 
 # Function to install commands
 install_commands() {
-    local commands_dir="$WORK_DATA_PATH/commands"
+    local commands_dir="$FOCUS_DATA_PATH/commands"
     
     # Create commands directory if it doesn't exist
     mkdir -p "$commands_dir"
@@ -553,14 +553,14 @@ install_commands() {
     print_verbose "Commands installed successfully to $commands_dir"
 }
 
-# Function to uninstall the work script
+# Function to uninstall the focus script
 uninstall_script() {
     local target_path="$INSTALL_DIR/$SCRIPT_NAME"
     
-    print_verbose "Uninstalling work script from: $target_path"
+    print_verbose "Uninstalling focus script from: $target_path"
     
     if [[ ! -f "$target_path" ]]; then
-        print_warning "Work script not found at $target_path"
+        print_warning "Focus script not found at $target_path"
         return 0
     fi
     
@@ -572,32 +572,32 @@ uninstall_script() {
     
     # Remove the script
     rm -f "$target_path"
-    print_success "Work script uninstalled from $target_path"
+    print_success "Focus script uninstalled from $target_path"
 }
 
-# Function to install work-nudge script
+# Function to install focus-nudge script
 install_nudge_script() {
     local nudge_script=""
-    local target_path="$WORK_DATA_PATH/work-nudge"
+    local target_path="$FOCUS_DATA_PATH/focus-nudge"
     
-    # Find the work-nudge script
-    if [[ -f "./work-nudge" ]]; then
-        nudge_script="./work-nudge"
-    elif [[ -f "$(dirname "$0")/work-nudge" ]]; then
-        nudge_script="$(dirname "$0")/work-nudge"
+    # Find the focus-nudge script
+    if [[ -f "./focus-nudge" ]]; then
+        nudge_script="./focus-nudge"
+    elif [[ -f "$(dirname "$0")/focus-nudge" ]]; then
+        nudge_script="$(dirname "$0")/focus-nudge"
     else
-        print_error "Could not find work-nudge script"
+        print_error "Could not find focus-nudge script"
         return 1
     fi
     
     local nudge_script_path="$(readlink -f "$nudge_script")"
     
     # Create work data directory if it doesn't exist
-    mkdir -p "$WORK_DATA_PATH"
+    mkdir -p "$FOCUS_DATA_PATH"
     
-    print_verbose "Installing work-nudge script to: $target_path"
+    print_verbose "Installing focus-nudge script to: $target_path"
     
-    # Copy the work-nudge script
+    # Copy the focus-nudge script
     cp "$nudge_script_path" "$target_path"
     chmod +x "$target_path"
     
@@ -606,36 +606,36 @@ install_nudge_script() {
         chown "$SUDO_USER:$SUDO_USER" "$target_path"
     fi
     
-    print_verbose "Work-nudge script installed successfully to $target_path"
+    print_verbose "Focus-nudge script installed successfully to $target_path"
 }
 
-# Function to uninstall work-nudge script
+# Function to uninstall focus-nudge script
 uninstall_nudge_script() {
-    local target_path="$WORK_DATA_PATH/work-nudge"
+    local target_path="$FOCUS_DATA_PATH/focus-nudge"
     
-    print_verbose "Uninstalling work-nudge script from: $target_path"
+    print_verbose "Uninstalling focus-nudge script from: $target_path"
     
     if [[ ! -f "$target_path" ]]; then
-        print_warning "Work-nudge script not found at $target_path"
+        print_warning "Focus-nudge script not found at $target_path"
         return 0
     fi
     
     # Remove the script
     rm -f "$target_path"
-    print_success "Work-nudge script uninstalled from $target_path"
+    print_success "Focus-nudge script uninstalled from $target_path"
 }
 
 # Function to setup cron job for nudging
 setup_cron_job() {
-    local nudge_script="$WORK_DATA_PATH/work-nudge"
+    local nudge_script="$FOCUS_DATA_PATH/focus-nudge"
     local cron_entry="*/10 * * * * $nudge_script"
-    local temp_cron_file="/tmp/work_cron_$$"
+    local temp_cron_file="/tmp/focus_cron_$$"
     
     print_verbose "Setting up cron job for nudging..."
     
-    # Check if work-nudge script exists
+    # Check if focus-nudge script exists
     if [[ ! -f "$nudge_script" ]]; then
-        print_error "Work-nudge script not found. Cannot setup cron job."
+        print_error "Focus-nudge script not found. Cannot setup cron job."
         return 1
     fi
     
@@ -667,7 +667,7 @@ setup_cron_job() {
 
 # Function to remove cron job for nudging
 remove_cron_job() {
-    local nudge_script="$WORK_DATA_PATH/work-nudge"
+    local nudge_script="$FOCUS_DATA_PATH/focus-nudge"
     local temp_cron_file="/tmp/work_cron_$$"
     
     print_verbose "Removing cron job for nudging..."
@@ -760,7 +760,7 @@ setup_shell_integration() {
     fi
     
     # Create refocus shell shell integration file
-    local work_shell_file="$REAL_USER_HOME/.local/work/shell-integration.sh"
+    local work_shell_file="$REAL_USER_HOME/.local/focus/shell-integration.sh"
     local work_dir=$(dirname "$work_shell_file")
     
     # Create work directory if it doesn't exist
@@ -779,7 +779,7 @@ function update-prompt(){
     # This function is automatically managed by refocus shell
 
     # Get the database path
-    WORK_DB="$HOME/.local/work/timelog.db"
+    WORK_DB="$HOME/.local/focus/timelog.db"
 
     # Check if database exists and get current prompt content
     if [[ -f "$WORK_DB" ]]; then
@@ -799,9 +799,9 @@ function update-prompt(){
 }
 
 # Auto-update prompt on shell startup if work is active
-if [[ -f "$HOME/.local/work/timelog.db" ]]; then
+if [[ -f "$HOME/.local/focus/timelog.db" ]]; then
     # Check if work is currently active
-    ACTIVE_STATE=$(sqlite3 "$HOME/.local/work/timelog.db" "SELECT active FROM state WHERE id = 1;" 2>/dev/null)
+    ACTIVE_STATE=$(sqlite3 "$HOME/.local/focus/timelog.db" "SELECT active FROM state WHERE id = 1;" 2>/dev/null)
     if [[ "$ACTIVE_STATE" == "1" ]]; then
         update-prompt
     fi
@@ -813,7 +813,7 @@ EOF
     echo "Created refocus shell shell integration: $work_shell_file"
     
     # Add shell integration to bashrc
-    if ! grep -q "source.*work/shell-integration.sh" "$rc_file" 2>/dev/null; then
+    if ! grep -q "source.*focus/shell-integration.sh" "$rc_file" 2>/dev/null; then
         echo "" >> "$rc_file"
         echo "# Refocus shell shell integration" >> "$rc_file"
         echo "source $work_shell_file" >> "$rc_file"
@@ -895,13 +895,13 @@ remove_shell_integration() {
     echo "RC file: $rc_file"
     
     # Remove refocus shell shell integration from bashrc
-    if grep -q "source.*work/shell-integration.sh" "$rc_file" 2>/dev/null; then
+    if grep -q "source.*focus/shell-integration.sh" "$rc_file" 2>/dev/null; then
         # Create backup of bashrc before modifying
         local backup_file="${rc_file}.backup.$(date +%Y%m%d_%H%M%S)"
         cp "$rc_file" "$backup_file"
         
         # Remove refocus shell shell integration lines
-        sed -i '/# Refocus shell shell integration/,/source.*work\/shell-integration.sh/d' "$rc_file"
+        sed -i '/# Refocus shell shell integration/,/source.*focus\/shell-integration.sh/d' "$rc_file"
         
         echo "Refocus shell shell integration removed from $rc_file"
         echo "Backup created at $backup_file"
@@ -913,15 +913,15 @@ remove_shell_integration() {
     fi
     
     # Remove the shell integration file
-    local work_shell_file="$REAL_USER_HOME/.local/work/shell-integration.sh"
+    local work_shell_file="$REAL_USER_HOME/.local/focus/shell-integration.sh"
     if [[ -f "$work_shell_file" ]]; then
         rm -f "$work_shell_file"
         echo "Removed refocus shell shell integration file: $work_shell_file"
     fi
 }
 
-# Function to setup work function (alternative to shell integration)
-setup_work_function() {
+# Function to setup focus function (alternative to shell integration)
+setup_focus_function() {
     local shell_info
     shell_info=$(detect_shell)
     local shell_name=$(echo "$shell_info" | cut -d'|' -f1)
@@ -930,51 +930,51 @@ setup_work_function() {
     print_verbose "Detected shell: $shell_name"
     print_verbose "RC file: $rc_file"
     
-    # Check if work script is installed
-    local work_script_installed=false
-    if [[ -f "$HOME/.local/bin/work" ]]; then
-        work_script_installed=true
-    elif [[ -f "/usr/local/bin/work" ]]; then
-        work_script_installed=true
-    elif [[ -f "/usr/bin/work" ]]; then
-        work_script_installed=true
+    # Check if focus script is installed
+    local focus_script_installed=false
+    if [[ -f "$HOME/.local/bin/focus" ]]; then
+        focus_script_installed=true
+    elif [[ -f "/usr/local/bin/focus" ]]; then
+        focus_script_installed=true
+    elif [[ -f "/usr/bin/focus" ]]; then
+        focus_script_installed=true
     fi
     
-    if [[ "$work_script_installed" == "false" ]]; then
-        echo "❌ Work script is not installed. Please install it first:"
+    if [[ "$focus_script_installed" == "false" ]]; then
+        echo "❌ Focus script is not installed. Please install it first:"
         echo "   ./setup.sh install"
         echo ""
-        echo "The work function requires the work script to be installed."
+        echo "The focus function requires the focus script to be installed."
         return 1
     fi
     
-    # Copy work function to installed location
-    local work_function_file="$REAL_USER_HOME/.local/work/lib/work-function.sh"
-    local work_dir=$(dirname "$work_function_file")
+    # Copy focus function to installed location
+    local focus_function_file="$REAL_USER_HOME/.local/focus/lib/focus-function.sh"
+    local focus_dir=$(dirname "$focus_function_file")
     
-    # Create work directory if it doesn't exist
-    if [[ ! -d "$work_dir" ]]; then
-        mkdir -p "$work_dir"
+    # Create focus directory if it doesn't exist
+    if [[ ! -d "$focus_dir" ]]; then
+        mkdir -p "$focus_dir"
     fi
     
-    # Copy the work function file
-    if [[ -f "$SCRIPT_DIR/lib/work-function.sh" ]]; then
-        cp "$SCRIPT_DIR/lib/work-function.sh" "$work_function_file"
-        chmod +x "$work_function_file"
-        print_verbose "Installed work function: $work_function_file"
+    # Copy the focus function file
+    if [[ -f "$SCRIPT_DIR/lib/focus-function.sh" ]]; then
+        cp "$SCRIPT_DIR/lib/focus-function.sh" "$focus_function_file"
+        chmod +x "$focus_function_file"
+        print_verbose "Installed focus function: $focus_function_file"
     else
-        echo "❌ Work function file not found: $SCRIPT_DIR/lib/work-function.sh"
+        echo "❌ Focus function file not found: $SCRIPT_DIR/lib/focus-function.sh"
         return 1
     fi
     
-    # Add work function sourcing to bashrc
-    if ! grep -q "source.*work/lib/work-function.sh" "$rc_file" 2>/dev/null; then
+    # Add focus function sourcing to bashrc
+    if ! grep -q "source.*focus/lib/focus-function.sh" "$rc_file" 2>/dev/null; then
         echo "" >> "$rc_file"
         echo "# Refocus shell function (alternative to shell integration)" >> "$rc_file"
-        echo "source $work_function_file" >> "$rc_file"
-        print_verbose "Added work function to $rc_file"
+        echo "source $focus_function_file" >> "$rc_file"
+        print_verbose "Added focus function to $rc_file"
     else
-        print_verbose "Work function already sourced in $rc_file"
+        print_verbose "Focus function already sourced in $rc_file"
     fi
     
     # Also add to .bash_profile for login shells
@@ -1028,7 +1028,7 @@ function update-prompt(){
     # This function is automatically managed by refocus shell
 
     # Get the database path
-    WORK_DB="$HOME/.local/work/timelog.db"
+    WORK_DB="$HOME/.local/focus/timelog.db"
 
     # Check if database exists and get current prompt file
     if [[ -f "$WORK_DB" ]]; then
@@ -1054,8 +1054,8 @@ EOF
         print_verbose_note "You may need to restart your terminal or run 'source $rc_file' for changes to take effect"
 }
 
-# Function to remove work function
-remove_work_function() {
+# Function to remove focus function
+remove_focus_function() {
     local shell_info
     shell_info=$(detect_shell)
     local shell_name=$(echo "$shell_info" | cut -d'|' -f1)
@@ -1083,7 +1083,7 @@ remove_work_function() {
     fi
     
     # Remove work function file
-    local work_function_file="$REAL_USER_HOME/.local/work/lib/work-function.sh"
+    local work_function_file="$REAL_USER_HOME/.local/focus/lib/focus-function.sh"
     if [[ -f "$work_function_file" ]]; then
         rm "$work_function_file"
         echo "Removed work function file: $work_function_file"
@@ -1105,7 +1105,7 @@ remove_work_function() {
     fi
     
     # Unset work-related functions from current shell session if they exist
-    local work_functions=("work" "update-prompt" "work-update-prompt" "work-restore-prompt")
+    local work_functions=("focus" "update-prompt" "focus-update-prompt" "focus-restore-prompt")
     for func in "${work_functions[@]}"; do
         if type "$func" >/dev/null 2>&1; then
             unset -f "$func"
@@ -1127,11 +1127,11 @@ show_usage() {
     echo ""
     echo "Commands:"
     echo "  install     Install refocus shell (interactive)"
-    echo "  uninstall   Uninstall work script and database (interactive)"
+    echo "  uninstall   Uninstall focus script and database (interactive)"
     echo "  deps        Install dependencies only"
     echo "  shell-setup Install shell integration (adds prompt.sh and shell_integration.sh)"
-    echo "  function-setup Install work function (alternative to shell integration)"
-    echo "  function-remove Remove work function"
+    echo "  function-setup Install focus function (alternative to shell integration)"
+    echo "  function-remove Remove focus function"
     echo ""
     echo "Options:"
     echo "  --install-dir DIR    Set installation directory (default: $INSTALL_DIR_DEFAULT)"
@@ -1146,8 +1146,8 @@ show_usage() {
     echo "  $0 --install-dir ~/.local/bin install  # Install to custom location"
     echo "  $0 --auto install             # Non-interactive installation"
     echo "  $0 shell-setup                # Install shell integration"
-    echo "  $0 function-setup             # Install work function"
-    echo "  $0 function-remove            # Remove work function"
+    echo "  $0 function-setup             # Install focus function"
+    echo "  $0 function-remove            # Remove focus function"
     echo ""
     echo "Installation Methods:"
     echo "  Function (default): Automatic prompt updates, works in all shells"
@@ -1206,7 +1206,7 @@ case "$COMMAND" in
             INSTALL_METHOD="a"  # Default to function installation for auto mode
             echo "Non-interactive installation:"
             echo "  Database: $DB_PATH"
-            echo "  Script: $INSTALL_DIR/work"
+            echo "  Script: $INSTALL_DIR/focus"
             echo "  Method: Function installation (automatic prompt updates)"
             echo ""
             echo "----"
@@ -1220,11 +1220,11 @@ case "$COMMAND" in
         install_nudge_script
         
         # Install based on chosen method
-        setup_work_function
+        setup_focus_function
         
-        # For function mode, remove work script from PATH after function is set up
+        # For function mode, remove focus script from PATH after function is set up
         if [[ "$INSTALL_METHOD" == "a" ]]; then
-            print_verbose "Removing work script from PATH for function mode"
+            print_verbose "Removing focus script from PATH for function mode"
             rm -f "$INSTALL_DIR/$SCRIPT_NAME"
         fi
         
@@ -1249,49 +1249,49 @@ case "$COMMAND" in
             print_warning "Database not found at: $DB_PATH"
         fi
         remove_shell_integration
-        remove_work_function
+        remove_focus_function
         
-        # Check if work directory exists and ask user about cleanup
-        work_dir=$(dirname "$DB_PATH")
-        if [[ -d "$work_dir" ]]; then
+        # Check if focus directory exists and ask user about cleanup
+        focus_dir=$(dirname "$DB_PATH")
+        if [[ -d "$focus_dir" ]]; then
             echo ""
-            echo "Work directory found: $work_dir"
+            echo "Focus directory found: $focus_dir"
             echo "This directory may contain additional files (libraries, commands, etc.)."
-            read -p "Remove entire work directory? (Y/n): " REMOVE_DIR
+            read -p "Remove entire focus directory? (Y/n): " REMOVE_DIR
             REMOVE_DIR="${REMOVE_DIR:-Y}"
             
             if [[ "$REMOVE_DIR" =~ ^[Yy]$ ]]; then
-                print_status "Removing work directory: $work_dir"
-                rm -rf "$work_dir"
-                print_success "Work directory removed"
+                print_status "Removing focus directory: $focus_dir"
+                rm -rf "$focus_dir"
+                print_success "Focus directory removed"
             else
-                echo "Work directory left intact at: $work_dir"
+                echo "Focus directory left intact at: $focus_dir"
             fi
         fi
         
-        # Remove work script (check both possible locations)
-        if [[ -f "$INSTALL_DIR/work" ]]; then
-            print_status "Uninstalling work script from: $INSTALL_DIR/work"
-            rm -f "$INSTALL_DIR/work"
-            print_success "Work script uninstalled from $INSTALL_DIR/work"
-        fi
+        # Remove focus script (check both possible locations)
+if [[ -f "$INSTALL_DIR/focus" ]]; then
+    print_status "Uninstalling focus script from: $INSTALL_DIR/focus"
+    rm -f "$INSTALL_DIR/focus"
+    print_success "Focus script uninstalled from $INSTALL_DIR/focus"
+fi
+
+if [[ -f "$REAL_USER_HOME/.local/focus/focus" ]]; then
+    print_status "Uninstalling focus script from: $REAL_USER_HOME/.local/focus/focus"
+    rm -f "$REAL_USER_HOME/.local/focus/focus"
+    print_success "Focus script uninstalled from $REAL_USER_HOME/.local/focus/focus"
+fi
         
-        if [[ -f "$REAL_USER_HOME/.local/work/work" ]]; then
-            print_status "Uninstalling work script from: $REAL_USER_HOME/.local/work/work"
-            rm -f "$REAL_USER_HOME/.local/work/work"
-            print_success "Work script uninstalled from $REAL_USER_HOME/.local/work/work"
-        fi
-        
-        # Remove work-nudge script
-        if [[ -f "$REAL_USER_HOME/.local/work/work-nudge" ]]; then
-            print_status "Uninstalling work-nudge script from: $REAL_USER_HOME/.local/work/work-nudge"
-            rm -f "$REAL_USER_HOME/.local/work/work-nudge"
-            print_success "Work-nudge script uninstalled from $REAL_USER_HOME/.local/work/work-nudge"
+        # Remove focus-nudge script
+        if [[ -f "$REAL_USER_HOME/.local/focus/focus-nudge" ]]; then
+            print_status "Uninstalling focus-nudge script from: $REAL_USER_HOME/.local/focus/focus-nudge"
+            rm -f "$REAL_USER_HOME/.local/focus/focus-nudge"
+            print_success "Focus-nudge script uninstalled from $REAL_USER_HOME/.local/focus/focus-nudge"
         fi
         
         # Remove cron job
         print_status "Removing cron job for nudging..."
-        (crontab -l 2>/dev/null | grep -v "work-nudge" || true) | crontab -
+        (crontab -l 2>/dev/null | grep -v "focus-nudge" || true) | crontab -
         print_success "Cron job removed successfully"
         
         print_success "Uninstallation complete!"
@@ -1310,18 +1310,18 @@ case "$COMMAND" in
         ;;
     function-setup)
         set_abort_message "function-setup"
-        print_status "Setting up work function..."
-        setup_work_function
-        print_success "Work function setup complete!"
+        print_status "Setting up focus function..."
+        setup_focus_function
+        print_success "Focus function setup complete!"
         echo ""
-        print_verbose_note "Run 'source ~/.bashrc' or restart your terminal to use the 'work' function immediately."
-        print_verbose_note "The work function will be available in new terminals automatically."
+        print_verbose_note "Run 'source ~/.bashrc' or restart your terminal to use the 'focus' function immediately."
+        print_verbose_note "The focus function will be available in new terminals automatically."
         ;;
     function-remove)
         set_abort_message "function-remove"
-        print_status "Removing work function..."
-        remove_work_function
-        print_success "Work function removed!"
+        print_status "Removing focus function..."
+        remove_focus_function
+        print_success "Focus function removed!"
         ;;
     *)
         print_error "Unknown command: $COMMAND"

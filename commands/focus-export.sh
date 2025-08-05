@@ -5,22 +5,22 @@
 
 # Source libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/work/lib/work-db.sh" ]]; then
-    source "$HOME/.local/work/lib/work-db.sh"
-    source "$HOME/.local/work/lib/work-utils.sh"
+if [[ -f "$HOME/.local/focus/lib/focus-db.sh" ]]; then
+    source "$HOME/.local/focus/lib/focus-db.sh"
+    source "$HOME/.local/focus/lib/focus-utils.sh"
 else
-    source "$SCRIPT_DIR/../lib/work-db.sh"
-    source "$SCRIPT_DIR/../lib/work-utils.sh"
+    source "$SCRIPT_DIR/../lib/focus-db.sh"
+    source "$SCRIPT_DIR/../lib/focus-utils.sh"
 fi
 
-function work_export() {
+function focus_export() {
     local output_file="$1"
     
     if [[ -z "$output_file" ]]; then
         # Generate default filename
         local timestamp
         timestamp=$(date +%Y%m%d_%H%M%S)
-        output_file="work-export-${timestamp}.sql"
+        output_file="focus-export-${timestamp}.sql"
     fi
     
     # Validate file path
@@ -34,19 +34,19 @@ function work_export() {
         exit 1
     fi
     
-    echo "📤 Exporting work data to: $output_file"
+    echo "📤 Exporting focus data to: $output_file"
     
     # Create SQLite dump
     sqlite3 "$DB" .dump > "$output_file"
     
     if [[ $? -eq 0 ]]; then
-        echo "✅ Work data exported successfully to: $output_file"
+        echo "✅ Focus data exported successfully to: $output_file"
         echo "📊 Export contains:"
         echo "   - Database schema"
-        echo "   - All work sessions"
-        echo "   - Current work state"
+        echo "   - All focus sessions"
+        echo "   - Current focus state"
         echo ""
-        echo "To import this data, use: work import $output_file"
+        echo "To import this data, use: focus import $output_file"
     else
         echo "❌ Export failed"
         exit 1
@@ -55,5 +55,5 @@ function work_export() {
 
 # Main execution
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    work_export "$@"
+    focus_export "$@"
 fi 

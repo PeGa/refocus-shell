@@ -5,12 +5,12 @@
 
 # Source libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/work/lib/work-db.sh" ]]; then
-    source "$HOME/.local/work/lib/work-db.sh"
-    source "$HOME/.local/work/lib/work-utils.sh"
+if [[ -f "$HOME/.local/focus/lib/focus-db.sh" ]]; then
+    source "$HOME/.local/focus/lib/focus-db.sh"
+    source "$HOME/.local/focus/lib/focus-utils.sh"
 else
-    source "$SCRIPT_DIR/../lib/work-db.sh"
-    source "$SCRIPT_DIR/../lib/work-utils.sh"
+    source "$SCRIPT_DIR/../lib/focus-db.sh"
+    source "$SCRIPT_DIR/../lib/focus-utils.sh"
 fi
 
 # Set table names
@@ -76,22 +76,22 @@ init_database() {
     fi
 }
 
-function work_reset() {
-    echo "This will delete all work data and reset the database."
+function focus_reset() {
+    echo "This will delete all focus data and reset the database."
     echo "Are you sure you want to continue? (y/N)"
     read -r response
     
     if [[ "$response" =~ ^[Yy]$ ]]; then
         # Stop any active session first
-        if is_work_active; then
+        if is_focus_active; then
             echo "Stopping active session..."
-            work_off
+            focus_off
         fi
         
         # Get database path
         local db_path
-        if [[ -f "$HOME/.local/work/timelog.db" ]]; then
-            db_path="$HOME/.local/work/timelog.db"
+        if [[ -f "$HOME/.local/focus/timelog.db" ]]; then
+            db_path="$HOME/.local/focus/timelog.db"
         else
             echo "❌ Database not found. Please install refocus shell first."
             exit 1
@@ -112,5 +112,5 @@ function work_reset() {
 
 # Main execution
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    work_reset "$@"
+    focus_reset "$@"
 fi 

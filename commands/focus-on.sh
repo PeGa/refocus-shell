@@ -5,19 +5,19 @@
 
 # Source libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/work/lib/work-db.sh" ]]; then
-    source "$HOME/.local/work/lib/work-db.sh"
-    source "$HOME/.local/work/lib/work-utils.sh"
+if [[ -f "$HOME/.local/focus/lib/focus-db.sh" ]]; then
+    source "$HOME/.local/focus/lib/focus-db.sh"
+    source "$HOME/.local/focus/lib/focus-utils.sh"
 else
-    source "$SCRIPT_DIR/../lib/work-db.sh"
-    source "$SCRIPT_DIR/../lib/work-utils.sh"
+    source "$SCRIPT_DIR/../lib/focus-db.sh"
+    source "$SCRIPT_DIR/../lib/focus-utils.sh"
 fi
 
 # Set table names
 STATE_TABLE="${STATE_TABLE:-state}"
 SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
 
-function work_on() {
+function focus_on() {
     local project="$1"
     local start_time
     start_time=$(date -Iseconds)
@@ -31,29 +31,29 @@ function work_on() {
     fi
 
     # Check if refocus shell is disabled
-    if is_work_disabled; then
-        echo "❌ Refocus shell is disabled. Run 'work enable' to re-enable."
+    if is_focus_disabled; then
+        echo "❌ Refocus shell is disabled. Run 'focus enable' to re-enable."
         exit 1
     fi
 
     # Check if already active
     local state
-    state=$(get_work_state)
+    state=$(get_focus_state)
     if [[ -n "$state" ]]; then
         IFS='|' read -r active current_project existing_start_time <<< "$state"
         if [[ "$active" -eq 1 ]]; then
-            echo "Work already active. Run 'work off' before switching."
+            echo "Focus already active. Run 'focus off' before switching."
             exit 1
         fi
     fi
 
-    # Store idle session from last work_off to now (if any)
-    local last_work_off_time
-    last_work_off_time=$(get_last_work_off_time)
+    # Store idle session from last focus_off to now (if any)
+    local last_focus_off_time
+    last_focus_off_time=$(get_last_focus_off_time)
     
-    if [[ -n "$last_work_off_time" ]] && [[ "$last_work_off_time" != "NULL" ]]; then
+    if [[ -n "$last_focus_off_time" ]] && [[ "$last_focus_off_time" != "NULL" ]]; then
         local idle_start_ts
-        idle_start_ts=$(date --date="$last_work_off_time" +%s)
+        idle_start_ts=$(date --date="$last_focus_off_time" +%s)
         local idle_end_ts
         idle_end_ts=$(date +%s)
         local idle_duration
@@ -61,7 +61,7 @@ function work_on() {
         
         # Only store idle session if duration is significant (> 1 minute)
         if [[ $idle_duration -gt 60 ]]; then
-            insert_session "[idle]" "$last_work_off_time" "$start_time" "$idle_duration"
+            insert_session "[idle]" "$last_focus_off_time" "$start_time" "$idle_duration"
             verbose_echo "Stored idle session: ${idle_duration}s"
         fi
     fi
@@ -87,15 +87,15 @@ function work_on() {
             read -r response
             
             if [[ "$response" =~ ^[Nn]$ ]]; then
-                echo "Work session aborted — no project specified."
-                echo "Run 'work on \"project\"' to start a work session."
+                            echo "Focus session aborted — no project specified."
+            echo "Run 'focus on \"project\"' to start a focus session."
                 exit 1
             fi
             
             project="$last_project"
         else
             echo "No previous project found."
-            echo "Run 'work on \"project\"' to start a work session."
+            echo "Run 'focus on \"project\"' to start a focus session."
             exit 1
         fi
     fi
@@ -106,22 +106,22 @@ function work_on() {
     local total_minutes
     total_minutes=$((total_project_time / 60))
     
-    # Update work state
-    update_work_state 1 "$project" "$start_time" "$last_work_off_time"
+    # Update focus state
+    update_focus_state 1 "$project" "$start_time" "$last_focus_off_time"
     
-    if [[ $total_minutes -gt 0 ]]; then
-        echo "Started work on: $project (Total: ${total_minutes}m)"
-    else
-        echo "Started work on: $project"
-    fi
+            if [[ $total_minutes -gt 0 ]]; then
+            echo "Started focus on: $project (Total: ${total_minutes}m)"
+        else
+            echo "Started focus on: $project"
+        fi
 
-    # Set work prompt
-    set_work_prompt "$project"
+    # Set focus prompt
+    set_focus_prompt "$project"
 
-    send_notification "Started work on: $project"
+    send_notification "Started focus on: $project"
 }
 
 # Main execution
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    work_on "$@"
+    focus_on "$@"
 fi 

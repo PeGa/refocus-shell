@@ -5,21 +5,21 @@
 
 # Source libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/work/lib/work-db.sh" ]]; then
-    source "$HOME/.local/work/lib/work-db.sh"
-    source "$HOME/.local/work/lib/work-utils.sh"
+if [[ -f "$HOME/.local/focus/lib/focus-db.sh" ]]; then
+    source "$HOME/.local/focus/lib/focus-db.sh"
+    source "$HOME/.local/focus/lib/focus-utils.sh"
 else
-    source "$SCRIPT_DIR/../lib/work-db.sh"
-    source "$SCRIPT_DIR/../lib/work-utils.sh"
+    source "$SCRIPT_DIR/../lib/focus-db.sh"
+    source "$SCRIPT_DIR/../lib/focus-utils.sh"
 fi
 
 # Set table names
 STATE_TABLE="${STATE_TABLE:-state}"
 SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
 
-function work_status() {
+function focus_status() {
     local state
-    state=$(get_work_state)
+    state=$(get_focus_state)
     IFS='|' read -r active current_project start_time <<< "$state"
 
     if [[ "$active" -eq 1 ]]; then
@@ -37,14 +37,14 @@ function work_status() {
         current_minutes=$((elapsed / 60))
         
         if [[ $total_minutes -gt 0 ]]; then
-            echo "⏳ Working on: $current_project — ${current_minutes}m elapsed (Total: ${total_minutes}m)"
+            echo "⏳ Focusing on: $current_project — ${current_minutes}m elapsed (Total: ${total_minutes}m)"
         else
-            echo "⏳ Working on: $current_project — ${current_minutes}m elapsed"
+            echo "⏳ Focusing on: $current_project — ${current_minutes}m elapsed"
         fi
     else
-        echo "✅ Not currently tracking work."
+        echo "✅ Not currently tracking focus."
         
-        # Show last work session information (excluding idle sessions)
+        # Show last focus session information (excluding idle sessions)
         local last_session
         last_session=$(get_last_session)
         
@@ -65,7 +65,7 @@ function work_status() {
                 time_since_min=$((time_since / 60))
                 
                 echo "📊 Last session: $last_project (${duration_min}m)"
-                echo "⏰ Time since last work: ${time_since_min}m"
+                echo "⏰ Time since last focus: ${time_since_min}m"
             fi
         fi
     fi
@@ -73,5 +73,5 @@ function work_status() {
 
 # Main execution
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    work_status "$@"
+    focus_status "$@"
 fi 

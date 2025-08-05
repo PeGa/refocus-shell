@@ -5,26 +5,26 @@
 
 # Source libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/work/lib/work-db.sh" ]]; then
-    source "$HOME/.local/work/lib/work-db.sh"
-    source "$HOME/.local/work/lib/work-utils.sh"
+if [[ -f "$HOME/.local/focus/lib/focus-db.sh" ]]; then
+    source "$HOME/.local/focus/lib/focus-db.sh"
+    source "$HOME/.local/focus/lib/focus-utils.sh"
 else
-    source "$SCRIPT_DIR/../lib/work-db.sh"
-    source "$SCRIPT_DIR/../lib/work-utils.sh"
+    source "$SCRIPT_DIR/../lib/focus-db.sh"
+    source "$SCRIPT_DIR/../lib/focus-utils.sh"
 fi
 
 # Set table names
 STATE_TABLE="${STATE_TABLE:-state}"
 SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
 
-function work_past_add() {
+function focus_past_add() {
     local project="$1"
     local start_time="$2"
     local end_time="$3"
     
     if [[ -z "$project" ]]; then
         echo "❌ Project name is required."
-        echo "Usage: work past add <project> <start_time> <end_time>"
+        echo "Usage: focus past add <project> <start_time> <end_time>"
         echo ""
         echo "Time formats supported:"
         echo "  - YYYY/MM/DD-HH:MM (recommended: 2025/07/30-14:30)"
@@ -35,9 +35,9 @@ function work_past_add() {
         echo "  - Relative dates ('yesterday 14:30', '2 hours ago', etc.)"
         echo ""
         echo "Examples:"
-        echo "  work past add meeting 2025/07/30-14:15 2025/07/30-15:30  # Specific date"
-        echo "  work past add meeting 14:15 15:30                          # Today's date"
-        echo "  work past add coding 'yesterday 09:00' 'yesterday 17:00'   # Relative dates"
+        echo "  focus past add meeting 2025/07/30-14:15 2025/07/30-15:30  # Specific date"
+        echo "  focus past add meeting 14:15 15:30                          # Today's date"
+        echo "  focus past add coding 'yesterday 09:00' 'yesterday 17:00'   # Relative dates"
         echo ""
         echo "💡 Tip: Use YYYY/MM/DD-HH:MM format for easy, quote-free dates!"
         exit 1
@@ -45,19 +45,19 @@ function work_past_add() {
     
     if [[ -z "$start_time" ]]; then
         echo "❌ Start time is required."
-        echo "Usage: work past add <project> <start_time> <end_time>"
+        echo "Usage: focus past add <project> <start_time> <end_time>"
         echo ""
         echo "💡 Tip: Use YYYY/MM/DD-HH:MM format for easy dates!"
-        echo "   Example: work past add meeting 2025/07/30-14:15 2025/07/30-15:30"
+        echo "   Example: focus past add meeting 2025/07/30-14:15 2025/07/30-15:30"
         exit 1
     fi
     
     if [[ -z "$end_time" ]]; then
         echo "❌ End time is required."
-        echo "Usage: work past add <project> <start_time> <end_time>"
+        echo "Usage: focus past add <project> <start_time> <end_time>"
         echo ""
         echo "💡 Tip: Use YYYY/MM/DD-HH:MM format for easy dates!"
-        echo "   Example: work past add meeting 2025/07/30-14:15 2025/07/30-15:30"
+        echo "   Example: focus past add meeting 2025/07/30-14:15 2025/07/30-15:30"
         exit 1
     fi
     
@@ -100,7 +100,7 @@ function work_past_add() {
     echo "   Duration: $((duration / 60)) minutes"
 }
 
-function work_past_modify() {
+function focus_past_modify() {
     local session_id="$1"
     local project="$2"
     local start_time="$3"
@@ -108,13 +108,13 @@ function work_past_modify() {
     
     if [[ -z "$session_id" ]]; then
         echo "❌ Session ID is required."
-        echo "Usage: work past modify <session_id> [project] [start_time] [end_time]"
-        echo "Use 'work past list' to see session IDs"
+        echo "Usage: focus past modify <session_id> [project] [start_time] [end_time]"
+        echo "Use 'focus past list' to see session IDs"
         echo ""
         echo "Examples:"
-        echo "  work past modify 1 'new-project'"
-        echo "  work past modify 1 'new-project' '2025/07/30-14:00' '2025/07/30-16:00'"
-        echo "  work past modify 1 '' '14:30' '15:30'  # Change only times"
+        echo "  focus past modify 1 'new-project'"
+        echo "  focus past modify 1 'new-project' '2025/07/30-14:00' '2025/07/30-16:00'"
+        echo "  focus past modify 1 '' '14:30' '15:30'  # Change only times"
         exit 1
     fi
     
@@ -183,13 +183,13 @@ function work_past_modify() {
     echo "   Duration: $((duration / 60)) minutes"
 }
 
-function work_past_delete() {
+function focus_past_delete() {
     local session_id="$1"
     
     if [[ -z "$session_id" ]]; then
         echo "❌ Session ID is required."
-        echo "Usage: work past delete <session_id>"
-        echo "Use 'work past list' to see session IDs"
+        echo "Usage: focus past delete <session_id>"
+        echo "Use 'focus past list' to see session IDs"
         exit 1
     fi
     
@@ -224,21 +224,21 @@ function work_past_delete() {
     fi
 }
 
-function work_past_list() {
+function focus_past_list() {
     local limit="${1:-20}"
     
     if ! validate_numeric_input "$limit" "Limit"; then
         exit 1
     fi
     
-    echo "📋 Recent work sessions (last $limit):"
+    echo "📋 Recent focus sessions (last $limit):"
     echo
     
     local sessions
     sessions=$(sqlite3 "$DB" "SELECT rowid, project, start_time, end_time, duration_seconds FROM $SESSIONS_TABLE WHERE project != '[idle]' ORDER BY end_time DESC LIMIT $limit;" 2>/dev/null)
     
     if [[ -z "$sessions" ]]; then
-        echo "No work sessions found."
+        echo "No focus sessions found."
         return 0
     fi
     
@@ -257,36 +257,36 @@ function work_past_list() {
     done <<< "$sessions"
 }
 
-function work_past() {
+function focus_past() {
     local action="$1"
     shift
     
     case "$action" in
         "add")
-            work_past_add "$@"
+            focus_past_add "$@"
             ;;
         "modify"|"edit")
-            work_past_modify "$@"
+            focus_past_modify "$@"
             ;;
         "delete"|"del"|"rm")
-            work_past_delete "$@"
+            focus_past_delete "$@"
             ;;
         "list"|"ls")
-            work_past_list "$@"
+            focus_past_list "$@"
             ;;
         *)
             echo "❌ Unknown action: $action"
             echo "Available actions:"
-            echo "  add     - Add a past work session"
+            echo "  add     - Add a past focus session"
             echo "  modify  - Modify an existing session"
             echo "  delete  - Delete a session"
             echo "  list    - List recent sessions"
             echo
             echo "Examples:"
-            echo "  work past add 'meeting' '2025-01-15T10:00:00' '2025-01-15T11:30:00'"
-            echo "  work past modify 1 'new-project'"
-            echo "  work past delete 1"
-            echo "  work past list 10"
+            echo "  focus past add 'meeting' '2025-01-15T10:00:00' '2025-01-15T11:30:00'"
+            echo "  focus past modify 1 'new-project'"
+            echo "  focus past delete 1"
+            echo "  focus past list 10"
             exit 1
             ;;
     esac
@@ -294,5 +294,5 @@ function work_past() {
 
 # Main execution
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    work_past "$@"
+    focus_past "$@"
 fi 

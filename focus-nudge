@@ -19,23 +19,23 @@
 # This script is executed by cron to send periodic notifications
 
 # Configuration
-WORK_DB="$HOME/.local/work/timelog.db"
-WORK_CONFIG="$HOME/.local/work/config.sh"
+FOCUS_DB="$HOME/.local/focus/timelog.db"
+FOCUS_CONFIG="$HOME/.local/focus/config.sh"
 
 # Load configuration if it exists
-if [[ -f "$WORK_CONFIG" ]]; then
-    source "$WORK_CONFIG"
+if [[ -f "$FOCUS_CONFIG" ]]; then
+    source "$FOCUS_CONFIG"
 else
     # Default values
-    WORK_NUDGE_INTERVAL=10
-    WORK_LOG_FACILITY="user"
-    WORK_LOG_PRIORITY="notice"
+    FOCUS_NUDGE_INTERVAL=10
+    FOCUS_LOG_FACILITY="user"
+    FOCUS_LOG_PRIORITY="notice"
 fi
 
 # Function to log messages
 log_message() {
     local message="$1"
-    logger -p "$WORK_LOG_FACILITY.$WORK_LOG_PRIORITY" "work-nudge: $message"
+    logger -p "$FOCUS_LOG_FACILITY.$FOCUS_LOG_PRIORITY" "focus-nudge: $message"
 }
 
 # Function to send notification
@@ -53,16 +53,16 @@ send_notification() {
 }
 
 # Check if refocus shell is disabled
-check_work_disabled() {
-    if [[ ! -f "$WORK_DB" ]]; then
+check_focus_disabled() {
+    if [[ ! -f "$FOCUS_DB" ]]; then
         log_message "database not found"
         return 1
     fi
     
-    local work_disabled
-    work_disabled=$(sqlite3 "$WORK_DB" "SELECT work_disabled FROM state WHERE id = 1;" 2>/dev/null)
+    local focus_disabled
+    focus_disabled=$(sqlite3 "$FOCUS_DB" "SELECT work_disabled FROM state WHERE id = 1;" 2>/dev/null)
     
-    if [[ "$work_disabled" -eq 1 ]]; then
+    if [[ "$focus_disabled" -eq 1 ]]; then
         log_message "refocus shell is disabled"
         return 1
     fi
@@ -87,14 +87,14 @@ check_nudging_enabled() {
     return 0
 }
 
-# Get current work status
-get_work_status() {
-    if [[ ! -f "$WORK_DB" ]]; then
+# Get current focus status
+get_focus_status() {
+    if [[ ! -f "$FOCUS_DB" ]]; then
         return 1
     fi
     
     local state
-    state=$(sqlite3 "$WORK_DB" "SELECT active, project, start_time FROM state WHERE id = 1;" 2>/dev/null)
+    state=$(sqlite3 "$FOCUS_DB" "SELECT active, project, start_time FROM state WHERE id = 1;" 2>/dev/null)
     
     if [[ -z "$state" ]]; then
         return 1

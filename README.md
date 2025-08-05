@@ -14,12 +14,12 @@
 - [Features](#features)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Smart Work Continuation](#smart-work-continuation)
+- [Smart Focus Continuation](#smart-focus-continuation)
 - [Enhanced Status Information](#enhanced-status-information)
 - [Cumulative Time Tracking](#cumulative-time-tracking)
 - [Past Session Management](#past-session-management)
 - [Discrete Session Management](#discrete-session-management)
-- [Work Reports](#work-reports)
+- [Focus Reports](#focus-reports)
 - [Nudging System](#nudging-system)
 - [Data Import/Export](#data-importexport)
 - [Configuration](#configuration)
@@ -43,17 +43,17 @@
 
 ## Features
 
-- **Core Work Tracking**: `work on/off/status` commands
-- **Smart Continuation**: `work on` without project continues last session
+- **Core Focus Tracking**: `focus on/off/status` commands
+- **Smart Continuation**: `focus on` without project continues last session
 - **Enhanced Status**: Rich context about last session and time tracking
 - **Cumulative Time Tracking**: Shows total time invested in each project across sessions
-- **Past Session Management**: Add, modify, and delete historical work sessions with flexible timestamp formats
-- **Work Reports**: Generate markdown reports for today, week, month, or custom periods
-- **Discrete Session Management**: ADHD-friendly work/idle session tracking with automatic break tracking
+- **Past Session Management**: Add, modify, and delete historical focus sessions with flexible timestamp formats
+- **Focus Reports**: Generate markdown reports for today, week, month, or custom periods
+- **Discrete Session Management**: ADHD-friendly focus/idle session tracking with automatic break tracking
 - **Desktop Notifications**: `notify-send` integration
 - **Shell Integration**: Dynamic prompt modification with `⏳ [Project]` indicator
 - **Intelligent Nudging**: Periodic reminders every 10 minutes via cron
-- **Refocus Shell Control**: `work enable/disable` commands
+- **Refocus Shell Control**: `focus enable/disable` commands
 - **Data Import/Export**: SQLite dump-based backup and restore functionality
 - **Professional Installation**: Interactive setup with dependency management and installation method choice
 - **Cross-Distribution Support**: Ubuntu/Debian, Arch/Manjaro, Fedora/RHEL, openSUSE
@@ -88,7 +88,7 @@ Refocus Shell offers two installation methods:
 #### Function Installation (Recommended)
 - **Automatic prompt updates** - no manual `update-prompt` calls needed
 - **Works in all shell environments** - bash, zsh, etc.
-- **Seamless integration** - `work` command available immediately
+- **Seamless integration** - `focus` command available immediately
 - **Default choice** for new installations
 
 #### Script Installation (Traditional)
@@ -122,56 +122,56 @@ For automated deployments or CI/CD:
 ### Basic Commands
 
 ```bash
-work on "project"     # Start working on a project
-work off              # Stop current work session
-work status           # Show current work status
-work help             # Show all available commands
+focus on "project"     # Start working on a project
+focus off              # Stop current work session
+focus status           # Show current work status
+focus help             # Show all available commands
 ```
 
 ### Quick Examples
 
 ```bash
 # Start working
-work on "coding"
-work on "meeting"
-work on "planning"
+focus on "coding"
+focus on "meeting"
+focus on "planning"
 
 # Check status
-work status
+focus status
 
 # Stop working
-work off
+focus off
 
 # Add past sessions with flexible timestamps
-work past add "project" "2025/07/30-14:00" "2025/07/30-16:00"  # Add past work session
-work past add "meeting" "14:00" "15:30"           # Today's times
-work past add "coding" "2025/07/30-14:00" "16:00" # Specific date
-work past add "planning" "2 hours ago" "1 hour ago" # Relative times
+focus past add "project" "2025/07/30-14:00" "2025/07/30-16:00"  # Add past focus session
+focus past add "meeting" "14:00" "15:30"           # Today's times
+focus past add "coding" "2025/07/30-14:00" "16:00" # Specific date
+focus past add "planning" "2 hours ago" "1 hour ago" # Relative times
 
 # Generate reports
-work report today
-work report week
-work report month
-work report custom 7  # Last 7 days
+focus report today
+focus report week
+focus report month
+focus report custom 7  # Last 7 days
 
 # Manage data
-work export backup.sql
-work import backup.sql
-work reset  # Reset all data (with confirmation)
+focus export backup.sql
+focus import backup.sql
+focus reset  # Reset all data (with confirmation)
 ```
 
-### Smart Work Continuation
+### Smart Focus Continuation
 
 Refocus Shell remembers your last project and session:
 
 ```bash
-$ work on "coding"
+$ focus on "coding"
 Started work on: coding
 
-$ work off
+$ focus off
 Stopped work on: coding (Duration: 2h 15m)
 
-$ work on  # No project specified
+$ focus on  # No project specified
 Started work on: coding  # Continues last project
 ```
 
@@ -180,11 +180,11 @@ Started work on: coding  # Continues last project
 Get rich context about your work:
 
 ```bash
-$ work status
+$ focus status
 ⏳ [coding] Started: 14:30 (2h 15m ago)
 📊 Total time on coding: 12h 45m (across 8 sessions)
 🕐 Last session: coding (2h 15m, ended 2h 15m ago)
-💡 Tip: Run 'work report today' to see today's summary
+💡 Tip: Run 'focus report today' to see today's summary
 ```
 
 ### Cumulative Time Tracking
@@ -192,7 +192,7 @@ $ work status
 Refocus Shell tracks total time across all sessions:
 
 ```bash
-$ work report today
+$ focus report today
 📊 Today's Work Summary
 =======================
 
@@ -217,20 +217,20 @@ Add, modify, and delete historical work sessions with flexible timestamp formats
 
 ```bash
 # Add past sessions
-work past add "meeting" "14:00" "15:30"                          # Today's times
-work past add "coding" "2025/07/30-14:00" "2025/07/30-16:00"     # Specific date
-work past add "planning" "2 hours ago" "1 hour ago"               # Relative times
-work past add "review" "yesterday 14:00" "yesterday 16:00"       # Yesterday
-work past add "team meeting" "2025/07/30-14:00" "2025/07/30-16:00" # Full date
+focus past add "meeting" "14:00" "15:30"                          # Today's times
+focus past add "coding" "2025/07/30-14:00" "2025/07/30-16:00"     # Specific date
+focus past add "planning" "2 hours ago" "1 hour ago"               # Relative times
+focus past add "review" "yesterday 14:00" "yesterday 16:00"       # Yesterday
+focus past add "team meeting" "2025/07/30-14:00" "2025/07/30-16:00" # Full date
 
 # List recent sessions
-work past list 10
+focus past list 10
 
 # Modify a session
-work past modify 1 "new-project" "2025/07/30-15:00" "2025/07/30-17:00"
+focus past modify 1 "new-project" "2025/07/30-15:00" "2025/07/30-17:00"
 
 # Delete a session
-work past delete 1
+focus past delete 1
 ```
 
 **Supported Date Formats:**
@@ -251,36 +251,36 @@ work past delete 1
 Track work and idle sessions separately:
 
 ```bash
-$ work on "coding"
+$ focus on "coding"
 Started work on: coding
 
-$ work off
+$ focus off
 Stopped work on: coding (Duration: 1h 30m)
 Idle time detected: 15m (will be tracked separately)
 
-$ work status
+$ focus status
 ⏳ [coding] Started: 14:30 (1h 30m ago)
 📊 Total time on coding: 8h 45m (across 6 sessions)
 🕐 Last session: coding (1h 30m, ended 1h 30m ago)
 💤 Idle time: 15m (since last session)
 ```
 
-### Work Reports
+### Focus Reports
 
 Generate detailed markdown reports:
 
 ```bash
 # Today's report
-work report today
+focus report today
 
 # This week's report
-work report week
+focus report week
 
 # This month's report
-work report month
+focus report month
 
 # Custom period (last 7 days)
-work report custom 7
+focus report custom 7
 ```
 
 Example report output:
@@ -311,13 +311,13 @@ Get periodic reminders to check your work status:
 
 ```bash
 # Test notifications
-work test-nudge
+focus test-nudge
 
 # Check nudging status
-work status  # Shows if nudging is enabled
+focus status  # Shows if nudging is enabled
 
 # Disable nudging (if needed)
-work config set NUDGING false
+focus config set NUDGING false
 ```
 
 Nudging occurs every 10 minutes via cron and shows:
@@ -331,13 +331,13 @@ Backup and restore your work data:
 
 ```bash
 # Export all data to SQLite dump
-work export backup.sql
+focus export backup.sql
 
 # Import data from SQLite dump
-work import backup.sql
+focus import backup.sql
 
 # Export with timestamped filename
-work export  # Creates work-export-20250802_143022.sql
+focus export  # Creates focus-export-20250802_143022.sql
 ```
 
 ### Configuration
@@ -346,16 +346,16 @@ View and modify settings:
 
 ```bash
 # Show current configuration
-work config show
+focus config show
 
 # Set verbose mode
-work config set VERBOSE true
+focus config set VERBOSE true
 
 # Set notification timeout
-work config set NOTIFICATION_TIMEOUT 10000
+focus config set NOTIFICATION_TIMEOUT 10000
 
 # Reset to defaults
-work config reset
+focus config reset
 ```
 
 Available settings:
@@ -413,10 +413,10 @@ sudo zypper install sqlite3 libnotify-tools
 
 Refocus Shell uses SQLite for data storage:
 
-- **Location**: `~/.local/work/timelog.db`
+- **Location**: `~/.local/focus/timelog.db`
 - **Tables**: `state` (current session), `sessions` (historical data)
-- **Backup**: Use `work export` for data backup
-- **Reset**: Use `work reset` to clear all data
+- **Backup**: Use `focus export` for data backup
+- **Reset**: Use `focus reset` to clear all data
 
 ### Database Schema
 
@@ -448,7 +448,7 @@ CREATE TABLE sessions (
 
 ### Common Issues
 
-**"work command not found"**
+**"focus command not found"**
 ```bash
 # Reinstall and source bashrc
 ./setup.sh install --auto
@@ -465,7 +465,7 @@ source ~/.bashrc
 **Notifications not working**
 ```bash
 # Test notifications
-work test-nudge
+focus test-nudge
 
 # Check if notify-send is installed
 which notify-send
@@ -477,10 +477,10 @@ sudo apt install libnotify-bin  # Ubuntu/Debian
 **Database errors**
 ```bash
 # Reset database
-work reset
+focus reset
 
 # Or reinitialize
-work init
+focus init
 ```
 
 **Shell integration not working**
@@ -490,7 +490,7 @@ work init
 source ~/.bashrc
 
 # Or manually source
-source ~/.local/work/shell-integration.sh
+source ~/.local/focus/shell-integration.sh
 ```
 
 ### Verbose Mode
@@ -499,7 +499,7 @@ Enable detailed output for debugging:
 
 ```bash
 # Set verbose mode
-work config set VERBOSE true
+focus config set VERBOSE true
 
 # Or use --verbose flag
 ./setup.sh install --verbose
@@ -509,7 +509,7 @@ work config set VERBOSE true
 
 Refocus Shell logs to:
 - **Installation logs**: Check terminal output during setup
-- **Database**: All data stored in `~/.local/work/timelog.db`
+- **Database**: All data stored in `~/.local/focus/timelog.db`
 - **Configuration**: Settings in `~/.config/refocus-shell/config.sh`
 
 ## Development
@@ -518,22 +518,22 @@ Refocus Shell logs to:
 
 ```
 refocus-shell/
-├── work                    # Main dispatcher script
+├── focus                    # Main dispatcher script
 ├── setup.sh               # Installation/uninstallation script
 ├── config.sh              # Configuration management
-├── work-nudge             # Nudging script (cron job)
+├── focus-nudge             # Nudging script (cron job)
 ├── commands/              # Subcommand implementations
-│   ├── work-on.sh
-│   ├── work-off.sh
-│   ├── work-status.sh
-│   ├── work-past.sh
-│   ├── work-report.sh
+│   ├── focus-on.sh
+│   ├── focus-off.sh
+│   ├── focus-status.sh
+│   ├── focus-past.sh
+│   ├── focus-report.sh
 │   └── ...
 ├── lib/                   # Shared libraries
-│   ├── work-db.sh        # Database operations
-│   ├── work-utils.sh     # Utility functions
-│   ├── work-function.sh  # Shell function implementation
-│   └── work-alias.sh     # Safe alias implementation
+│   ├── focus-db.sh        # Database operations
+│   ├── focus-utils.sh     # Utility functions
+│   ├── focus-function.sh  # Shell function implementation
+│   └── focus-alias.sh     # Safe alias implementation
 ├── docs/                  # Documentation
 │   ├── ROADMAP.md
 │   ├── TODO.md
@@ -558,12 +558,12 @@ refocus-shell/
 ./setup.sh install --auto
 
 # Test all commands
-work help
-work on "test"
-work status
-work off
-work past add "test" "2025/07/30-14:00" "2025/07/30-16:00"
-work report today
+focus help
+focus on "test"
+focus status
+focus off
+focus past add "test" "2025/07/30-14:00" "2025/07/30-16:00"
+focus report today
 
 # Test uninstallation
 ./setup.sh uninstall --auto

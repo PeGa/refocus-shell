@@ -16,9 +16,9 @@ This document outlines the different approaches to managing the system prompt in
 **File**: `setup.sh` → `setup_shell_integration()`
 
 **How it works**:
-- Creates `~/.local/work/shell-integration.sh` with `update-prompt` function
+- Creates `~/.local/focus/shell-integration.sh` with `update-prompt` function
 - Adds sourcing to `.bashrc`, `.bash_profile`, and `.profile`
-- Auto-updates prompt on shell startup if work is active
+- Auto-updates prompt on shell startup if focus is active
 - Provides fallback to default prompt if database is unavailable
 
 **Pros**:
@@ -218,7 +218,7 @@ work-safe off
 
 ### Shell integration not working
 - Use work function as alternative
-- Or manually source: `source ~/.local/work/shell-integration.sh`
+- Or manually source: `source ~/.local/focus/shell-integration.sh`
 
 ## Future Improvements
 

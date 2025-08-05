@@ -297,7 +297,7 @@ validate_session_id() {
 }
 
 # Function to check if work is active
-is_work_active() {
+is_focus_active() {
     # Source the database library to use its functions
     if [[ -f "$(dirname "$0")/work-db.sh" ]]; then
         source "$(dirname "$0")/work-db.sh"
@@ -321,14 +321,14 @@ is_work_active() {
 }
 
 # Function to check if refocus shell is disabled
-is_work_disabled() {
+is_focus_disabled() {
     # Source the database library to use its functions
     if [[ -f "$(dirname "$0")/work-db.sh" ]]; then
         source "$(dirname "$0")/work-db.sh"
     fi
     
     local work_disabled
-    work_disabled=$(get_work_disabled)
+    work_disabled=$(get_focus_disabled)
     if [[ "$work_disabled" -eq 1 ]]; then
         return 0  # Disabled
     fi
@@ -357,7 +357,7 @@ get_current_prompt() {
 }
 
 # Function to create work prompt string
-create_work_prompt() {
+create_focus_prompt() {
     local project="$1"
     echo '⏳ ['$project'] ${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01:34m\]\w\[\033[00m\]\$ '
 }
@@ -368,15 +368,15 @@ create_default_prompt() {
 }
 
 # Function to set work prompt
-set_work_prompt() {
+set_focus_prompt() {
     local project="$1"
     
-    # Create work prompt
-    local work_prompt
-    work_prompt=$(create_work_prompt "$project")
+    # Create focus prompt
+    local focus_prompt
+    focus_prompt=$(create_focus_prompt "$project")
     
-    # Update database with work prompt
-    update_prompt_content "$work_prompt" "work"
+    # Update database with focus prompt
+    update_prompt_content "$focus_prompt" "focus"
     
     # Try multiple methods to update the prompt
     local prompt_updated=false
@@ -385,16 +385,16 @@ set_work_prompt() {
     if type update-prompt >/dev/null 2>&1; then
         update-prompt
         prompt_updated=true
-        verbose_echo "Work prompt set via update-prompt function"
+        verbose_echo "Focus prompt set via update-prompt function"
     fi
     
     # Method 2: Try to source the shell integration directly
-    if [[ "$prompt_updated" == "false" ]] && [[ -f "$HOME/.local/work/shell-integration.sh" ]]; then
-        source "$HOME/.local/work/shell-integration.sh" 2>/dev/null
+    if [[ "$prompt_updated" == "false" ]] && [[ -f "$HOME/.local/focus/shell-integration.sh" ]]; then
+        source "$HOME/.local/focus/shell-integration.sh" 2>/dev/null
         if type update-prompt >/dev/null 2>&1; then
             update-prompt
             prompt_updated=true
-            verbose_echo "Work prompt set via sourced shell integration"
+            verbose_echo "Focus prompt set via sourced shell integration"
         fi
     fi
     
@@ -402,15 +402,15 @@ set_work_prompt() {
     if [[ "$prompt_updated" == "false" ]]; then
         export PS1="$work_prompt"
         prompt_updated=true
-        verbose_echo "Work prompt set via direct PS1 export"
+        verbose_echo "Focus prompt set via direct PS1 export"
     fi
     
-    verbose_echo "Work prompt set for project: $project"
+    verbose_echo "Focus prompt set for project: $project"
     
     # Show appropriate message based on method used
     if [[ "$prompt_updated" == "true" ]]; then
         verbose_echo "Tip: Run 'update-prompt' to update the current terminal prompt"
-        verbose_echo "Note: New terminals will automatically show the work prompt"
+        verbose_echo "Note: New terminals will automatically show the focus prompt"
     else
         echo "Warning: Could not update prompt automatically"
         echo "Run 'update-prompt' to update the current terminal prompt"
@@ -442,8 +442,8 @@ restore_original_prompt() {
     fi
     
     # Method 2: Try to source the shell integration directly
-    if [[ "$prompt_updated" == "false" ]] && [[ -f "$HOME/.local/work/shell-integration.sh" ]]; then
-        source "$HOME/.local/work/shell-integration.sh" 2>/dev/null
+    if [[ "$prompt_updated" == "false" ]] && [[ -f "$HOME/.local/focus/shell-integration.sh" ]]; then
+        source "$HOME/.local/focus/shell-integration.sh" 2>/dev/null
         if type update-prompt >/dev/null 2>&1; then
             update-prompt
             prompt_updated=true

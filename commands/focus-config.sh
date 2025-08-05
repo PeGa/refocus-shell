@@ -5,19 +5,19 @@
 
 # Source libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/work/lib/work-db.sh" ]]; then
-    source "$HOME/.local/work/lib/work-db.sh"
-    source "$HOME/.local/work/lib/work-utils.sh"
+if [[ -f "$HOME/.local/focus/lib/focus-db.sh" ]]; then
+    source "$HOME/.local/focus/lib/focus-db.sh"
+    source "$HOME/.local/focus/lib/focus-utils.sh"
 else
-    source "$SCRIPT_DIR/../lib/work-db.sh"
-    source "$SCRIPT_DIR/../lib/work-utils.sh"
+    source "$SCRIPT_DIR/../lib/focus-db.sh"
+    source "$SCRIPT_DIR/../lib/focus-utils.sh"
 fi
 
 # Source configuration
 if [[ -f "$SCRIPT_DIR/../config.sh" ]]; then
     source "$SCRIPT_DIR/../config.sh"
-elif [[ -f "$HOME/.local/work/config.sh" ]]; then
-    source "$HOME/.local/work/config.sh"
+elif [[ -f "$HOME/.local/focus/config.sh" ]]; then
+    source "$HOME/.local/focus/config.sh"
 elif [[ -f "$HOME/dev/personal/refocus-shell/config.sh" ]]; then
     source "$HOME/dev/personal/refocus-shell/config.sh"
 else
@@ -25,11 +25,11 @@ else
     exit 1
 fi
 
-function work_config_show() {
+function focus_config_show() {
     show_config
 }
 
-function work_config_validate() {
+function focus_config_validate() {
     echo "Validating Refocus Shell Configuration..."
     echo "======================================"
     echo
@@ -37,62 +37,62 @@ function work_config_validate() {
     local errors=0
     
     # Validate database path
-    if [[ -z "$WORK_DB_PATH" ]]; then
-        echo "❌ WORK_DB_PATH is not set"
+    if [[ -z "$FOCUS_DB_PATH" ]]; then
+        echo "❌ FOCUS_DB_PATH is not set"
         ((errors++))
     else
-        echo "✅ WORK_DB_PATH: $WORK_DB_PATH"
+        echo "✅ FOCUS_DB_PATH: $FOCUS_DB_PATH"
     fi
     
     # Validate installation directory
-    if [[ -z "$WORK_INSTALL_DIR" ]]; then
-        echo "❌ WORK_INSTALL_DIR is not set"
+    if [[ -z "$FOCUS_INSTALL_DIR" ]]; then
+        echo "❌ FOCUS_INSTALL_DIR is not set"
         ((errors++))
     else
-        echo "✅ WORK_INSTALL_DIR: $WORK_INSTALL_DIR"
+        echo "✅ FOCUS_INSTALL_DIR: $FOCUS_INSTALL_DIR"
     fi
     
     # Validate numeric values
-    if ! [[ "$WORK_IDLE_THRESHOLD" =~ ^[0-9]+$ ]]; then
-        echo "❌ WORK_IDLE_THRESHOLD must be a positive integer (current: $WORK_IDLE_THRESHOLD)"
+    if ! [[ "$FOCUS_IDLE_THRESHOLD" =~ ^[0-9]+$ ]]; then
+        echo "❌ FOCUS_IDLE_THRESHOLD must be a positive integer (current: $FOCUS_IDLE_THRESHOLD)"
         ((errors++))
     else
-        echo "✅ WORK_IDLE_THRESHOLD: ${WORK_IDLE_THRESHOLD}s"
+        echo "✅ FOCUS_IDLE_THRESHOLD: ${FOCUS_IDLE_THRESHOLD}s"
     fi
     
-    if ! [[ "$WORK_MAX_PROJECT_LENGTH" =~ ^[0-9]+$ ]]; then
-        echo "❌ WORK_MAX_PROJECT_LENGTH must be a positive integer (current: $WORK_MAX_PROJECT_LENGTH)"
+    if ! [[ "$FOCUS_MAX_PROJECT_LENGTH" =~ ^[0-9]+$ ]]; then
+        echo "❌ FOCUS_MAX_PROJECT_LENGTH must be a positive integer (current: $FOCUS_MAX_PROJECT_LENGTH)"
         ((errors++))
     else
-        echo "✅ WORK_MAX_PROJECT_LENGTH: ${WORK_MAX_PROJECT_LENGTH} chars"
+        echo "✅ FOCUS_MAX_PROJECT_LENGTH: ${FOCUS_MAX_PROJECT_LENGTH} chars"
     fi
     
-    if ! [[ "$WORK_NUDGE_INTERVAL" =~ ^[0-9]+$ ]]; then
-        echo "❌ WORK_NUDGE_INTERVAL must be a positive integer (current: $WORK_NUDGE_INTERVAL)"
+    if ! [[ "$FOCUS_NUDGE_INTERVAL" =~ ^[0-9]+$ ]]; then
+        echo "❌ FOCUS_NUDGE_INTERVAL must be a positive integer (current: $FOCUS_NUDGE_INTERVAL)"
         ((errors++))
     else
-        echo "✅ WORK_NUDGE_INTERVAL: ${WORK_NUDGE_INTERVAL} minutes"
+        echo "✅ FOCUS_NUDGE_INTERVAL: ${FOCUS_NUDGE_INTERVAL} minutes"
     fi
     
-    if ! [[ "$WORK_REPORT_LIMIT" =~ ^[0-9]+$ ]]; then
-        echo "❌ WORK_REPORT_LIMIT must be a positive integer (current: $WORK_REPORT_LIMIT)"
+    if ! [[ "$FOCUS_REPORT_LIMIT" =~ ^[0-9]+$ ]]; then
+        echo "❌ FOCUS_REPORT_LIMIT must be a positive integer (current: $FOCUS_REPORT_LIMIT)"
         ((errors++))
     else
-        echo "✅ WORK_REPORT_LIMIT: $WORK_REPORT_LIMIT"
+        echo "✅ FOCUS_REPORT_LIMIT: $FOCUS_REPORT_LIMIT"
     fi
     
     # Check if database exists
-    if [[ -f "$WORK_DB_PATH" ]]; then
-        echo "✅ Database exists: $WORK_DB_PATH"
+    if [[ -f "$FOCUS_DB_PATH" ]]; then
+        echo "✅ Database exists: $FOCUS_DB_PATH"
     else
-        echo "⚠️  Database does not exist: $WORK_DB_PATH"
+        echo "⚠️  Database does not exist: $FOCUS_DB_PATH"
     fi
     
     # Check if installation directory exists
-    if [[ -d "$WORK_INSTALL_DIR" ]]; then
-        echo "✅ Installation directory exists: $WORK_INSTALL_DIR"
+    if [[ -d "$FOCUS_INSTALL_DIR" ]]; then
+        echo "✅ Installation directory exists: $FOCUS_INSTALL_DIR"
     else
-        echo "⚠️  Installation directory does not exist: $WORK_INSTALL_DIR"
+        echo "⚠️  Installation directory does not exist: $FOCUS_INSTALL_DIR"
     fi
     
     echo
@@ -104,37 +104,37 @@ function work_config_validate() {
     fi
 }
 
-function work_config_set() {
+function focus_config_set() {
     local key="$1"
     local value="$2"
     
     if [[ -z "$key" ]]; then
         echo "❌ Configuration key is required."
-        echo "Usage: work config set <key> <value>"
-        echo "Example: work config set VERBOSE true"
+        echo "Usage: focus config set <key> <value>"
+        echo "Example: focus config set VERBOSE true"
         exit 1
     fi
     
     if [[ -z "$value" ]]; then
         echo "❌ Configuration value is required."
-        echo "Usage: work config set <key> <value>"
+        echo "Usage: focus config set <key> <value>"
         exit 1
     fi
     
     # Set the configuration value directly
-    export "WORK_${key^^}=$value"
+    export "FOCUS_${key^^}=$value"
     
     echo "✅ Set $key = $value"
-    echo "Note: This change is temporary. Use 'work config save' to make it permanent."
+    echo "Note: This change is temporary. Use 'focus config save' to make it permanent."
 }
 
-function work_config_get() {
+function focus_config_get() {
     local key="$1"
     
     if [[ -z "$key" ]]; then
         echo "❌ Configuration key is required."
-        echo "Usage: work config get <key>"
-        echo "Example: work config get VERBOSE"
+        echo "Usage: focus config get <key>"
+        echo "Example: focus config get VERBOSE"
         exit 1
     fi
     
@@ -148,7 +148,7 @@ function work_config_get() {
     fi
 }
 
-function work_config_save() {
+function focus_config_save() {
     local config_file="$HOME/.config/refocus-shell/config.sh"
     
     echo "Saving configuration to: $config_file"
@@ -160,7 +160,7 @@ function work_config_save() {
     echo "The configuration will be loaded automatically on next startup."
 }
 
-function work_config_reset() {
+function focus_config_reset() {
     local config_file="$HOME/.config/refocus-shell/config.sh"
     
     echo "This will reset all custom configuration to defaults."
@@ -179,28 +179,28 @@ function work_config_reset() {
     fi
 }
 
-function work_config() {
+function focus_config() {
     local action="$1"
     shift
     
     case "$action" in
         "show"|"list")
-            work_config_show
+            focus_config_show
             ;;
         "validate"|"check")
-            work_config_validate
+            focus_config_validate
             ;;
         "set")
-            work_config_set "$@"
+            focus_config_set "$@"
             ;;
         "get")
-            work_config_get "$@"
+            focus_config_get "$@"
             ;;
         "save")
-            work_config_save
+            focus_config_save
             ;;
         "reset")
-            work_config_reset
+            focus_config_reset
             ;;
         *)
             echo "❌ Unknown action: $action"
@@ -213,10 +213,10 @@ function work_config() {
             echo "  reset    - Reset to defaults"
             echo
             echo "Examples:"
-            echo "  work config show"
-            echo "  work config set VERBOSE true"
-            echo "  work config get VERBOSE"
-            echo "  work config save"
+            echo "  focus config show"
+            echo "  focus config set VERBOSE true"
+            echo "  focus config get VERBOSE"
+            echo "  focus config save"
             exit 1
             ;;
     esac
@@ -224,5 +224,5 @@ function work_config() {
 
 # Main execution
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    work_config "$@"
+    focus_config "$@"
 fi 

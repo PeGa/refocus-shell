@@ -16,8 +16,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # Database configuration
-DB_DEFAULT="$HOME/.local/work/timelog.db"
-DB="${WORK_DB:-$DB_DEFAULT}"
+DB_DEFAULT="$HOME/.local/focus/timelog.db"
+DB="${FOCUS_DB:-$DB_DEFAULT}"
 # Table names - these should match what's used in the main script
 STATE_TABLE="${STATE_TABLE:-state}"
 SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
@@ -63,12 +63,12 @@ get_sessions_in_range() {
 }
 
 # Function to get current work state
-get_work_state() {
+get_focus_state() {
     sqlite3 "$DB" "SELECT active, project, start_time FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null
 }
 
 # Function to get work disabled status
-get_work_disabled() {
+get_focus_disabled() {
     sqlite3 "$DB" "SELECT work_disabled FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null
 }
 
@@ -78,7 +78,7 @@ get_nudging_enabled() {
 }
 
 # Function to get last work off time
-get_last_work_off_time() {
+get_last_focus_off_time() {
     sqlite3 "$DB" "SELECT last_work_off_time FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null
 }
 
@@ -94,7 +94,7 @@ get_prompt_content_by_type() {
 }
 
 # Function to update work state
-update_work_state() {
+update_focus_state() {
     local active="$1"
     local project="$2"
     local start_time="$3"
@@ -168,7 +168,7 @@ get_session_info() {
 }
 
 # Function to update work disabled status
-update_work_disabled() {
+update_focus_disabled() {
     local disabled="$1"
     sqlite3 "$DB" "UPDATE $STATE_TABLE SET work_disabled = $disabled WHERE id = 1;"
 }

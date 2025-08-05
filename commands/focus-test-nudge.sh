@@ -5,19 +5,19 @@
 
 # Source libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/work/lib/work-db.sh" ]]; then
-    source "$HOME/.local/work/lib/work-db.sh"
-    source "$HOME/.local/work/lib/work-utils.sh"
+if [[ -f "$HOME/.local/focus/lib/focus-db.sh" ]]; then
+    source "$HOME/.local/focus/lib/focus-db.sh"
+    source "$HOME/.local/focus/lib/focus-utils.sh"
 else
-    source "$SCRIPT_DIR/../lib/work-db.sh"
-    source "$SCRIPT_DIR/../lib/work-utils.sh"
+    source "$SCRIPT_DIR/../lib/focus-db.sh"
+    source "$SCRIPT_DIR/../lib/focus-utils.sh"
 fi
 
 # Set table names
 STATE_TABLE="${STATE_TABLE:-state}"
 SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
 
-function work_test_nudge() {
+function focus_test_nudge() {
     echo "🧪 Testing refocus shell notifications..."
     
     # Test basic notification
@@ -29,12 +29,12 @@ function work_test_nudge() {
         echo "❌ Notification test failed - notify-send may not be available"
     fi
     
-    # Test work prompt
-    echo "Testing work prompt functionality..."
+    # Test focus prompt
+    echo "Testing focus prompt functionality..."
     local test_project="test-project"
-    local work_prompt
-    work_prompt=$(create_work_prompt "$test_project")
-    echo "Work prompt: $work_prompt"
+    local focus_prompt
+    focus_prompt=$(create_focus_prompt "$test_project")
+    echo "Focus prompt: $focus_prompt"
     
     # Test default prompt
     local default_prompt
@@ -46,5 +46,5 @@ function work_test_nudge() {
 
 # Main execution
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    work_test_nudge "$@"
+    focus_test_nudge "$@"
 fi 

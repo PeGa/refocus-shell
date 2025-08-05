@@ -5,24 +5,24 @@
 
 # Source libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/work/lib/work-db.sh" ]]; then
-    source "$HOME/.local/work/lib/work-db.sh"
-    source "$HOME/.local/work/lib/work-utils.sh"
+if [[ -f "$HOME/.local/focus/lib/focus-db.sh" ]]; then
+    source "$HOME/.local/focus/lib/focus-db.sh"
+    source "$HOME/.local/focus/lib/focus-utils.sh"
 else
-    source "$SCRIPT_DIR/../lib/work-db.sh"
-    source "$SCRIPT_DIR/../lib/work-utils.sh"
+    source "$SCRIPT_DIR/../lib/focus-db.sh"
+    source "$SCRIPT_DIR/../lib/focus-utils.sh"
 fi
 
 # Set table names
 STATE_TABLE="${STATE_TABLE:-state}"
 SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
 
-function work_report_today() {
+function focus_report_today() {
     local period
     period=$(get_today_period)
     IFS='|' read -r start_time end_time <<< "$period"
     
-    echo "📊 Today's Work Report"
+    echo "📊 Today's Focus Report"
     echo "====================="
     echo "Period: $(date --date="$start_time" +"%Y-%m-%d")"
     echo
@@ -30,12 +30,12 @@ function work_report_today() {
     work_generate_report "$start_time" "$end_time"
 }
 
-function work_report_week() {
+function focus_report_week() {
     local period
     period=$(get_week_period)
     IFS='|' read -r start_time end_time <<< "$period"
     
-    echo "📊 This Week's Work Report"
+    echo "📊 This Week's Focus Report"
     echo "========================="
     echo "Period: $(date --date="$start_time" +"%Y-%m-%d") to $(date --date="$end_time" +"%Y-%m-%d")"
     echo
@@ -43,12 +43,12 @@ function work_report_week() {
     work_generate_report "$start_time" "$end_time"
 }
 
-function work_report_month() {
+function focus_report_month() {
     local period
     period=$(get_month_period)
     IFS='|' read -r start_time end_time <<< "$period"
     
-    echo "📊 This Month's Work Report"
+    echo "📊 This Month's Focus Report"
     echo "=========================="
     echo "Period: $(date --date="$start_time" +"%Y-%m-%d") to $(date --date="$end_time" +"%Y-%m-%d")"
     echo
@@ -56,13 +56,13 @@ function work_report_month() {
     work_generate_report "$start_time" "$end_time"
 }
 
-function work_report_custom() {
+function focus_report_custom() {
     local days_back="$1"
     
     if [[ -z "$days_back" ]]; then
         echo "❌ Number of days is required."
-        echo "Usage: work report custom <days>"
-        echo "Example: work report custom 7"
+        echo "Usage: focus report custom <days>"
+        echo "Example: focus report custom 7"
         exit 1
     fi
     
@@ -74,7 +74,7 @@ function work_report_custom() {
     period=$(get_custom_period "$days_back")
     IFS='|' read -r start_time end_time <<< "$period"
     
-    echo "📊 Custom Work Report (Last $days_back days)"
+    echo "📊 Custom Focus Report (Last $days_back days)"
     echo "==========================================="
     echo "Period: $(date --date="$start_time" +"%Y-%m-%d") to $(date --date="$end_time" +"%Y-%m-%d")"
     echo
@@ -82,7 +82,7 @@ function work_report_custom() {
     work_generate_report "$start_time" "$end_time"
 }
 
-function work_generate_report() {
+function focus_generate_report() {
     local start_time="$1"
     local end_time="$2"
     
@@ -91,7 +91,7 @@ function work_generate_report() {
     sessions=$(get_sessions_in_range "$start_time" "$end_time")
     
     if [[ -z "$sessions" ]]; then
-        echo "No work sessions found in the specified period."
+        echo "No focus sessions found in the specified period."
         return 0
     fi
     
@@ -126,7 +126,7 @@ function work_generate_report() {
     local total_minutes=$(((total_duration % 3600) / 60))
     
     echo "📈 Summary:"
-    echo "   Total work time: ${total_hours}h ${total_minutes}m"
+    echo "   Total focus time: ${total_hours}h ${total_minutes}m"
     echo "   Total sessions: $(echo "$sessions" | wc -l)"
     echo "   Active projects: ${#project_totals[@]}"
     echo
@@ -177,36 +177,36 @@ function work_generate_report() {
     fi
 }
 
-function work_report() {
+function focus_report() {
     local period="$1"
     shift
     
     case "$period" in
         "today")
-            work_report_today
-            ;;
-        "week")
-            work_report_week
-            ;;
-        "month")
-            work_report_month
-            ;;
-        "custom")
-            work_report_custom "$@"
+                    focus_report_today
+        ;;
+    "week")
+        focus_report_week
+        ;;
+    "month")
+        focus_report_month
+        ;;
+    "custom")
+        focus_report_custom "$@"
             ;;
         *)
             echo "❌ Unknown period: $period"
             echo "Available periods:"
-            echo "  today   - Today's work"
-            echo "  week    - This week's work"
-            echo "  month   - This month's work"
+            echo "  today   - Today's focus"
+            echo "  week    - This week's focus"
+            echo "  month   - This month's focus"
             echo "  custom  - Custom period (specify days)"
             echo
             echo "Examples:"
-            echo "  work report today"
-            echo "  work report week"
-            echo "  work report month"
-            echo "  work report custom 7"
+            echo "  focus report today"
+            echo "  focus report week"
+            echo "  focus report month"
+            echo "  focus report custom 7"
             exit 1
             ;;
     esac
@@ -214,5 +214,5 @@ function work_report() {
 
 # Main execution
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    work_report "$@"
+    focus_report "$@"
 fi 

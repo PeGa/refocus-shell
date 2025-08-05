@@ -4,15 +4,15 @@
 # Licensed under the GNU General Public License v3
 
 # This provides a safe alias-based approach that avoids the -e exit issue
-# Usage: source ~/.local/work/lib/work-alias.sh
+# Usage: source ~/.local/focus/lib/focus-alias.sh
 
 # Store original PS1 if not already stored
-if [[ -z "$WORK_ORIGINAL_PS1" ]]; then
-    export WORK_ORIGINAL_PS1="$PS1"
+if [[ -z "$FOCUS_ORIGINAL_PS1" ]]; then
+    export FOCUS_ORIGINAL_PS1="$PS1"
 fi
 
-# Safe work function that sources the work script
-work-safe() {
+# Safe focus function that sources the focus script
+focus-safe() {
     # Temporarily disable exit on error
     local original_e
     original_e=$(set +o | grep errexit)
@@ -20,12 +20,12 @@ work-safe() {
     # Disable exit on error for this function
     set +e
     
-    # Get the work script path
-    local work_script
-    if [[ -f "$HOME/.local/bin/work" ]]; then
-        work_script="$HOME/.local/bin/work"
-    elif [[ -f "$HOME/dev/personal/refocus-shell/work" ]]; then
-    work_script="$HOME/dev/personal/refocus-shell/work"
+    # Get the focus script path
+    local focus_script
+    if [[ -f "$HOME/.local/bin/focus" ]]; then
+        focus_script="$HOME/.local/bin/focus"
+    elif [[ -f "$HOME/dev/personal/refocus-shell/focus" ]]; then
+    focus_script="$HOME/dev/personal/refocus-shell/focus"
     else
         echo "❌ Refocus shell not found. Please install it first."
         # Restore original exit behavior
@@ -33,13 +33,13 @@ work-safe() {
         return 1
     fi
     
-    # Execute the work command and capture its exit code
-    "$work_script" "$@"
+    # Execute the focus command and capture its exit code
+    "$focus_script" "$@"
     local exit_code=$?
     
-    # Update prompt if work on/off was executed
+    # Update prompt if focus on/off was executed
     if [[ $# -gt 0 ]] && [[ "$1" == "on" || "$1" == "off" ]]; then
-        work-update-prompt-safe
+        focus-update-prompt-safe
     fi
     
     # Restore original exit behavior
@@ -49,13 +49,13 @@ work-safe() {
 }
 
 # Function to update prompt from database (safe version)
-work-update-prompt-safe() {
-    local work_db="$HOME/.local/work/timelog.db"
+focus-update-prompt-safe() {
+    local focus_db="$HOME/.local/focus/timelog.db"
     
-    if [[ -f "$work_db" ]]; then
+    if [[ -f "$focus_db" ]]; then
         # Get current prompt from database
         local prompt_content
-        prompt_content=$(sqlite3 "$work_db" "SELECT prompt_content FROM state WHERE id = 1;" 2>/dev/null)
+        prompt_content=$(sqlite3 "$focus_db" "SELECT prompt_content FROM state WHERE id = 1;" 2>/dev/null)
         
         if [[ -n "$prompt_content" ]]; then
             export PS1="$prompt_content"
@@ -64,8 +64,8 @@ work-update-prompt-safe() {
     fi
     
     # Fallback to original prompt
-    if [[ -n "$WORK_ORIGINAL_PS1" ]]; then
-        export PS1="$WORK_ORIGINAL_PS1"
+    if [[ -n "$FOCUS_ORIGINAL_PS1" ]]; then
+        export PS1="$FOCUS_ORIGINAL_PS1"
     else
         # Default prompt if no original stored
         export PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01:34m\]\w\[\033[00m\]\$ '
@@ -73,28 +73,28 @@ work-update-prompt-safe() {
 }
 
 # Function to restore original prompt (safe version)
-work-restore-prompt-safe() {
-    if [[ -n "$WORK_ORIGINAL_PS1" ]]; then
-        export PS1="$WORK_ORIGINAL_PS1"
+focus-restore-prompt-safe() {
+    if [[ -n "$FOCUS_ORIGINAL_PS1" ]]; then
+        export PS1="$FOCUS_ORIGINAL_PS1"
     else
         # Default prompt if no original stored
         export PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01:34m\]\w\[\033[00m\]\$ '
     fi
 }
 
-# Auto-update prompt on function load if work is active
-if [[ -f "$HOME/.local/work/timelog.db" ]]; then
-    # Check if work is currently active
-    ACTIVE_STATE=$(sqlite3 "$HOME/.local/work/timelog.db" "SELECT active FROM state WHERE id = 1;" 2>/dev/null)
+# Auto-update prompt on function load if focus is active
+if [[ -f "$HOME/.local/focus/timelog.db" ]]; then
+    # Check if focus is currently active
+    ACTIVE_STATE=$(sqlite3 "$HOME/.local/focus/timelog.db" "SELECT active FROM state WHERE id = 1;" 2>/dev/null)
     if [[ "$ACTIVE_STATE" == "1" ]]; then
-        work-update-prompt-safe
+        focus-update-prompt-safe
     fi
 fi
 
 # Export the functions for use
-export -f work-safe
-export -f work-update-prompt-safe
-export -f work-restore-prompt-safe
+export -f focus-safe
+export -f focus-update-prompt-safe
+export -f focus-restore-prompt-safe
 
 # Create alias (optional - can be commented out if you prefer the function)
-# alias work='work-safe' 
+# alias focus='focus-safe' 

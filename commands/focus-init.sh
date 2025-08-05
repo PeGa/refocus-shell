@@ -5,23 +5,23 @@
 
 # Source libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/work/lib/work-db.sh" ]]; then
-    source "$HOME/.local/work/lib/work-db.sh"
-    source "$HOME/.local/work/lib/work-utils.sh"
+if [[ -f "$HOME/.local/focus/lib/focus-db.sh" ]]; then
+    source "$HOME/.local/focus/lib/focus-db.sh"
+    source "$HOME/.local/focus/lib/focus-utils.sh"
 else
-    source "$SCRIPT_DIR/../lib/work-db.sh"
-    source "$SCRIPT_DIR/../lib/work-utils.sh"
+    source "$SCRIPT_DIR/../lib/focus-db.sh"
+    source "$SCRIPT_DIR/../lib/focus-utils.sh"
 fi
 
-function work_init() {
+function focus_init() {
     local db_path="$1"
     
     # Use default database path if not provided
     if [[ -z "$db_path" ]]; then
-        if [[ -f "$HOME/.local/work/timelog.db" ]]; then
-            db_path="$HOME/.local/work/timelog.db"
+        if [[ -f "$HOME/.local/focus/timelog.db" ]]; then
+            db_path="$HOME/.local/focus/timelog.db"
         else
-            db_path="$HOME/.local/work/timelog.db"
+            db_path="$HOME/.local/focus/timelog.db"
         fi
     fi
     
@@ -72,20 +72,20 @@ case "${1:-}" in
         echo "Refocus Shell - Initialize Database"
         echo "================================"
         echo ""
-        echo "Usage: work init [database_path]"
+        echo "Usage: focus init [database_path]"
         echo ""
         echo "This command initializes a new refocus shell database with the required"
         echo "tables and default state. If no database path is provided, it will"
-        echo "use the default location: ~/.local/work/timelog.db"
+        echo "use the default location: ~/.local/focus/timelog.db"
         echo ""
         echo "Examples:"
-        echo "  work init                    # Initialize with default path"
-        echo "  work init /path/to/db.db     # Initialize with custom path"
+        echo "  focus init                    # Initialize with default path"
+        echo "  focus init /path/to/db.db     # Initialize with custom path"
         echo ""
         echo "Note: This command is typically not needed as the database is"
         echo "      automatically initialized during installation."
         ;;
     *)
-        work_init "$1"
+        focus_init "$1"
         ;;
 esac 

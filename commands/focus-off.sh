@@ -5,28 +5,28 @@
 
 # Source libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/work/lib/work-db.sh" ]]; then
-    source "$HOME/.local/work/lib/work-db.sh"
-    source "$HOME/.local/work/lib/work-utils.sh"
+if [[ -f "$HOME/.local/focus/lib/focus-db.sh" ]]; then
+    source "$HOME/.local/focus/lib/focus-db.sh"
+    source "$HOME/.local/focus/lib/focus-utils.sh"
 else
-    source "$SCRIPT_DIR/../lib/work-db.sh"
-    source "$SCRIPT_DIR/../lib/work-utils.sh"
+    source "$SCRIPT_DIR/../lib/focus-db.sh"
+    source "$SCRIPT_DIR/../lib/focus-utils.sh"
 fi
 
 # Set table names
 STATE_TABLE="${STATE_TABLE:-state}"
 SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
 
-function work_off() {
+function focus_off() {
     local now
     now=$(get_current_timestamp)
 
     local state
-    state=$(get_work_state)
+    state=$(get_focus_state)
     IFS='|' read -r active current_project start_time <<< "$state"
 
     if [[ "$active" -ne 1 ]]; then
-        echo "No active work session."
+        echo "No active focus session."
         exit 1
     fi
 
@@ -36,17 +36,17 @@ function work_off() {
     # Insert session record
     insert_session "$current_project" "$start_time" "$now" "$duration"
 
-    # Update work state
-    update_work_state 0 "" "" "$now"
-    echo "Stopped work on: $current_project (Duration: $((duration / 60)) min)"
+    # Update focus state
+    update_focus_state 0 "" "" "$now"
+    echo "Stopped focus on: $current_project (Duration: $((duration / 60)) min)"
 
     # Restore original prompt
     restore_original_prompt
 
-    send_notification "Stopped work on: $current_project"
+    send_notification "Stopped focus on: $current_project"
 }
 
 # Main execution
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    work_off "$@"
+    focus_off "$@"
 fi 
