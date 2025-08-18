@@ -149,28 +149,25 @@ $ focus off
 - **Professional records**: Track work for invoices, reports, or retrospectives
 - **Intentional closure**: Encourages mindful session endings
 
-### Project Descriptions
+### Session Notes Management
 
-Manage project descriptions to better understand what each project is about:
+Manage session notes to track what was accomplished in each focus session:
 
 ```bash
-# Add a description to a project
-focus description add coding "Main development project for the web application"
+# Add notes to the most recent session for a project
+focus notes add coding "Fixed the login bug and updated documentation"
 
-# View a project's description
-focus description show coding
-
-# Remove a project description
-focus description remove coding
+# View notes for a project
+focus notes show coding
 ```
 
 **Benefits:**
-- **Better context**: Understand what each project represents
-- **Team collaboration**: Share project context with colleagues
-- **Professional records**: Clear project descriptions for reports and invoices
-- **Memory aid**: Remember project scope months later
+- **Track accomplishments**: Remember what you did in each session
+- **Better reporting**: See what was accomplished in reports
+- **Professional records**: Document work for invoices, reports, or retrospectives
+- **Memory aid**: Reconstruct work context months later
 
-When adding past sessions with `focus past add`, you'll be prompted to add a project description if one doesn't exist yet.
+When adding past sessions with `focus past add`, you'll be prompted to add session notes about what was accomplished.
 
 ### Quick Examples
 
@@ -191,6 +188,10 @@ focus past add "project" "2025/07/30-14:00" "2025/07/30-16:00"  # Add past focus
 focus past add "meeting" "14:00" "15:30"           # Today's times
 focus past add "coding" "2025/07/30-14:00" "16:00" # Specific date
 focus past add "planning" "2 hours ago" "1 hour ago" # Relative times
+
+# Manage session notes
+focus notes add coding "Fixed the login bug"        # Add notes to recent session
+focus notes show coding                             # View project notes
 
 # Generate reports
 focus report today
@@ -267,7 +268,7 @@ focus past add "planning" "2 hours ago" "1 hour ago"               # Relative ti
 focus past add "review" "yesterday 14:00" "yesterday 16:00"       # Yesterday
 focus past add "team meeting" "2025/07/30-14:00" "2025/07/30-16:00" # Full date
 
-# Past sessions will prompt for project descriptions if none exist
+# Past sessions will prompt for session notes about what was accomplished
 
 # List recent sessions
 focus past list 10

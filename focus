@@ -92,6 +92,9 @@ case "${1:-}" in
     "description")
         execute_subcommand "description" "${@:2}"
         ;;
+    "notes")
+        execute_subcommand "notes" "${@:2}"
+        ;;
     "help"|"--help"|"-h"|"")
         execute_subcommand "help" "${@:2}"
         ;;

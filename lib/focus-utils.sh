@@ -176,6 +176,31 @@ validate_timestamp() {
         return 0
     fi
     
+    # Handle relative time expressions first
+    if [[ "$timestamp" =~ ^[0-9]+h$ ]]; then
+        # Convert "7h" to "7 hours ago"
+        local hours
+        hours=$(echo "$timestamp" | sed 's/h$//')
+        local converted_timestamp
+        converted_timestamp=$(date --date="$hours hours ago" -Iseconds 2>/dev/null)
+        
+        if [[ $? -ne 0 ]]; then
+            echo "❌ $description format not recognized."
+            return 1
+        fi
+        
+        echo "$converted_timestamp"
+        return 0
+    fi
+    
+    # Handle "now" keyword
+    if [[ "$timestamp" == "now" ]]; then
+        local converted_timestamp
+        converted_timestamp=$(get_current_timestamp)
+        echo "$converted_timestamp"
+        return 0
+    fi
+    
     # Try to parse and convert to ISO format (for backward compatibility)
     local converted_timestamp
     converted_timestamp=$(date --date="$timestamp" -Iseconds 2>/dev/null)
@@ -189,11 +214,14 @@ validate_timestamp() {
         echo "  - 'YYYY-MM-DDTHH:MM' (ISO format)"
         echo "  - Full ISO format (YYYY-MM-DDTHH:MM:SS±HH:MM)"
         echo "  - Relative dates ('yesterday 14:30', '2 hours ago', etc.)"
+        echo "  - Relative hours ('7h' = '7 hours ago')"
+        echo "  - Keywords ('now' = current time)"
         echo ""
         echo "Examples:"
         echo "  focus past add meeting 2025/07/30-14:15 2025/07/30-15:30"
         echo "  focus past add meeting 14:15 15:30  # Today's date"
         echo "  focus past add meeting 'yesterday 14:30' 'yesterday 15:30'"
+        echo "  focus past add meeting '7h' 'now'  # Last 7 hours"
         return 1
     fi
     

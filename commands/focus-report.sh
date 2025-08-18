@@ -144,7 +144,7 @@ function focus_generate_report() {
             while IFS='|' read -r p start end dur notes; do
                 if [[ "$p" == "$project" ]]; then
                     project_duration=$((project_duration + dur))
-                    # Use the first non-empty notes as project description
+                    # Use the first non-empty notes as project notes
                     if [[ -n "$notes" && -z "$project_notes" ]]; then
                         project_notes="$notes"
                     fi

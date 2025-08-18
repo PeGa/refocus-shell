@@ -33,11 +33,15 @@ function focus_past_add() {
         echo "  - 'YYYY-MM-DDTHH:MM' (ISO format)"
         echo "  - Full ISO format (YYYY-MM-DDTHH:MM:SS±HH:MM)"
         echo "  - Relative dates ('yesterday 14:30', '2 hours ago', etc.)"
+        echo "  - Relative hours ('7h' = '7 hours ago')"
+        echo "  - Keywords ('now' = current time)"
+        echo "  - Session notes (what was accomplished)"
         echo ""
         echo "Examples:"
         echo "  focus past add meeting 2025/07/30-14:15 2025/07/30-15:30  # Specific date"
         echo "  focus past add meeting 14:15 15:30                          # Today's date"
         echo "  focus past add coding 'yesterday 09:00' 'yesterday 17:00'   # Relative dates"
+        echo "  focus past add coding '7h' 'now'                            # Last 7 hours"
         echo ""
         echo "💡 Tip: Use YYYY/MM/DD-HH:MM format for easy, quote-free dates!"
         exit 1
@@ -99,30 +103,28 @@ function focus_past_add() {
     echo "   End: $end_time → $converted_end_time"
     echo "   Duration: $((duration / 60)) minutes"
     
-    # Ask if user wants to add a project description
+    # Ask if user wants to add session notes
     echo ""
-    echo "📝 Would you like to add a description for the project '$project'?"
-    echo "   (This helps you remember what this project was about)"
-    echo -n "   Add description? [y/N]: "
-    read -r add_description_response
+    echo "📝 Would you like to add notes about what was accomplished?"
+    echo "   (This helps you remember what you did during this session)"
+    echo -n "   Add notes? [y/N]: "
+    read -r add_notes_response
     
-    if [[ "$add_description_response" =~ ^[Yy]$ ]]; then
+    if [[ "$add_notes_response" =~ ^[Yy]$ ]]; then
         echo ""
-        echo "📝 Enter a description for '$project':"
+        echo "📝 Enter notes about what was accomplished:"
         echo "   (Press Enter to skip, or type a brief description)"
-        echo -n "   Description: "
-        read -r project_description
+        echo -n "   Notes: "
+        read -r session_notes
         
-        if [[ -n "$project_description" ]]; then
-            # Call focus description add internally
-            if [[ -f "$HOME/.local/refocus/commands/focus-description.sh" ]]; then
-                source "$HOME/.local/refocus/commands/focus-description.sh"
-            else
-                source "$SCRIPT_DIR/focus-description.sh"
-            fi
+        if [[ -n "$session_notes" ]]; then
+            # Update the session with notes
+            local escaped_notes
+            escaped_notes=$(sql_escape "$session_notes")
             
-            # Call the description add function directly
-            focus_description_add "$project" "$project_description"
+            sqlite3 "$DB" "UPDATE $SESSIONS_TABLE SET notes = '$escaped_notes' WHERE project = '$(sql_escape "$project")' AND start_time = '$(sql_escape "$converted_start_time")' AND end_time = '$(sql_escape "$converted_end_time")';"
+            
+            echo "✅ Added session notes: $session_notes"
         fi
     fi
 }
