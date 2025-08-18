@@ -17,6 +17,9 @@ fi
 STATE_TABLE="${STATE_TABLE:-state}"
 SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
 
+# Ensure database is migrated to include projects table
+migrate_database
+
 function focus_disable() {
     # Stop any active session first
     if is_focus_active; then

@@ -14,8 +14,10 @@
 - [Features](#features)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Command Reference](#command-reference)
 - [Smart Focus Continuation](#smart-focus-continuation)
 - [Enhanced Status Information](#enhanced-status-information)
+- [Project Descriptions](#project-descriptions)
 - [Cumulative Time Tracking](#cumulative-time-tracking)
 - [Past Session Management](#past-session-management)
 - [Discrete Session Management](#discrete-session-management)
@@ -23,6 +25,7 @@
 - [Nudging System](#nudging-system)
 - [Data Import/Export](#data-importexport)
 - [Configuration](#configuration)
+- [Documentation](#documentation)
 - [Uninstallation](#uninstallation)
 - [Dependencies](#dependencies)
 - [Database](#database)
@@ -47,6 +50,7 @@
 - **Smart Continuation**: `focus on` without project continues last session
 - **Enhanced Status**: Rich context about last session and time tracking
 - **Cumulative Time Tracking**: Shows total time invested in each project across sessions
+- **Project Descriptions**: Optional descriptions for projects to provide context and clarity
 - **Past Session Management**: Add, modify, and delete historical focus sessions with flexible timestamp formats
 - **Focus Reports**: Generate markdown reports for today, week, month, or custom periods
 - **Discrete Session Management**: ADHD-friendly focus/idle session tracking with automatic break tracking
@@ -182,10 +186,97 @@ Get rich context about your focus:
 ```bash
 $ focus status
 ⏳ [coding] Started: 14:30 (2h 15m ago)
+📋 This is my main development project for the web application
 📊 Total time on coding: 12h 45m (across 8 sessions)
 🕐 Last session: coding (2h 15m, ended 2h 15m ago)
 💡 Tip: Run 'focus report today' to see today's summary
 ```
+
+### Project Description Management
+
+Add context and clarity to your projects with optional descriptions:
+
+```bash
+# Add a project description
+focus description add "coding" "Main development project for the web application"
+
+# View a project description
+focus description show "coding"
+
+# Remove a project description
+focus description remove "coding"
+```
+
+**Benefits:**
+- **Distinguish similar projects**: "meeting" vs "meeting-client" vs "meeting-team"
+- **Quick context**: Remember what a project was about months later
+- **Better reporting**: Understand your work patterns with descriptive context
+- **Lightweight documentation**: Simple notes without complex project management overhead
+
+**Example workflow:**
+```bash
+$ focus description add "refactor" "Refactoring the authentication system to use OAuth2"
+$ focus on refactor
+$ focus status
+⏳ Focusing on: refactor — 0m elapsed
+📋 Refactoring the authentication system to use OAuth2
+```
+
+## Command Reference
+
+### Core Commands
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `focus on [project]` | Start focusing on a project | `focus on "coding"` |
+| `focus off` | Stop current focus session | `focus off` |
+| `focus status` | Show current focus status | `focus status` |
+| `focus help` | Show all available commands | `focus help` |
+
+### Project Management
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `focus description add <project> <description>` | Add project description | `focus description add "meeting" "Client consultation"` |
+| `focus description show <project>` | View project description | `focus description show "meeting"` |
+| `focus description remove <project>` | Remove project description | `focus description remove "meeting"` |
+
+### Session Management
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `focus past add <project> <start> <end>` | Add past session | `focus past add "meeting" "14:00" "15:30"` |
+| `focus past list [limit]` | List recent sessions | `focus past list 10` |
+| `focus past modify <id> [project] [start] [end]` | Modify session | `focus past modify 1 "new-project" "15:00" "17:00"` |
+| `focus past delete <id>` | Delete session | `focus past delete 1` |
+
+### Reporting
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `focus report today` | Today's focus report | `focus report today` |
+| `focus report week` | This week's focus report | `focus report week` |
+| `focus report month` | This month's focus report | `focus report month` |
+| `focus report custom <days>` | Custom period report | `focus report custom 7` |
+
+### Data Management
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `focus export [file]` | Export focus data | `focus export backup.sql` |
+| `focus import <file>` | Import focus data | `focus import backup.sql` |
+| `focus reset` | Reset all data | `focus reset` |
+| `focus init` | Initialize database | `focus init` |
+
+### System Control
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `focus enable` | Enable refocus shell | `focus enable` |
+| `focus disable` | Disable refocus shell | `focus disable` |
+| `focus config show` | Show configuration | `focus config show` |
+| `focus config set <key> <value>` | Set configuration | `focus config set VERBOSE true` |
+| `focus test-nudge` | Test notifications | `focus test-nudge` |
 
 ### Cumulative Time Tracking
 
@@ -293,10 +384,10 @@ Example report output:
 - **Active projects**: 2
 
 ## Project Breakdown
-| Project | Sessions | Total Time |
-|---------|----------|------------|
-| coding  | 2        | 4h 15m     |
-| meeting | 2        | 2h 15m     |
+| Project | Sessions | Total Time | Description |
+|---------|----------|------------|-------------|
+| coding  | 2        | 4h 15m     | Main development project for the web application |
+| meeting | 2        | 2h 15m     | Client consultation and planning session |
 
 ## Recent Sessions
 1. **coding** (14:30-16:45, 2h 15m)
@@ -327,7 +418,7 @@ Nudging occurs every 10 minutes via cron and shows:
 
 ### Data Import/Export
 
-Backup and restore your focus data:
+Backup and restore your focus data, including project descriptions:
 
 ```bash
 # Export all data to SQLite dump
@@ -339,6 +430,13 @@ focus import backup.sql
 # Export with timestamped filename
 focus export  # Creates focus-export-20250802_143022.sql
 ```
+
+**Export includes:**
+- Database schema and all tables
+- All focus sessions and timing data
+- Current focus state and configuration
+- **Project descriptions and metadata**
+- Complete data integrity for backup/restore
 
 ### Configuration
 
@@ -442,6 +540,14 @@ CREATE TABLE sessions (
     end_time TEXT NOT NULL,
     duration_seconds INTEGER NOT NULL
 );
+
+-- Project descriptions
+CREATE TABLE projects (
+    project TEXT PRIMARY KEY,
+    description TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 ```
 
 ## Troubleshooting
@@ -512,6 +618,14 @@ Refocus Shell logs to:
 - **Database**: All data stored in `~/.local/refocus/refocus.db`
 - **Configuration**: Settings in `~/.config/refocus-shell/config.sh`
 
+## Documentation
+
+For detailed documentation on specific features:
+
+- **[Project Description Management](docs/doc/DESCRIPTION_MANAGEMENT.md)** - Complete guide to managing project descriptions
+- **[Prompt Integration](docs/doc/PROMPT_SOLUTIONS.md)** - Solutions for shell integration issues
+- **[CLI Roadmap](CLI%20ROADMAP.md)** - Development status and future plans
+
 ## Development
 
 ### Project Structure
@@ -526,6 +640,7 @@ refocus-shell/
 │   ├── focus-on.sh
 │   ├── focus-off.sh
 │   ├── focus-status.sh
+│   ├── focus-description.sh  # Project description management
 │   ├── focus-past.sh
 │   ├── focus-report.sh
 │   └── ...
@@ -564,6 +679,14 @@ focus status
 focus off
 focus past add "test" "2025/07/30-14:00" "2025/07/30-16:00"
 focus report today
+
+# Test project descriptions
+focus description add "test" "This is a test project for development"
+focus description show "test"
+focus on "test"
+focus status  # Should show description
+focus report today  # Should show description in report
+focus description remove "test"
 
 # Test uninstallation
 ./setup.sh uninstall --auto

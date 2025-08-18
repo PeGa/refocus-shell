@@ -3,15 +3,18 @@
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 
-# Source libraries
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
-    source "$HOME/.local/refocus/lib/focus-db.sh"
-    source "$HOME/.local/refocus/lib/focus-utils.sh"
-else
-    source "$SCRIPT_DIR/../lib/focus-db.sh"
-    source "$SCRIPT_DIR/../lib/focus-utils.sh"
-fi
+    # Source libraries
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
+        source "$HOME/.local/refocus/lib/focus-db.sh"
+        source "$HOME/.local/refocus/lib/focus-utils.sh"
+    else
+        source "$SCRIPT_DIR/../lib/focus-db.sh"
+        source "$SCRIPT_DIR/../lib/focus-utils.sh"
+    fi
+    
+    # Ensure database is migrated to include projects table
+    migrate_database
 
 function focus_export() {
     local output_file="$1"
@@ -41,10 +44,11 @@ function focus_export() {
     
     if [[ $? -eq 0 ]]; then
         echo "✅ Focus data exported successfully to: $output_file"
-        echo "📊 Export contains:"
-        echo "   - Database schema"
-        echo "   - All focus sessions"
-        echo "   - Current focus state"
+            echo "📊 Export contains:"
+    echo "   - Database schema"
+    echo "   - All focus sessions"
+    echo "   - Current focus state"
+    echo "   - Project descriptions"
         echo ""
         echo "To import this data, use: focus import $output_file"
     else

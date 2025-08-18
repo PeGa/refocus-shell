@@ -25,6 +25,9 @@ else
     exit 1
 fi
 
+# Ensure database is migrated to include projects table
+migrate_database
+
 function focus_config_show() {
     show_config
 }
