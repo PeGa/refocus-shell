@@ -3,15 +3,18 @@
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 
-# Source libraries
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
-    source "$HOME/.local/refocus/lib/focus-db.sh"
-    source "$HOME/.local/refocus/lib/focus-utils.sh"
-else
-    source "$SCRIPT_DIR/../lib/focus-db.sh"
-    source "$SCRIPT_DIR/../lib/focus-utils.sh"
-fi
+    # Source libraries
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
+        source "$HOME/.local/refocus/lib/focus-db.sh"
+        source "$HOME/.local/refocus/lib/focus-utils.sh"
+    else
+        source "$SCRIPT_DIR/../lib/focus-db.sh"
+        source "$SCRIPT_DIR/../lib/focus-utils.sh"
+    fi
+    
+    # Ensure database is migrated to include projects table
+    migrate_database
 
 # Set table names
 STATE_TABLE="${STATE_TABLE:-state}"
@@ -149,7 +152,16 @@ function focus_generate_report() {
             local proj_hours=$((project_duration / 3600))
             local proj_minutes=$(((project_duration % 3600) / 60))
             
+            # Get project description if available
+            local project_description
+            project_description=$(get_project_description "$project")
+            
             printf "   %-20s %3d sessions  %2dh %2dm\n" "$project" "$sessions_count" "$proj_hours" "$proj_minutes"
+            
+            # Show project description if available
+            if [[ -n "$project_description" ]]; then
+                printf "     %-20s %s\n" "" "$project_description"
+            fi
         done
         echo
     fi

@@ -89,6 +89,9 @@ case "${1:-}" in
     "config")
         execute_subcommand "config" "${@:2}"
         ;;
+    "project")
+        execute_subcommand "project" "${@:2}"
+        ;;
     "help"|"--help"|"-h"|"")
         execute_subcommand "help" "${@:2}"
         ;;

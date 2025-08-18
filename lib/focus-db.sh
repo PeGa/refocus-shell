@@ -21,6 +21,7 @@ DB="${REFOCUS_DB:-$DB_DEFAULT}"
 # Table names - these should match what's used in the main script
 STATE_TABLE="${STATE_TABLE:-state}"
 SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
+PROJECTS_TABLE="${PROJECTS_TABLE:-projects}"
 
 # Function to safely escape SQL strings
 sql_escape() {
@@ -214,4 +215,64 @@ clear_all_sessions() {
 # Function to clear additional state records
 clear_additional_state() {
     sqlite3 "$DB" "DELETE FROM state WHERE id > 1;"
-} 
+}
+
+# Project description functions
+# Function to get project description
+get_project_description() {
+    local project="$1"
+    local escaped_project
+    escaped_project=$(sql_escape "$project")
+    sqlite3 "$DB" "SELECT description FROM $PROJECTS_TABLE WHERE project = '$escaped_project';" 2>/dev/null
+}
+
+# Function to set project description
+set_project_description() {
+    local project="$1"
+    local description="$2"
+    local escaped_project
+    local escaped_description
+    
+    escaped_project=$(sql_escape "$project")
+    escaped_description=$(sql_escape "$description")
+    
+    # Use INSERT OR REPLACE to handle both new and existing projects
+    sqlite3 "$DB" "INSERT OR REPLACE INTO $PROJECTS_TABLE (project, description, created_at, updated_at) VALUES ('$escaped_project', '$escaped_description', datetime('now'), datetime('now'));"
+}
+
+# Function to remove project description
+remove_project_description() {
+    local project="$1"
+    local escaped_project
+    escaped_project=$(sql_escape "$project")
+    sqlite3 "$DB" "DELETE FROM $PROJECTS_TABLE WHERE project = '$escaped_project';"
+}
+
+# Function to get all projects with descriptions
+get_projects_with_descriptions() {
+    sqlite3 "$DB" "SELECT project, description FROM $PROJECTS_TABLE ORDER BY project;" 2>/dev/null
+}
+
+# Function to check if projects table exists
+projects_table_exists() {
+    sqlite3 "$DB" "SELECT name FROM sqlite_master WHERE type='table' AND name='$PROJECTS_TABLE';" 2>/dev/null
+}
+
+# Function to create projects table if it doesn't exist
+ensure_projects_table() {
+    if [[ -z "$(projects_table_exists)" ]]; then
+        sqlite3 "$DB" "
+            CREATE TABLE IF NOT EXISTS $PROJECTS_TABLE (
+                project TEXT PRIMARY KEY,
+                description TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+        "
+    fi
+}
+
+# Function to migrate existing database to include projects table
+migrate_database() {
+    ensure_projects_table
+}

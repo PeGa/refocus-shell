@@ -408,6 +408,14 @@ init_database() {
         -- Insert initial state
         INSERT OR IGNORE INTO state (id, active, project, start_time, prompt_content, prompt_type, nudging_enabled, focus_disabled, last_focus_off_time)
         VALUES (1, 0, NULL, NULL, NULL, 'default', 1, 0, NULL);
+        
+        -- Create projects table for storing project descriptions
+        CREATE TABLE IF NOT EXISTS projects (
+            project TEXT PRIMARY KEY,
+            description TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
     "
     
     # Fix ownership if running with sudo

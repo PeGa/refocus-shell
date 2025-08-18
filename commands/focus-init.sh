@@ -16,6 +16,9 @@ fi
 function focus_init() {
     local db_path="$1"
     
+    # Ensure database is migrated to include projects table
+    migrate_database
+    
     # Use default database path if not provided
     if [[ -z "$db_path" ]]; then
         if [[ -f "$HOME/.local/refocus/refocus.db" ]]; then
@@ -55,6 +58,14 @@ function focus_init() {
         
         INSERT OR IGNORE INTO state (id, active, project, start_time, prompt_content, prompt_type, nudging_enabled, focus_disabled, last_focus_off_time) 
         VALUES (1, 0, NULL, NULL, NULL, 'default', 1, 0, NULL);
+        
+        -- Create projects table for storing project descriptions
+        CREATE TABLE IF NOT EXISTS projects (
+            project TEXT PRIMARY KEY,
+            description TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
     "
     
     if [[ $? -eq 0 ]]; then

@@ -3,15 +3,18 @@
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 
-# Source libraries
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
-    source "$HOME/.local/refocus/lib/focus-db.sh"
-    source "$HOME/.local/refocus/lib/focus-utils.sh"
-else
-    source "$SCRIPT_DIR/../lib/focus-db.sh"
-    source "$SCRIPT_DIR/../lib/focus-utils.sh"
-fi
+    # Source libraries
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
+        source "$HOME/.local/refocus/lib/focus-db.sh"
+        source "$HOME/.local/refocus/lib/focus-utils.sh"
+    else
+        source "$SCRIPT_DIR/../lib/focus-db.sh"
+        source "$SCRIPT_DIR/../lib/focus-utils.sh"
+    fi
+    
+    # Ensure database is migrated to include projects table
+    migrate_database
 
 # Set table names
 STATE_TABLE="${STATE_TABLE:-state}"
@@ -36,10 +39,19 @@ function focus_status() {
         local current_minutes
         current_minutes=$((elapsed / 60))
         
+        # Get project description if available
+        local project_description
+        project_description=$(get_project_description "$current_project")
+        
         if [[ $total_minutes -gt 0 ]]; then
             echo "⏳ Focusing on: $current_project — ${current_minutes}m elapsed (Total: ${total_minutes}m)"
         else
             echo "⏳ Focusing on: $current_project — ${current_minutes}m elapsed"
+        fi
+        
+        # Show project description if available
+        if [[ -n "$project_description" ]]; then
+            echo "📋 $project_description"
         fi
     else
         echo "✅ Not currently tracking focus."

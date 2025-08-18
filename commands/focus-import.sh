@@ -3,15 +3,18 @@
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 
-# Source libraries
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
-    source "$HOME/.local/refocus/lib/focus-db.sh"
-    source "$HOME/.local/refocus/lib/focus-utils.sh"
-else
-    source "$SCRIPT_DIR/../lib/focus-db.sh"
-    source "$SCRIPT_DIR/../lib/focus-utils.sh"
-fi
+    # Source libraries
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
+        source "$HOME/.local/refocus/lib/focus-db.sh"
+        source "$HOME/.local/refocus/lib/focus-utils.sh"
+    else
+        source "$SCRIPT_DIR/../lib/focus-db.sh"
+        source "$SCRIPT_DIR/../lib/focus-utils.sh"
+    fi
+    
+    # Ensure database is migrated to include projects table
+    migrate_database
 
 function focus_import() {
     local input_file="$1"
