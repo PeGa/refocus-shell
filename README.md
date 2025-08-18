@@ -149,6 +149,29 @@ $ focus off
 - **Professional records**: Track work for invoices, reports, or retrospectives
 - **Intentional closure**: Encourages mindful session endings
 
+### Project Descriptions
+
+Manage project descriptions to better understand what each project is about:
+
+```bash
+# Add a description to a project
+focus description add coding "Main development project for the web application"
+
+# View a project's description
+focus description show coding
+
+# Remove a project description
+focus description remove coding
+```
+
+**Benefits:**
+- **Better context**: Understand what each project represents
+- **Team collaboration**: Share project context with colleagues
+- **Professional records**: Clear project descriptions for reports and invoices
+- **Memory aid**: Remember project scope months later
+
+When adding past sessions with `focus past add`, you'll be prompted to add a project description if one doesn't exist yet.
+
 ### Quick Examples
 
 ```bash
@@ -243,6 +266,8 @@ focus past add "coding" "2025/07/30-14:00" "2025/07/30-16:00"     # Specific dat
 focus past add "planning" "2 hours ago" "1 hour ago"               # Relative times
 focus past add "review" "yesterday 14:00" "yesterday 16:00"       # Yesterday
 focus past add "team meeting" "2025/07/30-14:00" "2025/07/30-16:00" # Full date
+
+# Past sessions will prompt for project descriptions if none exist
 
 # List recent sessions
 focus past list 10

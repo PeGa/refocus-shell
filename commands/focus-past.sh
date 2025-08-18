@@ -98,6 +98,33 @@ function focus_past_add() {
     echo "   Start: $start_time → $converted_start_time"
     echo "   End: $end_time → $converted_end_time"
     echo "   Duration: $((duration / 60)) minutes"
+    
+    # Ask if user wants to add a project description
+    echo ""
+    echo "📝 Would you like to add a description for the project '$project'?"
+    echo "   (This helps you remember what this project was about)"
+    echo -n "   Add description? [y/N]: "
+    read -r add_description_response
+    
+    if [[ "$add_description_response" =~ ^[Yy]$ ]]; then
+        echo ""
+        echo "📝 Enter a description for '$project':"
+        echo "   (Press Enter to skip, or type a brief description)"
+        echo -n "   Description: "
+        read -r project_description
+        
+        if [[ -n "$project_description" ]]; then
+            # Call focus description add internally
+            if [[ -f "$HOME/.local/refocus/commands/focus-description.sh" ]]; then
+                source "$HOME/.local/refocus/commands/focus-description.sh"
+            else
+                source "$SCRIPT_DIR/focus-description.sh"
+            fi
+            
+            # Call the description add function directly
+            focus_description_add "$project" "$project_description"
+        fi
+    fi
 }
 
 function focus_past_modify() {
