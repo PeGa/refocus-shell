@@ -91,8 +91,8 @@ function focus_past_add() {
     local duration
     duration=$(calculate_duration "$converted_start_time" "$converted_end_time")
     
-    # Insert session
-    insert_session "$project" "$converted_start_time" "$converted_end_time" "$duration"
+    # Insert session (no notes for past sessions)
+    insert_session "$project" "$converted_start_time" "$converted_end_time" "$duration" ""
     
     echo "✅ Added past session: $project"
     echo "   Start: $start_time → $converted_start_time"
@@ -174,7 +174,7 @@ function focus_past_modify() {
     local duration
     duration=$(calculate_duration "$start_time" "$end_time")
     
-    # Update session
+    # Update session (preserve existing notes)
     sqlite3 "$DB" "UPDATE $SESSIONS_TABLE SET project = '$(sql_escape "$project")', start_time = '$start_time', end_time = '$end_time', duration_seconds = $duration WHERE rowid = $session_id;"
     
     echo "✅ Modified session $session_id: $project"

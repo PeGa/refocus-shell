@@ -44,6 +44,7 @@
 ## Features
 
 - **Core Focus Tracking**: `focus on/off/status` commands
+- **Session Notes**: Add notes about what was accomplished during each focus session
 - **Smart Continuation**: `focus on` without project continues last session
 - **Enhanced Status**: Rich context about last session and time tracking
 - **Cumulative Time Tracking**: Shows total time invested in each project across sessions
@@ -127,6 +128,26 @@ focus off              # Stop current focus session
 focus status           # Show current focus status
 focus help             # Show all available commands
 ```
+
+### Session Notes
+
+When you end a focus session with `focus off`, you'll be prompted to add notes about what you accomplished:
+
+```bash
+$ focus off
+
+📝 What did you accomplish during this focus session?
+   (Press Enter to skip, or type a brief description)
+   Notes: Implemented user authentication system
+✅ Stopped focus on: coding (Duration: 2h 15m)
+📝 Session notes: Implemented user authentication system
+```
+
+**Benefits:**
+- **Prevents context loss**: Remember what you accomplished months later
+- **Better reporting**: See what was done in each session
+- **Professional records**: Track work for invoices, reports, or retrospectives
+- **Intentional closure**: Encourages mindful session endings
 
 ### Quick Examples
 
@@ -440,7 +461,8 @@ CREATE TABLE sessions (
     project TEXT NOT NULL,
     start_time TEXT NOT NULL,
     end_time TEXT NOT NULL,
-    duration_seconds INTEGER NOT NULL
+    duration_seconds INTEGER NOT NULL,
+    notes TEXT
 );
 ```
 

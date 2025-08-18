@@ -43,7 +43,7 @@ function focus_export() {
         echo "✅ Focus data exported successfully to: $output_file"
         echo "📊 Export contains:"
         echo "   - Database schema"
-        echo "   - All focus sessions"
+        echo "   - All focus sessions (including session notes)"
         echo "   - Current focus state"
         echo ""
         echo "To import this data, use: focus import $output_file"

@@ -61,7 +61,7 @@ function focus_on() {
         
         # Only store idle session if duration is significant (> 1 minute)
         if [[ $idle_duration -gt 60 ]]; then
-            insert_session "[idle]" "$last_focus_off_time" "$start_time" "$idle_duration"
+            insert_session "[idle]" "$last_focus_off_time" "$start_time" "$idle_duration" ""
             verbose_echo "Stored idle session: ${idle_duration}s"
         fi
     fi

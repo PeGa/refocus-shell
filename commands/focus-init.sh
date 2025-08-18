@@ -50,7 +50,8 @@ function focus_init() {
             project TEXT NOT NULL,
             start_time TEXT NOT NULL,
             end_time TEXT NOT NULL,
-            duration_seconds INTEGER NOT NULL
+            duration_seconds INTEGER NOT NULL,
+            notes TEXT
         );
         
         INSERT OR IGNORE INTO state (id, active, project, start_time, prompt_content, prompt_type, nudging_enabled, focus_disabled, last_focus_off_time) 

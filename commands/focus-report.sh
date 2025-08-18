@@ -100,7 +100,7 @@ function focus_generate_report() {
     local project_totals=()
     local project_sessions=()
     
-    while IFS='|' read -r project session_start session_end duration; do
+    while IFS='|' read -r project session_start session_end duration notes; do
         if [[ "$project" != "[idle]" ]]; then
             total_duration=$((total_duration + duration))
             
@@ -140,9 +140,14 @@ function focus_generate_report() {
             
             # Calculate total time for this project in the period
             local project_duration=0
-            while IFS='|' read -r p start end dur; do
+            local project_notes=""
+            while IFS='|' read -r p start end dur notes; do
                 if [[ "$p" == "$project" ]]; then
                     project_duration=$((project_duration + dur))
+                    # Use the first non-empty notes as project description
+                    if [[ -n "$notes" && -z "$project_notes" ]]; then
+                        project_notes="$notes"
+                    fi
                 fi
             done <<< "$sessions"
             
@@ -150,6 +155,11 @@ function focus_generate_report() {
             local proj_minutes=$(((project_duration % 3600) / 60))
             
             printf "   %-20s %3d sessions  %2dh %2dm\n" "$project" "$sessions_count" "$proj_hours" "$proj_minutes"
+            
+            # Show project notes if available
+            if [[ -n "$project_notes" ]]; then
+                printf "                          %s\n" "$project_notes"
+            fi
         done
         echo
     fi
@@ -160,7 +170,7 @@ function focus_generate_report() {
     recent_sessions=$(echo "$sessions" | tail -5)
     
     if [[ -n "$recent_sessions" ]]; then
-        while IFS='|' read -r project start end duration; do
+        while IFS='|' read -r project start end duration notes; do
             if [[ "$project" != "[idle]" ]]; then
                 local start_date
                 start_date=$(date --date="$start" +"%m-%d %H:%M")
@@ -170,6 +180,11 @@ function focus_generate_report() {
                 duration_min=$((duration / 60))
                 
                 printf "   %-20s %s-%s  %3dm\n" "$project" "$start_date" "$end_date" "$duration_min"
+                
+                # Show notes if available
+                if [[ -n "$notes" ]]; then
+                    printf "                          %s\n" "$notes"
+                fi
             fi
         done <<< "$recent_sessions"
     else

@@ -9,8 +9,12 @@ function focus_help() {
     echo
     echo "Basic Commands:"
     echo "  focus on [project]     - Start focusing on a project"
-    echo "  focus off              - Stop current focus session"
+    echo "  focus off              - Stop current focus session (with notes prompt)"
     echo "  focus status           - Show current focus status"
+    echo
+    echo "Session Notes:"
+    echo "  focus off              - Prompts for session notes when stopping focus"
+    echo "  focus report           - Shows notes in project breakdown and recent sessions"
     echo
     echo "Management Commands:"
     echo "  focus enable           - Enable refocus shell"
@@ -37,19 +41,22 @@ function focus_help() {
     echo "Utility Commands:"
     echo "  focus test-nudge       - Test notifications"
     echo "  focus config           - Manage configuration"
+    echo "  focus description      - Manage project descriptions"
     echo "  focus help             - Show this help"
     echo
     echo "Examples:"
     echo "  focus on 'coding'      - Start focusing on 'coding' project"
-    echo "  focus off              - Stop current focus session"
+    echo "  focus off              - Stop current focus session (prompts for notes)"
     echo "  focus status           - Check current status"
-    echo "  focus report today     - See today's focus summary"
+    echo "  focus report today     - See today's focus summary with notes"
     echo "  focus past add meeting 2025/07/30-14:15 2025/07/30-15:30  # Specific date"
     echo "  focus past add meeting 14:15 15:30                          # Today's date"
     echo "  focus config show      - Show current configuration"
     echo "  focus config set VERBOSE true - Enable verbose mode"
+    echo "  focus description add coding \"Main project\"                # Add project description"
     echo
     echo "💡 Tip: Use YYYY/MM/DD-HH:MM format for easy, quote-free dates!"
+    echo "💡 Tip: Add notes when stopping focus to remember what you accomplished!"
     echo
     echo "For more detailed help on specific commands, run:"
     echo "  focus <command> --help"
