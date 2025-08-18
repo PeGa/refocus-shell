@@ -192,22 +192,19 @@ $ focus status
 💡 Tip: Run 'focus report today' to see today's summary
 ```
 
-### Project Descriptions
+### Project Description Management
 
 Add context and clarity to your projects with optional descriptions:
 
 ```bash
-# Set a project description
-focus project set "coding" "Main development project for the web application"
+# Add a project description
+focus description add "coding" "Main development project for the web application"
 
 # View a project description
-focus project show "coding"
-
-# List all projects with descriptions
-focus project list
+focus description show "coding"
 
 # Remove a project description
-focus project remove "coding"
+focus description remove "coding"
 ```
 
 **Benefits:**
@@ -218,7 +215,7 @@ focus project remove "coding"
 
 **Example workflow:**
 ```bash
-$ focus project set "refactor" "Refactoring the authentication system to use OAuth2"
+$ focus description add "refactor" "Refactoring the authentication system to use OAuth2"
 $ focus on refactor
 $ focus status
 ⏳ Focusing on: refactor — 0m elapsed
@@ -240,10 +237,9 @@ $ focus status
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `focus project set <project> <description>` | Set project description | `focus project set "meeting" "Client consultation"` |
-| `focus project show <project>` | View project description | `focus project show "meeting"` |
-| `focus project list` | List all projects with descriptions | `focus project list` |
-| `focus project remove <project>` | Remove project description | `focus project remove "meeting"` |
+| `focus description add <project> <description>` | Add project description | `focus description add "meeting" "Client consultation"` |
+| `focus description show <project>` | View project description | `focus description show "meeting"` |
+| `focus description remove <project>` | Remove project description | `focus description remove "meeting"` |
 
 ### Session Management
 
@@ -626,7 +622,7 @@ Refocus Shell logs to:
 
 For detailed documentation on specific features:
 
-- **[Project Descriptions](docs/doc/PROJECT_DESCRIPTIONS.md)** - Complete guide to managing project descriptions
+- **[Project Description Management](docs/doc/DESCRIPTION_MANAGEMENT.md)** - Complete guide to managing project descriptions
 - **[Prompt Integration](docs/doc/PROMPT_SOLUTIONS.md)** - Solutions for shell integration issues
 - **[CLI Roadmap](CLI%20ROADMAP.md)** - Development status and future plans
 
@@ -644,7 +640,7 @@ refocus-shell/
 │   ├── focus-on.sh
 │   ├── focus-off.sh
 │   ├── focus-status.sh
-│   ├── focus-project.sh  # Project description management
+│   ├── focus-description.sh  # Project description management
 │   ├── focus-past.sh
 │   ├── focus-report.sh
 │   └── ...
@@ -685,13 +681,12 @@ focus past add "test" "2025/07/30-14:00" "2025/07/30-16:00"
 focus report today
 
 # Test project descriptions
-focus project set "test" "This is a test project for development"
-focus project show "test"
-focus project list
+focus description add "test" "This is a test project for development"
+focus description show "test"
 focus on "test"
 focus status  # Should show description
 focus report today  # Should show description in report
-focus project remove "test"
+focus description remove "test"
 
 # Test uninstallation
 ./setup.sh uninstall --auto

@@ -20,7 +20,7 @@ For new users, start with the main [README.md](../README.md) which provides:
 ### Project Descriptions
 
 The [PROJECT_DESCRIPTIONS.md](doc/PROJECT_DESCRIPTIONS.md) file provides:
-- Complete command reference for `focus project` commands
+- Complete command reference for `focus description` commands
 - Integration examples with status, reports, and exports
 - Best practices for writing effective descriptions
 - Troubleshooting common issues

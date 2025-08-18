@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Refocus Shell - Project Management Subcommand
+# Refocus Shell - Project Description Management Subcommand
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 
@@ -19,13 +19,13 @@ PROJECTS_TABLE="${PROJECTS_TABLE:-projects}"
 # Ensure database is migrated to include projects table
 migrate_database
 
-function focus_project_show() {
+function focus_description_show() {
     local project="$1"
     
     if [[ -z "$project" ]]; then
         echo "❌ Project name is required."
-        echo "Usage: focus project show <project_name>"
-        echo "Example: focus project show my-project"
+        echo "Usage: focus description show <project_name>"
+        echo "Example: focus description show my-project"
         exit 1
     fi
     
@@ -46,25 +46,25 @@ function focus_project_show() {
         echo "📋 Project: $project"
         echo "Description: No description set"
         echo ""
-        echo "To add a description, use: focus project set $project <description>"
+        echo "To add a description, use: focus description add $project <description>"
     fi
 }
 
-function focus_project_set() {
+function focus_description_add() {
     local project="$1"
     local description="$2"
     
     if [[ -z "$project" ]]; then
         echo "❌ Project name is required."
-        echo "Usage: focus project set <project_name> <description>"
-        echo "Example: focus project set my-project 'This is my awesome project'"
+        echo "Usage: focus description add <project_name> <description>"
+        echo "Example: focus description add my-project 'This is my awesome project'"
         exit 1
     fi
     
     if [[ -z "$description" ]]; then
         echo "❌ Description is required."
-        echo "Usage: focus project set <project_name> <description>"
-        echo "Example: focus project set my-project 'This is my awesome project'"
+        echo "Usage: focus description add <project_name> <description>"
+        echo "Example: focus description add my-project 'This is my awesome project'"
         exit 1
     fi
     
@@ -87,13 +87,13 @@ function focus_project_set() {
     echo "Description: $description"
 }
 
-function focus_project_remove() {
+function focus_description_remove() {
     local project="$1"
     
     if [[ -z "$project" ]]; then
         echo "❌ Project name is required."
-        echo "Usage: focus project remove <project_name>"
-        echo "Example: focus project remove my-project"
+        echo "Usage: focus description remove <project_name>"
+        echo "Example: focus description remove my-project"
         exit 1
     fi
     
@@ -109,61 +109,35 @@ function focus_project_remove() {
     echo "✅ Description removed for project: $project"
 }
 
-function focus_project_list() {
-    echo "📋 Projects with Descriptions"
-    echo "============================"
-    
-    # Get all projects with descriptions
-    local projects
-    projects=$(get_projects_with_descriptions)
-    
-    if [[ -z "$projects" ]]; then
-        echo "No projects with descriptions found."
-        echo ""
-        echo "To add a description to a project, use:"
-        echo "  focus project set <project_name> <description>"
-        return 0
-    fi
-    
-    while IFS='|' read -r project description; do
-        if [[ -n "$project" ]]; then
-            echo ""
-            echo "📋 $project"
-            echo "   $description"
-        fi
-    done <<< "$projects"
-}
 
-function focus_project() {
+
+function focus_description() {
     local action="$1"
     shift
     
     case "$action" in
         "show"|"view")
-            focus_project_show "$@"
+            focus_description_show "$@"
             ;;
-        "set"|"add"|"edit")
-            focus_project_set "$@"
+        "add"|"set"|"edit")
+            focus_description_add "$@"
             ;;
         "remove"|"delete"|"clear")
-            focus_project_remove "$@"
-            ;;
-        "list"|"ls")
-            focus_project_list
+            focus_description_remove "$@"
             ;;
         *)
             echo "❌ Unknown action: $action"
             echo "Available actions:"
+            echo "  add      - Add or edit project description"
             echo "  show     - Show project description"
-            echo "  set      - Set or edit project description"
             echo "  remove   - Remove project description"
-            echo "  list     - List all projects with descriptions"
             echo
             echo "Examples:"
-            echo "  focus project show my-project"
-            echo "  focus project set my-project 'This is my awesome project'"
-            echo "  focus project remove my-project"
-            echo "  focus project list"
+            echo "  focus description add my-project 'This is my awesome project'"
+            echo "  focus description show my-project"
+            echo "  focus description remove my-project"
+            echo
+            echo "💡 Tip: Use 'focus report' to see all projects with descriptions"
             exit 1
             ;;
     esac
@@ -171,5 +145,5 @@ function focus_project() {
 
 # Main execution
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    focus_project "$@"
+    focus_description "$@"
 fi

@@ -22,7 +22,7 @@
 
 ### Phase 3.2: Project Descriptions
 - ✅ Added optional description field for projects
-- ✅ New `focus project` command with CRUD operations
+- ✅ New `focus description` command with CRUD operations
 - ✅ Database schema updates and migration system
 - ✅ Integration with status, reports, and exports
 - ✅ Validation and error handling for descriptions

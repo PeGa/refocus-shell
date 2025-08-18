@@ -37,7 +37,7 @@ function focus_help() {
     echo "Utility Commands:"
     echo "  focus test-nudge       - Test notifications"
     echo "  focus config           - Manage configuration"
-    echo "  focus project          - Manage project descriptions"
+    echo "  focus description      - Manage project descriptions"
     echo "  focus help             - Show this help"
     echo
     echo "Examples:"
@@ -49,9 +49,8 @@ function focus_help() {
     echo "  focus past add meeting 14:15 15:30                          # Today's date"
     echo "  focus config show      - Show current configuration"
     echo "  focus config set VERBOSE true - Enable verbose mode"
-    echo "  focus project set coding \"Main development project\"          # Add project description"
-    echo "  focus project show coding                                   # View project description"
-    echo "  focus project list                                          # List all projects with descriptions"
+    echo "  focus description add coding \"Main development project\"      # Add project description"
+    echo "  focus description show coding                               # View project description"
     echo
     echo "💡 Tip: Use YYYY/MM/DD-HH:MM format for easy, quote-free dates!"
     echo

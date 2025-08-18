@@ -1,4 +1,4 @@
-# Project Descriptions
+# Project Description Management
 
 ## Overview
 
@@ -14,19 +14,19 @@ Project descriptions provide optional context and clarity for your focus project
 
 ## Commands
 
-### `focus project set <project> <description>`
+### `focus description add <project> <description>`
 
 Set or update a project description.
 
 ```bash
 # Set a new description
-focus project set "coding" "Main development project for the web application"
+focus description add "coding" "Main development project for the web application"
 
 # Update an existing description
-focus project set "coding" "Updated description for the web application"
+focus description add "coding" "Updated description for the web application"
 
 # Set description for a project that doesn't exist yet
-focus project set "new-project" "This is a completely new project"
+focus description add "new-project" "This is a completely new project"
 ```
 
 **Validation:**
@@ -35,12 +35,12 @@ focus project set "new-project" "This is a completely new project"
 - Description cannot exceed 500 characters
 - Project names are automatically sanitized
 
-### `focus project show <project>`
+### `focus description show <project>`
 
 View a project's description.
 
 ```bash
-focus project show "coding"
+focus description show "coding"
 ```
 
 **Output examples:**
@@ -53,38 +53,17 @@ Description: Main development project for the web application
 📋 Project: coding
 Description: No description set
 
-To add a description, use: focus project set coding <description>
+To add a description, use: focus description add coding <description>
 ```
 
-### `focus project list`
+**Note:** The `focus project list` command has been removed. Use `focus report` to see all projects with descriptions in a comprehensive overview.
 
-List all projects that have descriptions.
-
-```bash
-focus project list
-```
-
-**Output example:**
-```bash
-📋 Projects with Descriptions
-============================
-
-📋 coding
-   Main development project for the web application
-
-📋 meeting
-   Client consultation and planning session
-
-📋 refactor
-   Refactoring the authentication system to use OAuth2
-```
-
-### `focus project remove <project>`
+### `focus description remove <project>`
 
 Remove a project's description.
 
 ```bash
-focus project remove "coding"
+focus description remove "coding"
 ```
 
 **Output:**
@@ -182,18 +161,18 @@ focus on "meeting"
 focus on "meeting"
 
 # With descriptions, clear context
-focus project set "meeting" "Weekly team standup"
-focus project set "meeting" "Client consultation for new project"
+focus description add "meeting" "Weekly team standup"
+focus description add "meeting" "Client consultation for new project"
 ```
 
 ### Project Context for Future Self
 
 ```bash
 # Set description when starting a complex project
-focus project set "refactor" "Refactoring the authentication system to use OAuth2, replacing the old JWT implementation"
+focus description add "refactor" "Refactoring the authentication system to use OAuth2, replacing the old JWT implementation"
 
 # Months later, you'll remember what this was about
-focus project show "refactor"
+focus description show "refactor"
 ```
 
 ### Better Reporting and Analysis
@@ -214,12 +193,12 @@ focus report month
 
 ```bash
 # Set descriptions for team projects
-focus project set "backend" "Backend API development for the e-commerce platform"
-focus project set "frontend" "React frontend for the e-commerce platform"
-focus project set "testing" "Integration testing between frontend and backend"
+focus description add "backend" "Backend API development for the e-commerce platform"
+focus description add "frontend" "React frontend for the e-commerce platform"
+focus description add "testing" "Integration testing between frontend and backend"
 
 # Share context with team members
-focus project list
+focus report
 ```
 
 ## Best Practices
@@ -260,7 +239,7 @@ focus project list
 
 **Description not showing in status/reports**
 - Ensure the project actually has a description set
-- Use `focus project show <project>` to verify
+- Use `focus description show <project>` to verify
 - Check that you're using the updated command versions
 
 **Database migration issues**
@@ -273,7 +252,7 @@ focus project list
 
 ```bash
 # Start a new feature
-focus project set "feature-oauth" "Implementing OAuth2 authentication for the mobile app"
+focus description add "feature-oauth" "Implementing OAuth2 authentication for the mobile app"
 focus on feature-oauth
 
 # Work on it
@@ -293,9 +272,9 @@ focus on feature-oauth
 
 ```bash
 # Set up client projects
-focus project set "client-a" "Website redesign for local restaurant"
-focus project set "client-b" "E-commerce platform for handmade crafts"
-focus project set "client-c" "Mobile app for fitness tracking"
+focus description add "client-a" "Website redesign for local restaurant"
+focus description add "client-b" "E-commerce platform for handmade crafts"
+focus description add "client-c" "Mobile app for fitness tracking"
 
 # Work on different clients
 focus on client-a
@@ -315,9 +294,9 @@ focus report custom 30  # Last 30 days
 
 ```bash
 # Track learning time
-focus project set "rust-learning" "Learning Rust programming language through building a CLI tool"
-focus project set "docker-study" "Studying Docker containers and Kubernetes orchestration"
-focus project set "algorithm-practice" "Daily algorithm practice on LeetCode"
+focus description add "rust-learning" "Learning Rust programming language through building a CLI tool"
+focus description add "docker-study" "Studying Docker containers and Kubernetes orchestration"
+focus description add "algorithm-practice" "Daily algorithm practice on LeetCode"
 
 # Track progress over time
 focus report month
