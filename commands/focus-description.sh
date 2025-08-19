@@ -33,7 +33,7 @@ function focus_description_add() {
     fi
     
     if [[ -z "$description" ]]; then
-        echo "❌ Description is required."
+        echo "❌ Session notes are required."
         echo "Usage: focus description add <project> <description>"
         echo ""
         echo "Examples:"
@@ -50,8 +50,8 @@ function focus_description_add() {
     
     # Set project description
     set_project_description "$project" "$description"
-    echo "✅ Added description for project: $project"
-    echo "   Description: $description"
+    echo "✅ Added session notes for project: $project"
+    echo "   Notes: $description"
 }
 
 function focus_description_show() {
@@ -79,10 +79,10 @@ function focus_description_show() {
     
     if [[ -n "$description" ]]; then
         echo "📝 Project: $project"
-        echo "   Description: $description"
+        echo "   Notes: $description"
     else
-        echo "ℹ️  No description found for project: $project"
-        echo "   Use 'focus description add $project <description>' to add one"
+        echo "ℹ️  No session notes found for project: $project"
+        echo "   Use 'focus description add $project <notes>' to add some"
     fi
 }
 
@@ -114,29 +114,29 @@ function focus_description_remove() {
         exit 0
     fi
     
-    echo "🗑️  Removing description for project: $project"
-    echo "   Current description: $description"
+    echo "🗑️  Removing session notes for project: $project"
+    echo "   Current notes: $description"
     echo "Are you sure? (y/N)"
     read -r response
     
     if [[ "$response" =~ ^[Yy]$ ]]; then
         remove_project_description "$project"
-        echo "✅ Description removed for project: $project"
+        echo "✅ Session notes removed for project: $project"
     else
         echo "Removal cancelled."
     fi
 }
 
 function focus_description_list() {
-    echo "📋 Project Descriptions:"
+    echo "📋 Project Session Notes:"
     echo
     
     local projects
     projects=$(get_projects_with_descriptions)
     
     if [[ -z "$projects" ]]; then
-        echo "No project descriptions found."
-        echo "Use 'focus description add <project> <description>' to add descriptions"
+        echo "No project session notes found."
+        echo "Use 'focus description add <project> <notes>' to add notes"
         return 0
     fi
     

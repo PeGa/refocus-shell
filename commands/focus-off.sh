@@ -45,9 +45,13 @@ function focus_off() {
 
     # Update focus state
     update_focus_state 0 "" "" "$now"
-    echo "Stopped focus on: $current_project (Duration: $((duration / 60)) min)"
+    
     if [[ -n "$session_notes" ]]; then
-        echo "   Notes: $session_notes"
+        echo "Stopped focus on $current_project ($((duration / 60)) min) with the following session notes:"
+        echo ""
+        echo "- $session_notes"
+    else
+        echo "Stopped focus on $current_project ($((duration / 60)) min) without session notes"
     fi
 
     # Restore original prompt
