@@ -176,6 +176,49 @@ validate_timestamp() {
         return 0
     fi
     
+    # Check for hour-based relative formats only
+    if [[ "$timestamp" =~ ^[0-9]+[hm]$ ]]; then
+        local number unit converted_timestamp
+        number=$(echo "$timestamp" | sed 's/[hm]$//')
+        unit=$(echo "$timestamp" | sed 's/^[0-9]*//')
+        
+        # Validate number is reasonable (max 24 for hours, max 59 for minutes)
+        if [[ "$unit" == "h" ]]; then
+            if [[ "$number" -lt 1 ]] || [[ "$number" -gt 24 ]]; then
+                echo "❌ $description: Hours must be between 1 and 24 (got: ${number}h)"
+                return 1
+            fi
+        elif [[ "$unit" == "m" ]]; then
+            if [[ "$number" -lt 1 ]] || [[ "$number" -gt 59 ]]; then
+                echo "❌ $description: Minutes must be between 1 and 59 (got: ${number}m)"
+                return 1
+            fi
+        fi
+        
+        # Convert to relative time format that date can understand
+        if [[ "$unit" == "h" ]]; then
+            converted_timestamp=$(date --date="$number hours ago" -Iseconds 2>/dev/null)
+        else
+            converted_timestamp=$(date --date="$number minutes ago" -Iseconds 2>/dev/null)
+        fi
+        
+        if [[ $? -ne 0 ]]; then
+            echo "❌ $description: Failed to convert time format"
+            return 1
+        fi
+        
+        echo "$converted_timestamp"
+        return 0
+    fi
+    
+    # Check for invalid relative time formats (days, weeks, months, years)
+    if [[ "$timestamp" =~ ^[0-9]+[dwmy]$ ]]; then
+        echo "❌ $description: Invalid time format '$timestamp'"
+        echo "Only hour-based formats are supported (e.g., 7h, 30m)"
+        echo "Days, weeks, months, and years are not allowed for focus sessions"
+        return 1
+    fi
+    
     # Try to parse and convert to ISO format (for backward compatibility)
     local converted_timestamp
     converted_timestamp=$(date --date="$timestamp" -Iseconds 2>/dev/null)
@@ -188,12 +231,14 @@ validate_timestamp() {
         echo "  - 'YYYY-MM-DD HH:MM' (quoted datetime)"
         echo "  - 'YYYY-MM-DDTHH:MM' (ISO format)"
         echo "  - Full ISO format (YYYY-MM-DDTHH:MM:SS±HH:MM)"
-        echo "  - Relative dates ('yesterday 14:30', '2 hours ago', etc.)"
+        echo "  - Hour-based relative times (7h, 30m, etc.)"
+        echo "  - 'now' for current time"
         echo ""
         echo "Examples:"
         echo "  focus past add meeting 2025/07/30-14:15 2025/07/30-15:30"
         echo "  focus past add meeting 14:15 15:30  # Today's date"
-        echo "  focus past add meeting 'yesterday 14:30' 'yesterday 15:30'"
+        echo "  focus past add meeting 7h now        # 7 hours ago until now"
+        echo "  focus past add meeting 30m now       # 30 minutes ago until now"
         return 1
     fi
     

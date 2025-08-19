@@ -17,9 +17,6 @@ fi
 STATE_TABLE="${STATE_TABLE:-state}"
 SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
 
-# Ensure database is migrated to include projects table
-migrate_database
-
 function focus_past_add() {
     local project="$1"
     local start_time="$2"
@@ -37,10 +34,14 @@ function focus_past_add() {
         echo "  - Full ISO format (YYYY-MM-DDTHH:MM:SS±HH:MM)"
         echo "  - Relative dates ('yesterday 14:30', '2 hours ago', etc.)"
         echo ""
+        echo "⚠️  Note: Times should be absolute timestamps, not durations."
+        echo "   Use '7 hours ago' not '7h' to specify relative times."
+        echo ""
         echo "Examples:"
         echo "  focus past add meeting 2025/07/30-14:15 2025/07/30-15:30  # Specific date"
         echo "  focus past add meeting 14:15 15:30                          # Today's date"
         echo "  focus past add coding 'yesterday 09:00' 'yesterday 17:00'   # Relative dates"
+        echo "  focus past add coding '7 hours ago' 'now'                   # Relative times"
         echo ""
         echo "💡 Tip: Use YYYY/MM/DD-HH:MM format for easy, quote-free dates!"
         exit 1
@@ -52,6 +53,10 @@ function focus_past_add() {
         echo ""
         echo "💡 Tip: Use YYYY/MM/DD-HH:MM format for easy dates!"
         echo "   Example: focus past add meeting 2025/07/30-14:15 2025/07/30-15:30"
+        echo ""
+        echo "⚠️  Note: Times should be absolute timestamps, not durations."
+        echo "   Use '7 hours ago' not '7h' to specify relative times."
+        echo "   Example: focus past add meeting '7 hours ago' 'now'"
         exit 1
     fi
     
@@ -61,6 +66,10 @@ function focus_past_add() {
         echo ""
         echo "💡 Tip: Use YYYY/MM/DD-HH:MM format for easy dates!"
         echo "   Example: focus past add meeting 2025/07/30-14:15 2025/07/30-15:30"
+        echo ""
+        echo "⚠️  Note: Times should be absolute timestamps, not durations."
+        echo "   Use '7 hours ago' not '7h' to specify relative times."
+        echo "   Example: focus past add meeting '7 hours ago' 'now'"
         exit 1
     fi
     
@@ -94,13 +103,22 @@ function focus_past_add() {
     local duration
     duration=$(calculate_duration "$converted_start_time" "$converted_end_time")
     
-    # Insert session
-    insert_session "$project" "$converted_start_time" "$converted_end_time" "$duration"
+    # Prompt for session notes
+    echo -n "📝 What did you accomplish during this focus session? (Press Enter to skip, or type a brief description): "
+    read -r session_notes
+    
+    # Insert session with notes
+    insert_session "$project" "$converted_start_time" "$converted_end_time" "$duration" "$session_notes"
     
     echo "✅ Added past session: $project"
     echo "   Start: $start_time → $converted_start_time"
     echo "   End: $end_time → $converted_end_time"
     echo "   Duration: $((duration / 60)) minutes"
+    if [[ -n "$session_notes" ]]; then
+        echo "   Notes: $session_notes"
+    fi
+    
+
 }
 
 function focus_past_modify() {
@@ -177,7 +195,7 @@ function focus_past_modify() {
     local duration
     duration=$(calculate_duration "$start_time" "$end_time")
     
-    # Update session
+    # Update session (preserve existing notes)
     sqlite3 "$DB" "UPDATE $SESSIONS_TABLE SET project = '$(sql_escape "$project")', start_time = '$start_time', end_time = '$end_time', duration_seconds = $duration WHERE rowid = $session_id;"
     
     echo "✅ Modified session $session_id: $project"
@@ -238,7 +256,7 @@ function focus_past_list() {
     echo
     
     local sessions
-    sessions=$(sqlite3 "$DB" "SELECT rowid, project, start_time, end_time, duration_seconds FROM $SESSIONS_TABLE WHERE project != '[idle]' ORDER BY end_time DESC LIMIT $limit;" 2>/dev/null)
+    sessions=$(sqlite3 "$DB" "SELECT rowid, project, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE WHERE project != '[idle]' ORDER BY end_time DESC LIMIT $limit;" 2>/dev/null)
     
     if [[ -z "$sessions" ]]; then
         echo "No focus sessions found."
@@ -248,7 +266,7 @@ function focus_past_list() {
     printf "%-4s %-20s %-19s %-19s %-8s\n" "ID" "Project" "Start" "End" "Duration"
     printf "%-4s %-20s %-19s %-19s %-8s\n" "----" "--------------------" "-------------------" "-------------------" "--------"
     
-    while IFS='|' read -r id project start_time end_time duration; do
+    while IFS='|' read -r id project start_time end_time duration notes; do
         local start_date
         start_date=$(date --date="$start_time" +"%Y-%m-%d %H:%M")
         local end_date
@@ -257,6 +275,11 @@ function focus_past_list() {
         duration_min=$((duration / 60))
         
         printf "%-4s %-20s %-19s %-19s %-8s\n" "$id" "$(truncate_project_name "$project" 18)" "$start_date" "$end_date" "${duration_min}m"
+        
+        # Show notes if available
+        if [[ -n "$notes" ]]; then
+            printf "                          📝 %s\n" "$notes"
+        fi
     done <<< "$sessions"
 }
 
