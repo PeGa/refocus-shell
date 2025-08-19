@@ -80,6 +80,12 @@ case "${1:-}" in
     "past")
         execute_subcommand "past" "${@:2}"
         ;;
+    "notes")
+        execute_subcommand "notes" "${@:2}"
+        ;;
+    "description")
+        execute_subcommand "description" "${@:2}"
+        ;;
     "report")
         execute_subcommand "report" "${@:2}"
         ;;

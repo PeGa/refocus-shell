@@ -9,7 +9,7 @@ function focus_help() {
     echo
     echo "Basic Commands:"
     echo "  focus on [project]     - Start focusing on a project"
-    echo "  focus off              - Stop current focus session"
+    echo "  focus off              - Stop current focus session (will ask for session notes)"
     echo "  focus status           - Show current focus status"
     echo
     echo "Management Commands:"
@@ -23,10 +23,13 @@ function focus_help() {
     echo "  focus import <file>    - Import focus data from SQLite dump"
     echo
     echo "Past Sessions:"
-    echo "  focus past add <project> <start> <end>  - Add past session"
+    echo "  focus past add <project> <start> <end>  - Add past session (will ask for session notes)"
     echo "  focus past modify <id> [project] [start] [end] - Modify session"
     echo "  focus past delete <id>                  - Delete session"
     echo "  focus past list [limit]                 - List recent sessions"
+    echo
+    echo "Session Notes:"
+    echo "  focus notes add <project>               - Add notes to recent session for a project"
     echo
     echo "Reports:"
     echo "  focus report today     - Today's focus report"

@@ -60,7 +60,7 @@ count_sessions_for_project() {
 get_sessions_in_range() {
     local start_time="$1"
     local end_time="$2"
-    sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds FROM $SESSIONS_TABLE WHERE end_time >= '$start_time' AND end_time <= '$end_time' ORDER BY start_time;" 2>/dev/null
+    sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE WHERE end_time >= '$start_time' AND end_time <= '$end_time' ORDER BY start_time;" 2>/dev/null
 }
 
 # Function to get current focus state
@@ -136,10 +136,13 @@ insert_session() {
     local start_time="$2"
     local end_time="$3"
     local duration="$4"
+    local notes="${5:-}"
     
     local escaped_project
     escaped_project=$(sql_escape "$project")
-    sqlite3 "$DB" "INSERT INTO $SESSIONS_TABLE (project, start_time, end_time, duration_seconds) VALUES ('$escaped_project', '$start_time', '$end_time', $duration);"
+    local escaped_notes
+    escaped_notes=$(sql_escape "$notes")
+    sqlite3 "$DB" "INSERT INTO $SESSIONS_TABLE (project, start_time, end_time, duration_seconds, notes) VALUES ('$escaped_project', '$start_time', '$end_time', $duration, '$escaped_notes');"
 }
 
 # Function to update a session
@@ -204,8 +207,6 @@ update_state_record() {
     
     sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = $active, project = $escaped_project, start_time = '$start_time', prompt_content = $escaped_prompt_content, prompt_type = '$prompt_type', nudging_enabled = $nudging_enabled, focus_disabled = $focus_disabled WHERE id = 1;"
 }
-
-
 
 # Function to clear all sessions
 clear_all_sessions() {
@@ -272,7 +273,16 @@ ensure_projects_table() {
     fi
 }
 
-# Function to migrate existing database to include projects table
+# Function to migrate existing database to include projects table and notes column
 migrate_database() {
     ensure_projects_table
+    
+    # Check if sessions table has notes column
+    local has_notes_column
+    has_notes_column=$(sqlite3 "$DB" "PRAGMA table_info($SESSIONS_TABLE);" 2>/dev/null | grep -c "notes" || echo "0")
+    
+    if [[ "$has_notes_column" -eq 0 ]]; then
+        echo "Migrating database: adding notes column to sessions table..."
+        sqlite3 "$DB" "ALTER TABLE $SESSIONS_TABLE ADD COLUMN notes TEXT;"
+    fi
 }

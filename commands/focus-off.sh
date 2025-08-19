@@ -36,12 +36,19 @@ function focus_off() {
     local duration
     duration=$(calculate_duration "$start_time" "$now")
 
-    # Insert session record
-    insert_session "$current_project" "$start_time" "$now" "$duration"
+    # Prompt for session notes
+    echo -n "📝 What did you accomplish during this focus session? (Press Enter to skip, or type a brief description): "
+    read -r session_notes
+    
+    # Insert session record with notes
+    insert_session "$current_project" "$start_time" "$now" "$duration" "$session_notes"
 
     # Update focus state
     update_focus_state 0 "" "" "$now"
     echo "Stopped focus on: $current_project (Duration: $((duration / 60)) min)"
+    if [[ -n "$session_notes" ]]; then
+        echo "   Notes: $session_notes"
+    fi
 
     # Restore original prompt
     restore_original_prompt

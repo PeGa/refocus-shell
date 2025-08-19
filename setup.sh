@@ -402,7 +402,8 @@ init_database() {
             project TEXT NOT NULL,
             start_time TEXT NOT NULL,
             end_time TEXT NOT NULL,
-            duration_seconds INTEGER NOT NULL
+            duration_seconds INTEGER NOT NULL,
+            notes TEXT
         );
         
         -- Insert initial state
