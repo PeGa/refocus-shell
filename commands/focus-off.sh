@@ -46,6 +46,13 @@ function focus_off() {
     # Update focus state
     update_focus_state 0 "" "" "$now"
     
+    # Remove cron job for nudging
+    if remove_focus_cron_job; then
+        verbose_echo "Real-time nudging disabled"
+    else
+        echo "Warning: Failed to remove nudging cron job" >&2
+    fi
+    
     if [[ -n "$session_notes" ]]; then
         echo "Stopped focus on $current_project ($((duration / 60)) min) with the following session notes:"
         echo ""

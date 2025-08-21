@@ -112,7 +112,14 @@ function focus_on() {
     # Update focus state
     update_focus_state 1 "$project" "$start_time" "$last_focus_off_time"
     
-            if [[ $total_minutes -gt 0 ]]; then
+    # Install cron job for real-time nudging
+    if install_focus_cron_job "$project" "$start_time"; then
+        verbose_echo "Real-time nudging enabled"
+    else
+        echo "Warning: Failed to install nudging cron job" >&2
+    fi
+    
+    if [[ $total_minutes -gt 0 ]]; then
             echo "Started focus on: $project (Total: ${total_minutes}m)"
         else
             echo "Started focus on: $project"

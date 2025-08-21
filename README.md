@@ -53,7 +53,7 @@
 - **Discrete Session Management**: ADHD-friendly focus/idle session tracking with automatic break tracking
 - **Desktop Notifications**: `notify-send` integration
 - **Shell Integration**: Dynamic prompt modification with `⏳ [Project]` indicator
-- **Intelligent Nudging**: Periodic reminders every 10 minutes via cron
+- **Intelligent Nudging**: Real-time focus reminders that start when you begin a session
 - **Refocus Shell Control**: `focus enable/disable` commands
 - **Data Import/Export**: SQLite dump-based backup and restore functionality
 - **Professional Installation**: Interactive setup with dependency management and installation method choice
@@ -357,7 +357,19 @@ Example report output:
 Get periodic reminders to check your focus status:
 
 ```bash
-# Test notifications
+# Enable focus reminders (every 10 minutes)
+focus nudge enable
+
+# Check nudging status and next reminder time
+focus nudge status
+
+# Test the notification system
+focus nudge test
+
+# Disable focus reminders
+focus nudge disable
+
+# Legacy: Test notifications (deprecated)
 focus test-nudge
 
 # Check nudging status
@@ -367,10 +379,30 @@ focus status  # Shows if nudging is enabled
 focus config set NUDGING false
 ```
 
-Nudging occurs every 10 minutes via cron and shows:
+**Improved Reliability:**
+- **Multiple notification methods**: Desktop notifications, terminal messages, and system logs
+- **Automatic fallbacks**: If desktop notifications fail, falls back to terminal messages
+- **Better error handling**: Comprehensive logging and error reporting
+- **Database validation**: Checks database integrity before sending notifications
+- **Environment resilience**: Works reliably in cron and user environments
+
+Nudging occurs in real-time when you start a focus session and shows:
 - Current project and session duration
 - Total time on the project
 - Gentle reminder to take breaks
+
+**Real-Time Nudging:**
+- **Automatic**: Cron jobs are installed/removed automatically with focus sessions
+- **Perfect Timing**: Nudges start exactly when you begin working, not at arbitrary times
+- **Session-Based**: Only active during actual focus sessions, completely silent otherwise
+- **Smart Scheduling**: Uses your actual start time to calculate optimal nudge intervals
+
+**Troubleshooting:**
+If nudges don't appear:
+1. Check if nudging is enabled: `focus nudge status`
+2. Test the system: `focus nudge test`
+3. Check system logs: `journalctl --since "1 hour ago" | grep focus-nudge`
+4. Verify cron job: `crontab -l | grep focus-nudge`
 
 ### Data Import/Export
 
