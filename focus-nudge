@@ -236,9 +236,12 @@ main() {
     
     # Send appropriate notification
     if [[ "$status" == "inactive" ]]; then
-        # Don't send notifications when there's no active session
-        # Just log that we checked and found no active session
-        log_message "no active focus session found, no notification needed"
+        # Send idle notification to remind user to start focusing
+        if send_notification "Focus Reminder" "You're not focusing on any project. Time to get back to work?"; then
+            log_message "idle notification sent successfully"
+        else
+            log_message "error: failed to send idle notification"
+        fi
     elif [[ "$status" == "paused"* ]]; then
         IFS='|' read -r state project pause_notes <<< "$status"
         if [[ "$state" == "paused" ]]; then
