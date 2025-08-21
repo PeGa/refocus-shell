@@ -638,68 +638,45 @@ uninstall_nudge_script() {
 # Function to setup cron job for nudging
 setup_cron_job() {
     local nudge_script="$REFOCUS_DATA_PATH/focus-nudge"
-    local cron_entry="*/10 * * * * $nudge_script"
-    local temp_cron_file="/tmp/focus_cron_$$"
     
-    print_verbose "Setting up cron job for nudging..."
+    print_verbose "Setting up focus-nudge script for dynamic cron management..."
     
     # Check if focus-nudge script exists
     if [[ ! -f "$nudge_script" ]]; then
-        print_error "Focus-nudge script not found. Cannot setup cron job."
+        print_error "Focus-nudge script not found. Cannot setup dynamic nudging."
         return 1
     fi
     
-    # Get current crontab
-    crontab -l 2>/dev/null > "$temp_cron_file" || true
+    # Make the script executable
+    chmod +x "$nudge_script"
     
-    # Check if cron job already exists
-    if grep -q "$nudge_script" "$temp_cron_file" 2>/dev/null; then
-        print_verbose "Cron job already exists"
-        rm -f "$temp_cron_file"
-        return 0
-    fi
-    
-    # Add the cron job
-    echo "$cron_entry" >> "$temp_cron_file"
-    
-    # Install the new crontab
-    if crontab "$temp_cron_file"; then
-        print_verbose "Cron job installed successfully"
-        print_verbose "Nudging will occur every 10 minutes"
-    else
-        print_error "Failed to install cron job"
-        rm -f "$temp_cron_file"
-        return 1
-    fi
-    
-    rm -f "$temp_cron_file"
+    print_verbose "Focus-nudge script ready for dynamic cron management"
+    print_verbose "Cron jobs will be installed/removed automatically when starting/stopping focus sessions"
+    print_verbose "No static cron job needed - nudging is now real-time and session-based"
 }
 
 # Function to remove cron job for nudging
 remove_cron_job() {
     local nudge_script="$REFOCUS_DATA_PATH/focus-nudge"
+    
+    print_verbose "Removing any active focus cron jobs..."
+    
+    # Remove any existing focus-nudge cron jobs
     local temp_cron_file="/tmp/focus_cron_$$"
-    
-    print_verbose "Removing cron job for nudging..."
-    
-    # Get current crontab
     crontab -l 2>/dev/null > "$temp_cron_file" || true
     
-    # Remove the cron job if it exists
     if grep -q "$nudge_script" "$temp_cron_file" 2>/dev/null; then
-        # Remove lines containing the nudge script
         sed -i "\|$nudge_script|d" "$temp_cron_file"
         
-        # Install the updated crontab
         if crontab "$temp_cron_file"; then
-            print_success "Cron job removed successfully"
+            print_success "Active focus cron jobs removed successfully"
         else
-            print_error "Failed to remove cron job"
+            print_error "Failed to remove cron jobs"
             rm -f "$temp_cron_file"
             return 1
         fi
     else
-        print_verbose "No cron job found to remove"
+        print_verbose "No active focus cron jobs found"
     fi
     
     rm -f "$temp_cron_file"

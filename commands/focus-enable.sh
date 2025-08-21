@@ -28,6 +28,10 @@ function focus_enable() {
         echo "✅ Refocus shell enabled"
         echo "Focus sessions and nudging are now available"
         
+        # Enable nudging by default
+        update_nudging_enabled 1
+        echo "✅ Nudging enabled by default"
+        
         send_notification "Refocus Shell Enabled" "Focus tracking and nudging are now active."
     else
         echo "✅ Refocus shell is already enabled"
