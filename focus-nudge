@@ -237,7 +237,7 @@ main() {
     # Send appropriate notification
     if [[ "$status" == "inactive" ]]; then
         # Send idle notification to remind user to start focusing
-        if send_notification "Focus Reminder" "You're not focusing on any project. Time to get back to work?"; then
+        if send_notification "Focus Reminder" "You're not focusing on any project."; then
             log_message "idle notification sent successfully"
         else
             log_message "error: failed to send idle notification"
