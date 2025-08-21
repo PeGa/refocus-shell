@@ -23,7 +23,7 @@ SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
 function focus_status() {
     local state
     state=$(get_focus_state)
-    IFS='|' read -r active current_project start_time <<< "$state"
+    IFS='|' read -r active current_project start_time paused pause_notes pause_start_time previous_elapsed <<< "$state"
 
     if [[ "$active" -eq 1 ]]; then
         local now
@@ -53,6 +53,30 @@ function focus_status() {
         if [[ -n "$project_description" ]]; then
             echo "📋 $project_description"
         fi
+    elif [[ "$paused" -eq 1 ]]; then
+        # Show paused session information
+        local now
+        now=$(get_current_timestamp)
+        local pause_ts=$(date --date="$pause_start_time" +%s 2>/dev/null)
+        local current_ts=$(date --date="$now" +%s 2>/dev/null)
+        local pause_duration=0
+        
+        if [[ -n "$pause_ts" ]] && [[ -n "$current_ts" ]]; then
+            pause_duration=$((current_ts - pause_ts))
+        fi
+        
+        local pause_minutes=$((pause_duration / 60))
+        local previous_minutes=$((previous_elapsed / 60))
+        
+        echo "⏸️  Session paused: $current_project"
+        echo "   Previous session time: ${previous_minutes}m"
+        echo "   Pause duration: ${pause_minutes}m"
+        if [[ -n "$pause_notes" ]]; then
+            echo "   Current session notes: $pause_notes"
+        fi
+        echo ""
+        echo "💡 Use 'focus continue' to resume this session"
+        echo "   Use 'focus off' to end the session permanently"
     else
         echo "✅ Not currently tracking focus."
         

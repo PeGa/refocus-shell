@@ -125,9 +125,57 @@ For automated deployments or CI/CD:
 ```bash
 focus on "project"     # Start focusing on a project
 focus off              # Stop current focus session
+focus pause            # Pause current focus session (asks for session notes)
+focus continue         # Resume paused focus session
 focus status           # Show current focus status
 focus help             # Show all available commands
 ```
+
+### Pause and Resume Sessions
+
+Refocus Shell supports pausing and resuming focus sessions, perfect for when you need to step away briefly without losing session continuity:
+
+```bash
+# Pause a session (asks for session notes to help with context rehydration)
+$ focus pause
+⏸️  Pausing focus session on: coding
+   Session duration so far: 45m
+
+Focus paused. Please add notes for future recalling, or hit Enter to skip: debugging user auth flow
+
+✅ Paused focus on: coding (45m elapsed)
+   Current session notes: debugging user auth flow
+
+💡 Use 'focus continue' to resume this session
+   Use 'focus off' to end the session permanently
+
+# Resume the paused session
+$ focus continue
+▶️  Resuming paused focus session on: coding
+   Previous session time: 45m
+   Pause duration: 15m
+   Current session notes: debugging user auth flow
+
+⏱️  Include previous 45m in resumed session? (y/N): y
+✅ Will continue counting from 45m elapsed
+
+✅ Resumed focus on: coding
+   Continuing from: 45m elapsed
+```
+
+**Benefits:**
+- **Maintains session continuity**: No need to start over when stepping away briefly
+- **Context preservation**: Session notes help you quickly rehydrate your mental state
+- **Flexible time handling**: Choose whether to include previous elapsed time or start fresh
+- **Prevents session fragmentation**: Avoids cluttering logs with multiple short sessions
+- **Professional workflow**: Perfect for meetings, breaks, or unexpected interruptions
+
+**Key Features:**
+- **Session notes on pause**: Captures context for rapid rehydration
+- **Smart time handling**: Option to include or discard previous elapsed time
+- **Prevents new sessions**: Cannot start a new focus session while one is paused
+- **Seamless integration**: Works with all existing features (reports, exports, etc.)
+- **Nudge system adaptation**: Notifications switch to "paused" mode during pauses
 
 ### Session Notes
 

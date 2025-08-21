@@ -56,6 +56,12 @@ case "${1:-}" in
     "off")
         execute_subcommand "off" "${@:2}"
         ;;
+    "pause")
+        execute_subcommand "pause" "${@:2}"
+        ;;
+    "continue")
+        execute_subcommand "continue" "${@:2}"
+        ;;
     "status")
         execute_subcommand "status" "${@:2}"
         ;;

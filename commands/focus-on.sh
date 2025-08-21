@@ -43,9 +43,23 @@ function focus_on() {
     local state
     state=$(get_focus_state)
     if [[ -n "$state" ]]; then
-        IFS='|' read -r active current_project existing_start_time <<< "$state"
+        IFS='|' read -r active current_project existing_start_time paused pause_notes pause_start_time previous_elapsed <<< "$state"
         if [[ "$active" -eq 1 ]]; then
             echo "Focus already active. Run 'focus off' before switching."
+            exit 1
+        fi
+        
+        # Check if there's a paused session
+        if [[ "$paused" -eq 1 ]]; then
+            echo "❌ Cannot start new focus session while one is paused."
+            echo "   Paused session: $current_project"
+            if [[ -n "$pause_notes" ]]; then
+                echo ""
+                echo "   Current session notes: $pause_notes"
+            fi
+            echo ""
+            echo "💡 Use 'focus continue' to resume the paused session"
+            echo "   Use 'focus off' to end the paused session permanently"
             exit 1
         fi
     fi

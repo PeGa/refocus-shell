@@ -56,7 +56,11 @@ init_database() {
             prompt_type TEXT DEFAULT 'default',
             nudging_enabled BOOLEAN DEFAULT 1,
             focus_disabled BOOLEAN DEFAULT 0,
-            last_focus_off_time TEXT
+            last_focus_off_time TEXT,
+            paused INTEGER DEFAULT 0,
+            pause_notes TEXT,
+            pause_start_time TEXT,
+            previous_elapsed INTEGER DEFAULT 0
         );
         
         CREATE TABLE IF NOT EXISTS sessions (
@@ -69,8 +73,8 @@ init_database() {
         );
         
         -- Insert initial state
-        INSERT OR IGNORE INTO state (id, active, project, start_time, prompt_content, prompt_type, nudging_enabled, focus_disabled, last_focus_off_time)
-        VALUES (1, 0, NULL, NULL, NULL, 'default', 1, 0, NULL);
+        INSERT OR IGNORE INTO state (id, active, project, start_time, prompt_content, prompt_type, nudging_enabled, focus_disabled, last_focus_off_time, paused, pause_notes, pause_start_time, previous_elapsed)
+        VALUES (1, 0, NULL, NULL, NULL, 'default', 1, 0, NULL, 0, NULL, NULL, 0);
         
         -- Create projects table for storing project descriptions
         CREATE TABLE IF NOT EXISTS projects (

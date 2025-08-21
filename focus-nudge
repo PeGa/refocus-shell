@@ -114,7 +114,7 @@ get_focus_status() {
     fi
     
     local state
-    state=$(sqlite3 "$REFOCUS_DB" "SELECT active, project, start_time FROM state WHERE id = 1;" 2>/dev/null)
+    state=$(sqlite3 "$REFOCUS_DB" "SELECT active, project, start_time, paused, pause_notes FROM state WHERE id = 1;" 2>/dev/null)
     
     if [[ $? -ne 0 ]]; then
         log_message "error: failed to query focus status from database"
@@ -126,7 +126,7 @@ get_focus_status() {
         return 1
     fi
     
-    IFS='|' read -r active project start_time <<< "$state"
+    IFS='|' read -r active project start_time paused pause_notes <<< "$state"
     
     if [[ "$active" -eq 1 ]] && [[ -n "$project" ]]; then
         # Calculate elapsed time
@@ -159,6 +159,8 @@ get_focus_status() {
         else
             echo "active|$project|10"
         fi
+    elif [[ "$paused" -eq 1 ]] && [[ -n "$project" ]]; then
+        echo "paused|$project|$pause_notes"
     else
         echo "inactive"
     fi
@@ -237,6 +239,16 @@ main() {
         # Don't send notifications when there's no active session
         # Just log that we checked and found no active session
         log_message "no active focus session found, no notification needed"
+    elif [[ "$status" == "paused"* ]]; then
+        IFS='|' read -r state project pause_notes <<< "$status"
+        if [[ "$state" == "paused" ]]; then
+            local message="Session paused: $project"
+            if [[ -n "$pause_notes" ]]; then
+                message="$message - $pause_notes"
+            fi
+            send_notification "Focus Paused" "$message"
+            log_message "paused session notification sent for project: $project"
+        fi
     else
         IFS='|' read -r state project minutes <<< "$status"
         if [[ "$state" == "active" ]]; then
