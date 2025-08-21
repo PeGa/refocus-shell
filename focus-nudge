@@ -38,29 +38,42 @@ log_message() {
     logger -p "$REFOCUS_LOG_FACILITY.$REFOCUS_LOG_PRIORITY" "focus-nudge: $message"
 }
 
-# Function to send notification
+# Function to send notification with fallback methods
 send_notification() {
     local title="$1"
     local message="$2"
     
+    # Try desktop notification first
     if command -v notify-send >/dev/null 2>&1; then
-        notify-send "$title" "$message"
-        log_message "notification sent: $title - $message"
-    else
-        log_message "error: notify-send not available"
-        return 1
+        # Check if we have a display (X11 environment)
+        if [[ -n "$DISPLAY" ]] || [[ -n "$WAYLAND_DISPLAY" ]]; then
+            if notify-send "$title" "$message" 2>/dev/null; then
+                log_message "notification sent via notify-send: $title - $message"
+                return 0
+            fi
+        fi
     fi
+    
+    # If desktop notifications fail, just log to system log
+    # No wall fallback to avoid duplicate/confusing notifications
+    log_message "FOCUS NUDGE: $title - $message (desktop notification failed)"
+    return 0
 }
 
-# Check if refocus shell is disabled
+# Function to check if refocus shell is disabled
 check_focus_disabled() {
     if [[ ! -f "$REFOCUS_DB" ]]; then
-        log_message "database not found"
+        log_message "database not found: $REFOCUS_DB"
         return 1
     fi
     
     local focus_disabled
     focus_disabled=$(sqlite3 "$REFOCUS_DB" "SELECT focus_disabled FROM state WHERE id = 1;" 2>/dev/null)
+    
+    if [[ $? -ne 0 ]]; then
+        log_message "error: failed to query focus_disabled status"
+        return 1
+    fi
     
     if [[ "$focus_disabled" -eq 1 ]]; then
         log_message "refocus shell is disabled"
@@ -70,14 +83,20 @@ check_focus_disabled() {
     return 0
 }
 
-# Check if nudging is enabled
+# Function to check if nudging is enabled
 check_nudging_enabled() {
     if [[ ! -f "$REFOCUS_DB" ]]; then
+        log_message "database not found: $REFOCUS_DB"
         return 1
     fi
     
     local nudging_enabled
     nudging_enabled=$(sqlite3 "$REFOCUS_DB" "SELECT nudging_enabled FROM state WHERE id = 1;" 2>/dev/null)
+    
+    if [[ $? -ne 0 ]]; then
+        log_message "error: failed to query nudging_enabled status"
+        return 1
+    fi
     
     if [[ "$nudging_enabled" -eq 0 ]]; then
         log_message "nudging is disabled"
@@ -87,17 +106,23 @@ check_nudging_enabled() {
     return 0
 }
 
-# Get current focus status
+# Function to get current focus status with error handling
 get_focus_status() {
     if [[ ! -f "$REFOCUS_DB" ]]; then
+        log_message "error: database file not found: $REFOCUS_DB"
         return 1
     fi
     
     local state
     state=$(sqlite3 "$REFOCUS_DB" "SELECT active, project, start_time, paused, pause_notes FROM state WHERE id = 1;" 2>/dev/null)
     
+    if [[ $? -ne 0 ]]; then
+        log_message "error: failed to query focus status from database"
+        return 1
+    fi
+    
     if [[ -z "$state" ]]; then
-        log_message "error: could not get focus status"
+        log_message "error: could not get focus status - empty result"
         return 1
     fi
     
@@ -105,8 +130,17 @@ get_focus_status() {
     
     if [[ "$active" -eq 1 ]] && [[ -n "$project" ]]; then
         # Calculate elapsed time
-        local now=$(date +%s)
+        local now=$(date +%s 2>/dev/null)
+        if [[ $? -ne 0 ]]; then
+            log_message "error: failed to get current timestamp"
+            return 1
+        fi
+        
         local start_ts=$(date --date="$start_time" +%s 2>/dev/null)
+        if [[ $? -ne 0 ]]; then
+            log_message "error: failed to parse start_time: $start_time"
+            return 1
+        fi
         
         if [[ -n "$start_ts" ]]; then
             local elapsed=$((now - start_ts))
@@ -132,17 +166,62 @@ get_focus_status() {
     fi
 }
 
+# Function to validate database integrity
+validate_database() {
+    if [[ ! -f "$REFOCUS_DB" ]]; then
+        log_message "error: database file not found"
+        return 1
+    fi
+    
+    # Check if state table exists and has the expected structure
+    local table_exists
+    table_exists=$(sqlite3 "$REFOCUS_DB" "SELECT name FROM sqlite_master WHERE type='table' AND name='state';" 2>/dev/null)
+    
+    if [[ -z "$table_exists" ]]; then
+        log_message "error: state table not found in database"
+        return 1
+    fi
+    
+    # Check if state table has required columns
+    local has_required_columns
+    has_required_columns=$(sqlite3 "$REFOCUS_DB" "PRAGMA table_info(state);" 2>/dev/null | grep -c -E "(active|project|start_time|nudging_enabled|focus_disabled)" || echo "0")
+    
+    if [[ "$has_required_columns" -lt 5 ]]; then
+        log_message "error: state table missing required columns"
+        return 1
+    fi
+    
+    # Check if state record exists
+    local record_exists
+    record_exists=$(sqlite3 "$REFOCUS_DB" "SELECT COUNT(*) FROM state WHERE id = 1;" 2>/dev/null)
+    
+    if [[ "$record_exists" -eq 0 ]]; then
+        log_message "error: no state record found in database"
+        return 1
+    fi
+    
+    return 0
+}
+
 # Main function
 main() {
     log_message "nudge script started"
     
+    # Validate database integrity first
+    if ! validate_database; then
+        log_message "error: database validation failed, exiting"
+        exit 1
+    fi
+    
     # Check if refocus shell is disabled
     if ! check_focus_disabled; then
+        log_message "refocus shell is disabled, exiting"
         exit 0
     fi
     
     # Check if nudging is enabled
     if ! check_nudging_enabled; then
+        log_message "nudging is disabled, exiting"
         exit 0
     fi
     
@@ -151,7 +230,7 @@ main() {
     status=$(get_focus_status)
     
     if [[ $? -ne 0 ]]; then
-        log_message "error: could not get focus status"
+        log_message "error: could not get focus status, exiting"
         exit 1
     fi
     

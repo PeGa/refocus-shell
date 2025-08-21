@@ -33,6 +33,12 @@ function focus_help() {
     echo "Session Notes:"
     echo "  focus notes add <project>               - Add notes to recent session for a project"
     echo
+    echo "Nudging:"
+    echo "  focus nudge enable                     - Enable focus reminders (real-time, session-based)"
+    echo "  focus nudge disable                    - Disable focus reminders"
+    echo "  focus nudge status                     - Show nudging status and next reminder time"
+    echo "  focus nudge test                       - Test the notification system"
+    echo
     echo "Reports:"
     echo "  focus report today     - Today's focus report"
     echo "  focus report week      - This week's focus report"

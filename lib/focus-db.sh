@@ -185,6 +185,82 @@ update_focus_disabled() {
     sqlite3 "$DB" "UPDATE $STATE_TABLE SET focus_disabled = $disabled WHERE id = 1;"
 }
 
+# Function to update nudging enabled status
+update_nudging_enabled() {
+    local enabled="$1"
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET nudging_enabled = $enabled WHERE id = 1;"
+}
+
+# Function to install cron job for a specific focus session
+install_focus_cron_job() {
+    local project="$1"
+    local start_time="$2"
+    
+    # Calculate the start minute for cron (current minute when focus started)
+    local start_minute
+    start_minute=$(date --date="$start_time" +%M 2>/dev/null)
+    if [[ $? -ne 0 ]]; then
+        start_minute=$(date +%M)
+    fi
+    
+    # Calculate the cron pattern: (start_minute % 10)-59/10
+    # Examples: :31 → 1-59/10, :45 → 5-59/10, :37 → 7-59/10
+    local ones_digit=$((start_minute % 10))
+    local cron_pattern="${ones_digit}-59/10"
+    local nudge_script="$HOME/.local/refocus/focus-nudge"
+    
+    # Create cron job with environment variables for X11/Wayland
+    local cron_entry="$cron_pattern * * * * DISPLAY=$DISPLAY WAYLAND_DISPLAY=$WAYLAND_DISPLAY DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS $nudge_script"
+    
+    # Get current crontab
+    local temp_cron_file="/tmp/focus_cron_$$"
+    crontab -l 2>/dev/null > "$temp_cron_file" || true
+    
+    # Remove any existing focus-nudge cron jobs
+    sed -i "\|$nudge_script|d" "$temp_cron_file"
+    
+    # Add the new cron job
+    echo "$cron_entry" >> "$temp_cron_file"
+    
+    # Install the new crontab
+    if crontab "$temp_cron_file"; then
+        # Cron job installed successfully (silent for user)
+        :
+    else
+        echo "Failed to install cron job" >&2
+        rm -f "$temp_cron_file"
+        return 1
+    fi
+    
+    rm -f "$temp_cron_file"
+}
+
+# Function to remove focus cron job
+remove_focus_cron_job() {
+    local nudge_script="$HOME/.local/refocus/focus-nudge"
+    local temp_cron_file="/tmp/focus_cron_$$"
+    
+    # Get current crontab
+    crontab -l 2>/dev/null > "$temp_cron_file" || true
+    
+    # Remove any focus-nudge cron jobs
+    if grep -q "$nudge_script" "$temp_cron_file" 2>/dev/null; then
+        sed -i "\|$nudge_script|d" "$temp_cron_file"
+        
+        # Install the updated crontab
+        if crontab "$temp_cron_file"; then
+            # Cron job removed successfully (silent for user)
+            :
+        else
+            echo "Failed to remove cron job" >&2
+            rm -f "$temp_cron_file"
+            return 1
+        fi
+    fi
+    
+    rm -f "$temp_cron_file"
+}
+
 # Function to update entire state record (for imports)
 update_state_record() {
     local active="$1"
