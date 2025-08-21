@@ -10,6 +10,8 @@ function focus_help() {
     echo "Basic Commands:"
     echo "  focus on [project]     - Start focusing on a project"
     echo "  focus off              - Stop current focus session (will ask for session notes)"
+    echo "  focus pause            - Pause current focus session (will ask for pause reason)"
+    echo "  focus continue         - Resume paused focus session"
     echo "  focus status           - Show current focus status"
     echo
     echo "Management Commands:"
