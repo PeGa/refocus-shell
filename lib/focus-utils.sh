@@ -539,16 +539,8 @@ get_today_period() {
 
 get_week_period() {
     local start_time
-    # Use "monday last week" if today is sunday, otherwise "monday this week"
-    local day_of_week
-    day_of_week=$(date +%u)
-    if [[ $day_of_week -eq 7 ]]; then
-        # Sunday - use last monday
-        start_time=$(get_timestamp_for_time "monday last week 00:00")
-    else
-        # Other days - use this monday
-        start_time=$(get_timestamp_for_time "monday this week 00:00")
-    fi
+    # Use last 7 days instead of calendar week alignment
+    start_time=$(get_timestamp_for_time "7 days ago 00:00")
     local end_time
     end_time=$(get_current_timestamp)
     echo "$start_time|$end_time"
