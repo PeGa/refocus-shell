@@ -241,19 +241,82 @@ function focus_past_modify() {
     
     # Get current session data
     local current_data
-    current_data=$(sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds FROM $SESSIONS_TABLE WHERE rowid = $session_id;" 2>/dev/null)
+    current_data=$(sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds, duration_only FROM $SESSIONS_TABLE WHERE rowid = $session_id;" 2>/dev/null)
     
     if [[ -z "$current_data" ]]; then
         echo "❌ Session not found with ID: $session_id"
         exit 1
     fi
     
-    IFS='|' read -r current_project current_start current_end current_duration <<< "$current_data"
+    IFS='|' read -r current_project current_start current_end current_duration current_duration_only <<< "$current_data"
     
-    # Use current values if not provided
+    # Check if any changes are actually being made
+    local project_changed=false
+    local start_time_changed=false
+    local end_time_changed=false
+    
+    if [[ -n "$project" ]] && [[ "$project" != "$current_project" ]]; then
+        project_changed=true
+    fi
+    
+    if [[ -n "$start_time" ]] && [[ "$start_time" != "$current_start" ]]; then
+        start_time_changed=true
+    fi
+    
+    if [[ -n "$end_time" ]] && [[ "$end_time" != "$current_end" ]]; then
+        end_time_changed=true
+    fi
+    
+    # If no changes are being made, show current session info and exit
+    if [[ "$project_changed" == false ]] && [[ "$start_time_changed" == false ]] && [[ "$end_time_changed" == false ]]; then
+        echo "📋 Session $session_id details:"
+        echo "   Project: $current_project"
+        if [[ "$current_duration_only" == "1" ]]; then
+            echo "   Type: Duration-only session"
+            echo "   Duration: $((current_duration / 60)) minutes"
+        else
+            echo "   Start: $current_start"
+            echo "   End: $current_end"
+            echo "   Duration: $((current_duration / 60)) minutes"
+        fi
+        echo ""
+        echo "💡 No changes specified. Use 'focus past modify <id> <new_project>' to modify."
+        exit 0
+    fi
+    
+    # Use current values if not provided or empty
     project="${project:-$current_project}"
-    start_time="${start_time:-$current_start}"
-    end_time="${end_time:-$current_end}"
+    if [[ -z "$start_time" ]]; then
+        start_time="$current_start"
+    fi
+    if [[ -z "$end_time" ]]; then
+        end_time="$current_end"
+    fi
+    
+    # For duration-only sessions, only allow project name changes
+    if [[ "$current_duration_only" == "1" ]]; then
+        if [[ -n "$start_time" ]] && [[ "$start_time" != "$current_start" ]]; then
+            echo "❌ Cannot modify start time for duration-only sessions."
+            echo "Duration-only sessions only support project name changes."
+            exit 1
+        fi
+        if [[ -n "$end_time" ]] && [[ "$end_time" != "$current_end" ]]; then
+            echo "❌ Cannot modify end time for duration-only sessions."
+            echo "Duration-only sessions only support project name changes."
+            exit 1
+        fi
+        
+        # For duration-only sessions, preserve the original duration
+        local duration="$current_duration"
+        
+        # Update only the project name for duration-only sessions
+        sqlite3 "$DB" "UPDATE $SESSIONS_TABLE SET project = '$(sql_escape "$project")' WHERE rowid = $session_id;"
+        
+        echo "✅ Modified session $session_id: $project"
+        echo "   Type: Duration-only session"
+        echo "   Duration: $((duration / 60)) minutes"
+        return 0
+    fi
     
     # Sanitize and validate project name if provided
     if [[ "$project" != "$current_project" ]]; then
@@ -291,9 +354,14 @@ function focus_past_modify() {
         fi
     fi
     
-    # Calculate new duration
-    local duration
-    duration=$(calculate_duration "$start_time" "$end_time")
+    # Calculate new duration only if times were actually changed
+    local duration="$current_duration"
+    if [[ "$start_time" != "$current_start" ]] || [[ "$end_time" != "$current_end" ]]; then
+        # Only recalculate duration if we have valid timestamps
+        if [[ -n "$start_time" ]] && [[ -n "$end_time" ]]; then
+            duration=$(calculate_duration "$start_time" "$end_time")
+        fi
+    fi
     
     # Update session (preserve existing notes)
     sqlite3 "$DB" "UPDATE $SESSIONS_TABLE SET project = '$(sql_escape "$project")', start_time = '$start_time', end_time = '$end_time', duration_seconds = $duration WHERE rowid = $session_id;"
