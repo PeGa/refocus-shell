@@ -86,9 +86,9 @@ function focus_generate_report() {
     local start_time="$1"
     local end_time="$2"
     
-    # Get sessions in the specified period (ordered by end_time DESC for consistency)
+    # Get sessions in the specified period (including duration-only sessions)
     local sessions
-    sessions=$(sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE WHERE project != '[idle]' AND end_time >= '$start_time' AND end_time <= '$end_time' ORDER BY end_time DESC;" 2>/dev/null)
+    sessions=$(sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds, notes, duration_only, session_date FROM $SESSIONS_TABLE WHERE project != '[idle]' AND (end_time >= '$start_time' AND end_time <= '$end_time') OR (duration_only = 1 AND session_date >= '$start_time' AND session_date <= '$end_time') ORDER BY COALESCE(end_time, session_date) DESC;" 2>/dev/null)
     
     if [[ -z "$sessions" ]]; then
         echo "No focus sessions found in the specified period."
@@ -103,7 +103,7 @@ function focus_generate_report() {
     local project_date_ranges=()
     local session_count=0
     
-    while IFS='|' read -r project session_start session_end duration notes; do
+    while IFS='|' read -r project session_start session_end duration notes duration_only session_date; do
         if [[ "$project" != "[idle]" ]]; then
             total_duration=$((total_duration + duration))
             session_count=$((session_count + 1))
@@ -123,7 +123,11 @@ function focus_generate_report() {
                 project_totals+=("$project")
                 project_sessions+=(1)
                 project_durations+=($duration)
-                project_date_ranges+=("$session_start|$session_end")
+                if [[ "$duration_only" == "1" ]]; then
+                    project_date_ranges+=("$session_date|$session_date")
+                else
+                    project_date_ranges+=("$session_start|$session_end")
+                fi
             fi
         fi
     done <<< "$sessions"
@@ -187,12 +191,8 @@ function focus_generate_report() {
         
         if [[ -n "$sessions" ]]; then
             local session_num=1
-            while IFS='|' read -r project start end duration notes; do
+            while IFS='|' read -r project start end duration notes duration_only session_date; do
                 if [[ "$project" != "[idle]" ]]; then
-                    local start_date
-                    start_date=$(date --date="$start" +"%Y-%m-%d %H:%M")
-                    local end_date
-                    end_date=$(date --date="$end" +"%H:%M")
                     local duration_min
                     duration_min=$((duration / 60))
                     local duration_hours=$((duration / 3600))
@@ -205,7 +205,19 @@ function focus_generate_report() {
                         duration_display="${duration_min}m"
                     fi
                     
-                    echo "$session_num. **$project** ($start_date - $end_date, $duration_display)"
+                    if [[ "$duration_only" == "1" ]]; then
+                        # Duration-only session
+                        local session_date_display
+                        session_date_display=$(date --date="$session_date" +"%Y-%m-%d")
+                        echo "$session_num. **$project** (Manual entry: $session_date_display, $duration_display)"
+                    else
+                        # Regular session
+                        local start_date
+                        start_date=$(date --date="$start" +"%Y-%m-%d %H:%M")
+                        local end_date
+                        end_date=$(date --date="$end" +"%H:%M")
+                        echo "$session_num. **$project** ($start_date - $end_date, $duration_display)"
+                    fi
                     
                     # Show notes with proper line breaks
                     if [[ -n "$notes" ]]; then

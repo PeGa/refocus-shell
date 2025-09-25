@@ -151,6 +151,20 @@ insert_session() {
     sqlite3 "$DB" "INSERT INTO $SESSIONS_TABLE (project, start_time, end_time, duration_seconds, notes) VALUES ('$escaped_project', '$start_time', '$end_time', $duration, '$escaped_notes');"
 }
 
+# Function to insert a duration-only session
+insert_duration_only_session() {
+    local project="$1"
+    local duration="$2"
+    local session_date="$3"
+    local notes="${4:-}"
+    
+    local escaped_project
+    escaped_project=$(sql_escape "$project")
+    local escaped_notes
+    escaped_notes=$(sql_escape "$notes")
+    sqlite3 "$DB" "INSERT INTO $SESSIONS_TABLE (project, start_time, end_time, duration_seconds, notes, duration_only, session_date) VALUES ('$escaped_project', NULL, NULL, $duration, '$escaped_notes', 1, '$session_date');"
+}
+
 # Function to update a session
 update_session() {
     local project="$1"

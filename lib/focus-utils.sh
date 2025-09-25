@@ -49,6 +49,40 @@ calculate_duration() {
     echo $((end_ts - start_ts))
 }
 
+# Function to parse duration string (e.g., "1h30m", "2h", "45m") to seconds
+parse_duration() {
+    local duration_str="$1"
+    local total_seconds=0
+    
+    # Remove any whitespace
+    duration_str=$(echo "$duration_str" | tr -d ' ')
+    
+    # Check if it's a decimal hour format (e.g., "1.5h", "0.5h")
+    if [[ "$duration_str" =~ ^([0-9]+\.?[0-9]*)h$ ]]; then
+        local hours="${BASH_REMATCH[1]}"
+        local hours_int=$(echo "$hours * 3600" | bc -l)
+        total_seconds=$(echo "$hours_int" | cut -d'.' -f1)
+    # Check for hour+minute format (e.g., "1h30m", "2h45m")
+    elif [[ "$duration_str" =~ ^([0-9]+)h([0-9]+)m$ ]]; then
+        local hours="${BASH_REMATCH[1]}"
+        local minutes="${BASH_REMATCH[2]}"
+        total_seconds=$((hours * 3600 + minutes * 60))
+    # Check for hours only (e.g., "2h", "1h")
+    elif [[ "$duration_str" =~ ^([0-9]+)h$ ]]; then
+        local hours="${BASH_REMATCH[1]}"
+        total_seconds=$((hours * 3600))
+    # Check for minutes only (e.g., "45m", "90m")
+    elif [[ "$duration_str" =~ ^([0-9]+)m$ ]]; then
+        local minutes="${BASH_REMATCH[1]}"
+        total_seconds=$((minutes * 60))
+    else
+        echo "Invalid duration format: $duration_str" >&2
+        return 1
+    fi
+    
+    echo "$total_seconds"
+}
+
 # Function to format duration in minutes
 format_duration_minutes() {
     local duration_seconds="$1"
