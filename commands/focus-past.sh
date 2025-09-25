@@ -274,11 +274,11 @@ function focus_past_list() {
         local duration_min
         duration_min=$((duration / 60))
         
-        printf "%-4s %-20s %-19s %-19s %-8s\n" "$id" "$(truncate_project_name "$project" 18)" "$start_date" "$end_date" "${duration_min}m"
+        printf "%-4s %-20s %-19s %-19s %-8s\n" "$id" "$project" "$start_date" "$end_date" "${duration_min}m"
         
         # Show notes if available
         if [[ -n "$notes" ]]; then
-            printf "                          📝 %s\n" "$notes"
+            printf "     📝 %s\n" "$notes"
         fi
     done <<< "$sessions"
 }

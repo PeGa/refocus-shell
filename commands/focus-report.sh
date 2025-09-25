@@ -86,9 +86,9 @@ function focus_generate_report() {
     local start_time="$1"
     local end_time="$2"
     
-    # Get sessions in the specified period
+    # Get sessions in the specified period (ordered by end_time DESC for consistency)
     local sessions
-    sessions=$(get_sessions_in_range "$start_time" "$end_time")
+    sessions=$(sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE WHERE project != '[idle]' AND end_time >= '$start_time' AND end_time <= '$end_time' ORDER BY end_time DESC;" 2>/dev/null)
     
     if [[ -z "$sessions" ]]; then
         echo "No focus sessions found in the specified period."
@@ -99,6 +99,8 @@ function focus_generate_report() {
     local total_duration=0
     local project_totals=()
     local project_sessions=()
+    local project_durations=()
+    local project_date_ranges=()
     local session_count=0
     
     while IFS='|' read -r project session_start session_end duration notes; do
@@ -111,6 +113,7 @@ function focus_generate_report() {
             for i in "${!project_totals[@]}"; do
                 if [[ "${project_totals[$i]}" == "$project" ]]; then
                     project_sessions[$i]=$((${project_sessions[$i]} + 1))
+                    project_durations[$i]=$((${project_durations[$i]} + duration))
                     found=1
                     break
                 fi
@@ -119,11 +122,13 @@ function focus_generate_report() {
             if [[ $found -eq 0 ]]; then
                 project_totals+=("$project")
                 project_sessions+=(1)
+                project_durations+=($duration)
+                project_date_ranges+=("$session_start|$session_end")
             fi
         fi
     done <<< "$sessions"
     
-    # Display summary
+    # Display summary only in terminal
     local total_hours=$((total_duration / 3600))
     local total_minutes=$(((total_duration % 3600) / 60))
     
@@ -133,75 +138,97 @@ function focus_generate_report() {
     echo "   Active projects: ${#project_totals[@]}"
     echo
     
-    # Display project breakdown
-    if [[ ${#project_totals[@]} -gt 0 ]]; then
-        echo "📋 Project Breakdown:"
-        for i in "${!project_totals[@]}"; do
-            local project="${project_totals[$i]}"
-            local sessions_count="${project_sessions[$i]}"
+    # Generate markdown report file
+    local report_filename
+    report_filename="focus-report-$(date --date="$end_time" +"%Y-%m-%d").md"
+    
+    # Create markdown report
+    {
+        echo "# Focus Report - $(date --date="$start_time" +"%Y-%m-%d") to $(date --date="$end_time" +"%Y-%m-%d")"
+        echo ""
+        echo "## Summary"
+        echo "- **Total focus time**: ${total_hours}h ${total_minutes}m"
+        echo "- **Total sessions**: $session_count"
+        echo "- **Active projects**: ${#project_totals[@]}"
+        echo ""
+        
+        if [[ ${#project_totals[@]} -gt 0 ]]; then
+            echo "## Project Breakdown"
+            echo "| Project | Sessions | Total Time | Date Range |"
+            echo "|---------|----------|------------|------------|"
             
-            # Calculate total time for this project in the period
-            local project_duration=0
-            local project_notes=""
-            while IFS='|' read -r p start end dur notes; do
-                if [[ "$p" == "$project" ]]; then
-                    project_duration=$((project_duration + dur))
-                    # Use the first non-empty notes as project description
-                    if [[ -n "$notes" && -z "$project_notes" ]]; then
-                        project_notes="$notes"
+            for i in "${!project_totals[@]}"; do
+                local project="${project_totals[$i]}"
+                local sessions_count="${project_sessions[$i]}"
+                local project_duration="${project_durations[$i]}"
+                local date_range="${project_date_ranges[$i]}"
+                
+                local proj_hours=$((project_duration / 3600))
+                local proj_minutes=$(((project_duration % 3600) / 60))
+                
+                # Parse date range
+                IFS='|' read -r earliest_start latest_end <<< "$date_range"
+                local start_date=$(date --date="$earliest_start" +"%Y-%m-%d")
+                local end_date=$(date --date="$latest_end" +"%Y-%m-%d")
+                
+                if [[ "$start_date" == "$end_date" ]]; then
+                    local date_display="$start_date"
+                else
+                    local date_display="$start_date to $end_date"
+                fi
+                
+                echo "| $project | $sessions_count | ${proj_hours}h ${proj_minutes}m | $date_display |"
+            done
+            echo ""
+        fi
+        
+        echo "## Session Details"
+        echo ""
+        
+        if [[ -n "$sessions" ]]; then
+            local session_num=1
+            while IFS='|' read -r project start end duration notes; do
+                if [[ "$project" != "[idle]" ]]; then
+                    local start_date
+                    start_date=$(date --date="$start" +"%Y-%m-%d %H:%M")
+                    local end_date
+                    end_date=$(date --date="$end" +"%H:%M")
+                    local duration_min
+                    duration_min=$((duration / 60))
+                    local duration_hours=$((duration / 3600))
+                    local duration_remaining_min=$(((duration % 3600) / 60))
+                    
+                    local duration_display
+                    if [[ $duration_hours -gt 0 ]]; then
+                        duration_display="${duration_hours}h ${duration_remaining_min}m"
+                    else
+                        duration_display="${duration_min}m"
                     fi
+                    
+                    echo "$session_num. **$project** ($start_date - $end_date, $duration_display)"
+                    
+                    # Show notes with proper line breaks
+                    if [[ -n "$notes" ]]; then
+                        echo "   - $notes"
+                    else
+                        # If no session notes, try to show project description
+                        local project_desc
+                        project_desc=$(get_project_description "$project")
+                        if [[ -n "$project_desc" ]]; then
+                            echo "   - $project_desc"
+                        fi
+                    fi
+                    echo ""
+                    
+                    session_num=$((session_num + 1))
                 fi
             done <<< "$sessions"
-            
-            # If no session notes, try to get project description
-            if [[ -z "$project_notes" ]]; then
-                project_notes=$(get_project_description "$project")
-            fi
-            
-            local proj_hours=$((project_duration / 3600))
-            local proj_minutes=$(((project_duration % 3600) / 60))
-            
-            printf "   %-20s %3d sessions  %2dh %2dm\n" "$project" "$sessions_count" "$proj_hours" "$proj_minutes"
-            
-            # Show project notes if available
-            if [[ -n "$project_notes" ]]; then
-                printf "                          %s\n" "$project_notes"
-            fi
-        done
-        echo
-    fi
+        else
+            echo "No sessions found"
+        fi
+    } > "$report_filename"
     
-    # Display all sessions
-    echo "🕒 All Sessions:"
-    
-    if [[ -n "$sessions" ]]; then
-        while IFS='|' read -r project start end duration notes; do
-            if [[ "$project" != "[idle]" ]]; then
-                local start_date
-                start_date=$(date --date="$start" +"%m-%d %H:%M")
-                local end_date
-                end_date=$(date --date="$end" +"%H:%M")
-                local duration_min
-                duration_min=$((duration / 60))
-                
-                printf "   %-20s %s-%s  %3dm\n" "$project" "$start_date" "$end_date" "$duration_min"
-                
-                # Show notes if available
-                if [[ -n "$notes" ]]; then
-                    printf "                          %s\n" "$notes"
-                else
-                    # If no session notes, try to show project description
-                    local project_desc
-                    project_desc=$(get_project_description "$project")
-                    if [[ -n "$project_desc" ]]; then
-                        printf "                          %s\n" "$project_desc"
-                    fi
-                fi
-            fi
-        done <<< "$sessions"
-    else
-        echo "   No sessions found"
-    fi
+    echo "📄 Detailed report saved to: $report_filename"
 }
 
 function focus_report() {
