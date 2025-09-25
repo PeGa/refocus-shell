@@ -137,28 +137,28 @@ validate_timestamp() {
         hour=$(echo "$timestamp" | cut -d'-' -f2 | cut -d':' -f1)
         minute=$(echo "$timestamp" | cut -d'-' -f2 | cut -d':' -f2)
         
-        # Validate the components
-        if [[ "$year" -lt 1900 ]] || [[ "$year" -gt 2100 ]]; then
+        # Validate the components (force decimal interpretation to avoid octal issues)
+        if [[ $((10#$year)) -lt 1900 ]] || [[ $((10#$year)) -gt 2100 ]]; then
             echo "❌ $description has invalid year: $year"
             return 1
         fi
         
-        if [[ "$month" -lt 1 ]] || [[ "$month" -gt 12 ]]; then
+        if [[ $((10#$month)) -lt 1 ]] || [[ $((10#$month)) -gt 12 ]]; then
             echo "❌ $description has invalid month: $month"
             return 1
         fi
         
-        if [[ "$day" -lt 1 ]] || [[ "$day" -gt 31 ]]; then
+        if [[ $((10#$day)) -lt 1 ]] || [[ $((10#$day)) -gt 31 ]]; then
             echo "❌ $description has invalid day: $day"
             return 1
         fi
         
-        if [[ "$hour" -lt 0 ]] || [[ "$hour" -gt 23 ]]; then
+        if [[ $((10#$hour)) -lt 0 ]] || [[ $((10#$hour)) -gt 23 ]]; then
             echo "❌ $description has invalid hour: $hour"
             return 1
         fi
         
-        if [[ "$minute" -lt 0 ]] || [[ "$minute" -gt 59 ]]; then
+        if [[ $((10#$minute)) -lt 0 ]] || [[ $((10#$minute)) -gt 59 ]]; then
             echo "❌ $description has invalid minute: $minute"
             return 1
         fi
