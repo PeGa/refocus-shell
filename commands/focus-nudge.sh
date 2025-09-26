@@ -159,4 +159,4 @@ function focus_nudge() {
 
 
 # Main execution
-refocus_script_main focus_nudge_enable "$@"
+refocus_script_main focus_nudge "$@"

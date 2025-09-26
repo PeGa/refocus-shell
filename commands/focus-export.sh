@@ -172,6 +172,27 @@ generate_json_export() {
 function focus_export() {
     local output_file="$1"
     
+    # Handle help flag
+    if [[ "$output_file" == "--help" ]] || [[ "$output_file" == "-h" ]]; then
+        echo "Usage: focus export [filename]"
+        echo
+        echo "Export focus data to SQLite dump and JSON files."
+        echo
+        echo "Arguments:"
+        echo "  filename    Optional base filename (without extension)"
+        echo "              If not provided, generates: refocus-export-YYYYMMDD_HHMMSS"
+        echo
+        echo "Output files:"
+        echo "  filename.sql   - SQLite database dump"
+        echo "  filename.json  - Structured JSON export"
+        echo
+        echo "Examples:"
+        echo "  focus export                    # Export with auto-generated filename"
+        echo "  focus export my-backup          # Export to my-backup.sql and my-backup.json"
+        echo "  focus export /path/to/backup    # Export to absolute path"
+        return 0
+    fi
+    
     if [[ -z "$output_file" ]]; then
         # Generate default filename
         local timestamp

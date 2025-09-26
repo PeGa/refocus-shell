@@ -108,9 +108,9 @@ validate_file_path() {
         return 1
     fi
     
-    # Check for absolute path if required
-    if [[ "$file_path" != /* ]] && [[ "$file_path" != ./* ]] && [[ "$file_path" != ~* ]]; then
-        echo "❌ $description path must be absolute or relative"
+    # Check for valid path format (allow plain filenames in current directory)
+    if [[ "$file_path" == *"/"* ]] && [[ "$file_path" != /* ]] && [[ "$file_path" != ./* ]] && [[ "$file_path" != ~* ]]; then
+        echo "❌ $description path contains invalid characters"
         return 1
     fi
     

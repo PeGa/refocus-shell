@@ -276,4 +276,4 @@ function focus_report() {
 
 
 # Main execution
-refocus_script_main focus_report_today "$@"
+refocus_script_main focus_report "$@"

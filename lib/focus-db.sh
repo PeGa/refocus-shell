@@ -449,6 +449,9 @@ migrate_database() {
     fi
 }
 
+# Export function for use in other modules
+export -f migrate_database
+
 # Function to check if a session is currently paused
 is_session_paused() {
     local paused
@@ -624,3 +627,61 @@ remove_focus_cron_job() {
     
     rm -f "$temp_cron_file"
 }
+# Function to reset the database
+reset_database() {
+    local db_path="$1"
+    
+    if [[ -f "$db_path" ]]; then
+        # Create backup before reset
+        local backup_path="${db_path}.backup.$(date +%Y%m%d_%H%M%S)"
+        cp "$db_path" "$backup_path"
+        
+        # Remove the database file
+        rm -f "$db_path"
+    fi
+    
+    # Recreate the database with proper schema
+    execute_sqlite "
+        CREATE TABLE IF NOT EXISTS state (
+            id INTEGER PRIMARY KEY,
+            active INTEGER DEFAULT 0,
+            project TEXT,
+            start_time TEXT,
+            prompt_content TEXT,
+            prompt_type TEXT DEFAULT 'default',
+            nudging_enabled BOOLEAN DEFAULT 1,
+            focus_disabled BOOLEAN DEFAULT 0,
+            last_focus_off_time TEXT,
+            paused INTEGER DEFAULT 0,
+            pause_notes TEXT,
+            pause_start_time TEXT,
+            previous_elapsed INTEGER DEFAULT 0
+        );
+        
+        CREATE TABLE IF NOT EXISTS sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project TEXT NOT NULL,
+            start_time TEXT,
+            end_time TEXT,
+            duration_seconds INTEGER NOT NULL,
+            notes TEXT,
+            duration_only INTEGER DEFAULT 0,
+            session_date TEXT
+        );
+        
+        CREATE TABLE IF NOT EXISTS projects (
+            project TEXT PRIMARY KEY,
+            description TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        
+        INSERT OR IGNORE INTO state (id, active, project, start_time, prompt_content, prompt_type, nudging_enabled, focus_disabled, last_focus_off_time, paused, pause_notes, pause_start_time, previous_elapsed)
+        VALUES (1, 0, NULL, NULL, NULL, 'default', 1, 0, NULL, 0, NULL, NULL, 0);
+    " "reset_database" >/dev/null
+    
+    return $?
+}
+
+# Export function for use in other modules
+export -f reset_database

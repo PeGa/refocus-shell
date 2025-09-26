@@ -13,8 +13,10 @@ fi
 
 # Focus function - main entry point
 focus() {
-    local subcommand="$1"
-    shift
+    local subcommand="${1:-help}"
+    if [[ $# -gt 0 ]]; then
+        shift
+    fi
     
     # Get the command directory
     local command_dir

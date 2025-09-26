@@ -4,7 +4,7 @@
 # Licensed under the GNU General Public License v3
 
 # Source bootstrap module
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
 
 import_from_json() {
@@ -260,6 +260,28 @@ import_from_json() {
 function focus_import() {
     local input_file="$1"
     
+    # Handle help flag
+    if [[ "$input_file" == "--help" ]] || [[ "$input_file" == "-h" ]]; then
+        echo "Usage: focus import <file.sql|file.json>"
+        echo
+        echo "Import focus data from SQLite dump or JSON export files."
+        echo
+        echo "Arguments:"
+        echo "  file        Path to import file (.sql or .json)"
+        echo
+        echo "Supported formats:"
+        echo "  - SQLite dump files (.sql) - Full database backup"
+        echo "  - JSON export files (.json) - Structured data export"
+        echo
+        echo "Examples:"
+        echo "  focus import backup.sql           # Import from SQLite dump"
+        echo "  focus import backup.json          # Import from JSON export"
+        echo "  focus import /path/to/backup.sql  # Import from absolute path"
+        echo
+        echo "Note: Import will replace all existing data. Make a backup first!"
+        return 0
+    fi
+    
     if [[ -z "$input_file" ]]; then
         echo "❌ No input file specified."
         echo "Usage: focus import <file.sql|file.json>"
@@ -294,7 +316,7 @@ function focus_import() {
             file_type="json"
         else
             echo "❌ Unable to determine file type. Please use .sql or .json extension."
-            exit 1
+        exit 1
         fi
     fi
     
@@ -336,8 +358,8 @@ function focus_import() {
             echo "   - Database restored from JSON export"
             echo "   - All sessions, state, and projects imported"
         else
-            echo "   - Database restored from SQLite dump"
-            echo "   - All tables and data imported"
+        echo "   - Database restored from SQLite dump"
+        echo "   - All tables and data imported"
         fi
     else
         echo "❌ Import failed"
