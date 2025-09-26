@@ -2,9 +2,23 @@
 
 **Refocus Shell – a lightweight CLI for managing your focus sessions**
 
+## TL;DR
+
+```bash
+# Install & start tracking
+git clone https://github.com/PeGa/refocus-shell && cd refocus-shell && ./setup.sh install
+focus on "my-project"    # Start focusing
+focus status             # Check progress  
+focus off                # Stop & add notes
+focus report today       # See your day
+```
+
+**What it does:** Tracks your focus time, shows `⏳ [project]` in your terminal, sends gentle nudges every 10 minutes, exports your data as JSON/SQLite. All local, no cloud, no tracking.
+
 > 🧠 **Built for neurodivergent devs, sysadmins, and anyone tired of forgetting where their time went (e.g. me).**  
 
 **Refocus Shell is a terminal-first, privacy-conscious time tracker that nudges, reflects, and gets out of your way.**
+
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.
 org/licenses/gpl-3.0)
