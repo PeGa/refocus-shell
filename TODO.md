@@ -1,79 +1,162 @@
-# 100 Paper cuts
+# Refocus Shell - TODO List
 
-## Summary
+## Overview
+This document tracks remaining improvements and future enhancements for Refocus Shell. Items are organized by priority and category.
 
-This is a project lovingly evocating Ubuntu's 100 paper cuts, with the idea of fixing small issues that bother a lot. We don't have 100 paper cuts, but we do hame a few nasty annoyances that can make life better.
+---
 
-1. A full code sanity check is due. I know there hidden gems here and there.
+## 🔧 Code Quality & Architecture (High Priority)
 
-2.  Some concern separation is due to prevent the spahettification of the project.
+### Code Sanity & Refactoring
+1. **Full code sanity check needed** - Hidden gems and inconsistencies throughout codebase
+   - Review all scripts for consistency and best practices
+   - Identify and fix any remaining edge cases
+   - Standardize error handling patterns
 
-3. A refactor is also due, where some code can be elegantly reutilized.
+2. **Concern separation needed** - Prevent "spahettification" of the project
+   - Some commands still mix UI, business logic, and data access
+   - Extract common patterns into reusable functions
+   - Improve modularity between commands and libraries
 
-4. Project is using .bash_functions, which is a custom implementation for the developer. This won't exist anywhere else, so the idea is to make .bashrc source another script where to put work manager's shenanigans (akin to bash_functions), not messing with user's infrastructure/implementation.
+3. **Code reuse opportunities** - Some code can be elegantly refactored for reuse
+   - Consolidate duplicate validation logic
+   - Extract common database operations
+   - Standardize output formatting functions
 
-5. Project is not only .bash_functions, but leaves tons of backups, and backups of backups. Not tolerable.
+### Prompt Management Issues
+4. **Prompt update mechanism** - Current implementation has limitations
+   - `focus status` should include time elapsed on current session
+   - Need better prompt integration (study how virtualenv does it)
+   - Current solutions have major pitfalls:
+     - `alias work='. $(work)'` - kills bash session on uncatched -e
+     - Subterminal approach - "flight-engineering-grade solution"
+     - Moving to work function - requires major reengineering
 
-6. I think that same goes to the prompt backup (tons of backups, and backups of backups)
+### Input Validation & Error Handling
+5. **Input validation enhancement** - Robust validation for all user inputs
+   - Better handling of malformed data
+   - Sanitization of project names and timestamps
+   - Edge case handling for duration parsing
+   - Improved error messages with actionable suggestions
 
-7. When uninstalling, refocus directory (namely $HOME/.local/refocus) is left full of crap, without even noticing the user. It would be interesting to ask the user to clean up the mess automatically, or at least let the user knowthe situation.
+6. **Project name collision handling** - Enhanced duplicate project name management
+   - **Current state**: Basic continuation exists (`focus on` without project name continues last session)
+   - **Enhancement needed**: Explicit collision detection when starting new session with existing project name
+   - Should ask user whether to resume existing project or start new one
+   - Need validation to prevent database collisions
 
-8. When installing, the y/n prompt defaults to N, preventing the user to install just by hitting enter:
+---
 
-```
-$ ./setup.sh install
-Work Manager Installation
-========================
+## 🧪 Testing & Quality Assurance (High Priority)
 
-Where should the database be stored?
-Database path (default: /home/pega/.local/refocus/refocus.db): 
+### Testing Infrastructure
+7. **Unit tests** - Test individual subcommands and library functions
+   - Test `focus-db.sh`, `focus-utils.sh` libraries
+   - Automated test suite with test framework
+   - Mock database for isolated testing
+   - Test error conditions and edge cases
 
-Directory does not exist: /home/pega/.local/refocus
-Create directory '/home/pega/.local/refocus'? (y/N): 
-Installation aborted.
-```
+8. **Integration tests** - Full workflow testing
+   - Complete workflow: `focus on` → `focus status` → `focus off` → `focus report`
+   - Database state validation
+   - Cross-subcommand interactions
+   - End-to-end user scenarios
+   - Test pause/resume functionality
 
-9. Same goes for the bin/ directory. I'm not sure what will happen if the directory doesn't exist.
+### Documentation
+9. **API documentation** - Document libraries and functions
+   - Developer guide for contributors
+   - Code comments and inline documentation
+   - Function parameter documentation
+   - Database schema documentation
 
-10. `work status` should include time elapsed on the current status.
+---
 
-11. Prompt should be updated. How does virtualenv do then? (alright, this one might be a wild piece of engineering). 
+## 🚀 Feature Enhancements (Medium Priority)
 
-```
-pega@temple:~$ work on something
-Started work on: something
-Tip: Run 'update-prompt' to update the current terminal prompt
-pega@temple:~$
-```
+### User Experience Improvements
+10. **Enhanced error recovery** - Better error messages and recovery suggestions
+    - Provide actionable steps when commands fail
+    - Suggest common solutions for frequent issues
+    - Improve error context and debugging information
 
-Ideas:
-    1. alias work='. $(work)'. That will keep the prompt in the current environment. Major pitfall: An uncatched -e event or a random exit will kill current bash session
-    2. bash function (and/or a command) launching a subterminal. Harnessing the spirit of the solution above, without its downside (i.e. terminal dies, then the subterminal dies. Even work off might mean "let's exit this terminal and go back to the previous one). Major pitfall: Flight-engineering-grade solution.
-    3. alias but without -e catches, so nothing breaks _so_ bad, and getting rid of all exit statements. Downside: some control might get lost, compromising the behavior of the whole script.
-    4. moving the whole application to a work function. This means a major reingeneering, but this always works flawlessly:
+11. **Interactive mode for complex operations** - User-friendly interfaces
+    - Guided setup for complex configurations
+    - Interactive project management
+    - Step-by-step workflows for new users
 
-```
-pega@temple:~$ function newprompt(){ export old_PS1=$PS1; PS1="testing my PS1: $PS1"   ; export PS1;}
-pega@temple:~$ function oldprompt(){ export PS1=$old_PS1; }
-pega@temple:~$ newprompt 
-testing my PS1: pega@temple:~$ oldprompt 
-pega@temple:~$ 
-```
+12. **Auto-completion for shell integration** - Improved shell experience
+    - Bash completion for project names
+    - Tab completion for command options
+    - Smart suggestions based on history
 
-12. `update-prompt` is missing on a clean installation:
+---
 
-```
-pega@temple:~/dev/personal/work-manager$ work off
-Stopped work on: testing1 (Duration: 1 min)
-Tip: Run 'update-prompt' to update the current terminal prompt
-pega@temple:~/dev/personal/work-manager$ update-prompt
-update-prompt: command not found
-pega@temple:~/dev/personal/work-manager$ which work
-/home/pega/.local/bin/work
-whpega@temple:~/dev/personal/work-manager$ which update-prompt
-pega@temple:~/dev/personal/work-manager$ whereis update-prompt
-update-prompt:
-pega@temple:~/dev/personal/work-manager$
-```
+## 🔮 Future Features (Long-term)
 
-13. After working on a project named X, issuing work on X resumes normally, which is good, to some extent. Ideally, it should ask the user whether hey want to resume working on that project, or start a new one. Which brings the new restriction: there shouldn't be two different projects with the same name. They could be called the same, but adding just a different word, a number, or a clarification to specify it's just a sequel but not the _exact same_ project would suffice to prevent collissions in the database.
+### Advanced Functionality
+13. **Automatic idle detection** - Stop tracking when device is idle
+    - Privacy-safe, cross-distro compatible, opt-in
+    - Support for KDE/Plasma, GNOME, X11, systemd-logind
+    - Configurable idle thresholds
+
+14. **Plugin system** - Allow custom subcommands via plugin directory
+    - Hook system for events (session start/end)
+    - Extensible architecture
+    - Plugin management commands
+
+15. **Backup & sync** - Automatic database backups
+    - Cloud sync capabilities (Google Drive, Dropbox)
+    - Data migration tools
+    - Backup rotation and cleanup
+
+### Advanced Features
+16. **Time tracking templates** - Predefined session templates
+17. **Project hierarchies and tags** - Better project organization
+18. **External tool integration** - Jira, GitHub integration
+19. **Web dashboard** - Visualization interface
+
+### Performance & UX
+20. **Performance optimization** - Database query optimization
+    - Caching for frequently accessed data
+    - Batch operations for large datasets
+    - Memory usage optimization
+
+21. **Enhanced user experience**
+    - Progress indicators for long operations
+    - Better error recovery suggestions
+    - Improved reporting and analytics
+
+---
+
+## 📋 Implementation Notes
+
+### Priority Order
+1. **High**: Items 1-9 (code quality, testing, documentation)
+2. **Medium**: Items 10-12 (user experience improvements)
+3. **Future**: Items 13-21 (advanced features)
+
+### Testing Strategy
+- Each phase should include comprehensive testing
+- Backward compatibility must be maintained
+- User workflows should be validated
+
+### Documentation Requirements
+- All new features must be documented
+- Examples should be provided for complex operations
+- Breaking changes must be clearly communicated
+
+---
+
+## 🏷️ Status Legend
+- 🔧 **High** - Important for code quality and testing
+- 🚀 **Medium** - Feature enhancements
+- 🔮 **Future** - Long-term roadmap
+
+---
+
+*Last updated: 2025-09-26*
+*Total items: 21*
+*High priority: 9*
+*Medium priority: 3*
+*Future items: 9*
