@@ -24,8 +24,12 @@ focus-safe() {
     local focus_script
     if [[ -f "$HOME/.local/bin/focus" ]]; then
         focus_script="$HOME/.local/bin/focus"
-    elif [[ -f "$HOME/dev/personal/refocus-shell/focus" ]]; then
-    focus_script="$HOME/dev/personal/refocus-shell/focus"
+    elif [[ -f "/usr/local/bin/focus" ]]; then
+        focus_script="/usr/local/bin/focus"
+    elif [[ -f "/usr/bin/focus" ]]; then
+        focus_script="/usr/bin/focus"
+    elif [[ -f "$HOME/.local/refocus/focus" ]]; then
+        focus_script="$HOME/.local/refocus/focus"
     else
         echo "❌ Refocus shell not found. Please install it first."
         # Restore original exit behavior

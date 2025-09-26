@@ -18,8 +18,6 @@ if [[ -f "$SCRIPT_DIR/../config.sh" ]]; then
     source "$SCRIPT_DIR/../config.sh"
 elif [[ -f "$HOME/.local/refocus/config.sh" ]]; then
     source "$HOME/.local/refocus/config.sh"
-elif [[ -f "$HOME/dev/personal/refocus-shell/config.sh" ]]; then
-    source "$HOME/dev/personal/refocus-shell/config.sh"
 else
     echo "❌ Configuration file not found"
     exit 1
