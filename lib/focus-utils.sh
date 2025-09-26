@@ -18,6 +18,53 @@
 # Verbose mode flag
 VERBOSE="${VERBOSE:-false}"
 
+# Error logging configuration
+REFOCUS_LOG_DIR="${REFOCUS_LOG_DIR:-$HOME/.local/refocus}"
+REFOCUS_ERROR_LOG="${REFOCUS_ERROR_LOG:-$REFOCUS_LOG_DIR/error.log}"
+
+# Function to log errors to file
+log_error() {
+    local error_message="$1"
+    local context="${2:-unknown}"
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    # Ensure log directory exists
+    mkdir -p "$REFOCUS_LOG_DIR"
+    
+    # Log to file
+    echo "[$timestamp] [$context] $error_message" >> "$REFOCUS_ERROR_LOG"
+}
+
+# Function to execute SQLite command with proper error handling
+execute_sqlite() {
+    local sql_command="$1"
+    local context="${2:-sqlite}"
+    local output
+    local exit_code
+    
+    # Execute SQLite command and capture both output and exit code
+    output=$(sqlite3 "$DB" "$sql_command" 2>&1)
+    exit_code=$?
+    
+    # If there was an error, log it
+    if [[ $exit_code -ne 0 ]]; then
+        log_error "SQLite error (exit code: $exit_code): $output" "$context"
+        log_error "SQL command: $sql_command" "$context"
+        return $exit_code
+    fi
+    
+    # Return the output
+    echo "$output"
+    return 0
+}
+
+
+# Function to show user-friendly error message
+show_error_info() {
+    echo "More information can be found at: $REFOCUS_ERROR_LOG"
+}
+
 # Function to print verbose messages
 verbose_echo() {
     if [[ "$VERBOSE" == "true" ]]; then

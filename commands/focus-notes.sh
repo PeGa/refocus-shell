@@ -66,9 +66,10 @@ function focus_notes_add() {
         # Validate session_id is numeric to prevent injection
     if ! [[ "$session_id" =~ ^[0-9]+$ ]]; then
         echo "❌ Invalid session ID: $session_id"
+        show_error_info
         exit 1
     fi
-    sqlite3 "$DB" "UPDATE $SESSIONS_TABLE SET notes = '$escaped_notes' WHERE rowid = $session_id;"
+    execute_sqlite "UPDATE $SESSIONS_TABLE SET notes = '$escaped_notes' WHERE rowid = $session_id;" "focus_notes_add" >/dev/null
         echo "✅ Notes added to session $session_id"
     else
         echo "No notes added."
