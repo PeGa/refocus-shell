@@ -36,7 +36,7 @@ generate_json_export() {
     
     # Export state data
     local state_data
-    state_data=$(sqlite3 "$DB" "SELECT active, project, start_time, prompt_content, prompt_type, nudging_enabled, focus_disabled, last_focus_off_time, paused, pause_notes, pause_start_time, previous_elapsed FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null)
+    state_data=$(execute_sqlite "SELECT active, project, start_time, prompt_content, prompt_type, nudging_enabled, focus_disabled, last_focus_off_time, paused, pause_notes, pause_start_time, previous_elapsed FROM $STATE_TABLE WHERE id = 1;" "generate_json_export")
     
     if [[ -n "$state_data" ]]; then
         IFS='|' read -r active project start_time prompt_content prompt_type nudging_enabled focus_disabled last_focus_off_time paused pause_notes pause_start_time previous_elapsed <<< "$state_data"
@@ -88,7 +88,7 @@ generate_json_export() {
 '
     
     local sessions_data
-    sessions_data=$(sqlite3 "$DB" "SELECT id, project, start_time, end_time, duration_seconds, notes, duration_only, session_date FROM $SESSIONS_TABLE ORDER BY id;" 2>/dev/null)
+    sessions_data=$(execute_sqlite "SELECT id, project, start_time, end_time, duration_seconds, notes, duration_only, session_date FROM $SESSIONS_TABLE ORDER BY id;" "generate_json_export")
     
     local session_count=0
     if [[ -n "$sessions_data" ]]; then
@@ -138,7 +138,7 @@ generate_json_export() {
 '
     
     local projects_data
-    projects_data=$(sqlite3 "$DB" "SELECT project, description, created_at, updated_at FROM $PROJECTS_TABLE ORDER BY project;" 2>/dev/null)
+    projects_data=$(execute_sqlite "SELECT project, description, created_at, updated_at FROM $PROJECTS_TABLE ORDER BY project;" "generate_json_export")
     
     local project_count=0
     if [[ -n "$projects_data" ]]; then
@@ -214,7 +214,7 @@ function focus_export() {
     echo "   JSON export: $json_file"
     
     # Create SQLite dump
-    sqlite3 "$DB" .dump > "$sql_file"
+    execute_sqlite ".dump" "focus_export" > "$sql_file"
     local sql_exit_code=$?
     
     # Create JSON export

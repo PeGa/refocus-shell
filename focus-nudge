@@ -21,6 +21,8 @@
 # Configuration
 REFOCUS_DB="$HOME/.local/refocus/refocus.db"
 REFOCUS_CONFIG="$HOME/.local/refocus/config.sh"
+REFOCUS_LOG_DIR="$HOME/.local/refocus"
+REFOCUS_ERROR_LOG="$REFOCUS_LOG_DIR/error.log"
 
 # Load configuration if it exists
 if [[ -f "$REFOCUS_CONFIG" ]]; then
@@ -31,6 +33,43 @@ else
     REFOCUS_LOG_FACILITY="user"
     REFOCUS_LOG_PRIORITY="notice"
 fi
+
+# Function to log errors to file
+log_error() {
+    local error_message="$1"
+    local context="${2:-focus-nudge}"
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    # Ensure log directory exists
+    mkdir -p "$REFOCUS_LOG_DIR"
+    
+    # Log to file
+    echo "[$timestamp] [$context] $error_message" >> "$REFOCUS_ERROR_LOG"
+}
+
+# Function to execute SQLite command with proper error handling
+execute_sqlite() {
+    local sql_command="$1"
+    local context="${2:-focus-nudge}"
+    local output
+    local exit_code
+    
+    # Execute SQLite command and capture both output and exit code
+    output=$(sqlite3 "$REFOCUS_DB" "$sql_command" 2>&1)
+    exit_code=$?
+    
+    # If there was an error, log it
+    if [[ $exit_code -ne 0 ]]; then
+        log_error "SQLite error (exit code: $exit_code): $output" "$context"
+        log_error "SQL command: $sql_command" "$context"
+        return $exit_code
+    fi
+    
+    # Return the output
+    echo "$output"
+    return 0
+}
 
 # Function to log messages
 log_message() {
@@ -68,7 +107,7 @@ check_focus_disabled() {
     fi
     
     local focus_disabled
-    focus_disabled=$(sqlite3 "$REFOCUS_DB" "SELECT focus_disabled FROM state WHERE id = 1;" 2>/dev/null)
+    focus_disabled=$(execute_sqlite "SELECT focus_disabled FROM state WHERE id = 1;" "check_focus_disabled")
     
     if [[ $? -ne 0 ]]; then
         log_message "error: failed to query focus_disabled status"
@@ -91,7 +130,7 @@ check_nudging_enabled() {
     fi
     
     local nudging_enabled
-    nudging_enabled=$(sqlite3 "$REFOCUS_DB" "SELECT nudging_enabled FROM state WHERE id = 1;" 2>/dev/null)
+    nudging_enabled=$(execute_sqlite "SELECT nudging_enabled FROM state WHERE id = 1;" "check_nudging_enabled")
     
     if [[ $? -ne 0 ]]; then
         log_message "error: failed to query nudging_enabled status"
@@ -114,7 +153,7 @@ get_focus_status() {
     fi
     
     local state
-    state=$(sqlite3 "$REFOCUS_DB" "SELECT active, project, start_time, paused, pause_notes FROM state WHERE id = 1;" 2>/dev/null)
+    state=$(execute_sqlite "SELECT active, project, start_time, paused, pause_notes FROM state WHERE id = 1;" "get_focus_status")
     
     if [[ $? -ne 0 ]]; then
         log_message "error: failed to query focus status from database"
@@ -175,7 +214,7 @@ validate_database() {
     
     # Check if state table exists and has the expected structure
     local table_exists
-    table_exists=$(sqlite3 "$REFOCUS_DB" "SELECT name FROM sqlite_master WHERE type='table' AND name='state';" 2>/dev/null)
+    table_exists=$(execute_sqlite "SELECT name FROM sqlite_master WHERE type='table' AND name='state';" "validate_database")
     
     if [[ -z "$table_exists" ]]; then
         log_message "error: state table not found in database"
@@ -184,7 +223,7 @@ validate_database() {
     
     # Check if state table has required columns
     local has_required_columns
-    has_required_columns=$(sqlite3 "$REFOCUS_DB" "PRAGMA table_info(state);" 2>/dev/null | grep -c -E "(active|project|start_time|nudging_enabled|focus_disabled)" || echo "0")
+    has_required_columns=$(execute_sqlite "PRAGMA table_info(state);" "validate_database" | grep -c -E "(active|project|start_time|nudging_enabled|focus_disabled)" || echo "0")
     
     if [[ "$has_required_columns" -lt 5 ]]; then
         log_message "error: state table missing required columns"
@@ -193,7 +232,7 @@ validate_database() {
     
     # Check if state record exists
     local record_exists
-    record_exists=$(sqlite3 "$REFOCUS_DB" "SELECT COUNT(*) FROM state WHERE id = 1;" 2>/dev/null)
+    record_exists=$(execute_sqlite "SELECT COUNT(*) FROM state WHERE id = 1;" "validate_database")
     
     if [[ "$record_exists" -eq 0 ]]; then
         log_message "error: no state record found in database"

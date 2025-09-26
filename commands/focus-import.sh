@@ -58,7 +58,7 @@ import_from_json() {
     rm -f "$DB"
     
     # Initialize database with proper schema
-    sqlite3 "$DB" "
+    execute_sqlite "
         CREATE TABLE IF NOT EXISTS state (
             id INTEGER PRIMARY KEY,
             active INTEGER DEFAULT 0,
@@ -95,7 +95,7 @@ import_from_json() {
         
         INSERT OR IGNORE INTO state (id, active, project, start_time, prompt_content, prompt_type, nudging_enabled, focus_disabled, last_focus_off_time, paused, pause_notes, pause_start_time, previous_elapsed)
         VALUES (1, 0, NULL, NULL, NULL, 'default', 1, 0, NULL, 0, NULL, NULL, 0);
-    "
+    " "import_from_json" >/dev/null
     
     if [[ $? -ne 0 ]]; then
         echo "❌ Failed to initialize database schema"
@@ -171,7 +171,7 @@ import_from_json() {
             pause_start_time="'$pause_start_time'"
         fi
         
-        sqlite3 "$DB" "UPDATE state SET 
+        execute_sqlite "UPDATE state SET 
             active = $active,
             project = $project,
             start_time = $start_time,
@@ -184,7 +184,7 @@ import_from_json() {
             pause_notes = $pause_notes,
             pause_start_time = $pause_start_time,
             previous_elapsed = $previous_elapsed
-            WHERE id = 1;"
+            WHERE id = 1;" "import_from_json" >/dev/null
     fi
     
     # Import sessions data
@@ -244,8 +244,8 @@ import_from_json() {
                 session_date="'$session_date'"
             fi
             
-            sqlite3 "$DB" "INSERT INTO sessions (id, project, start_time, end_time, duration_seconds, notes, duration_only, session_date) 
-                VALUES ($id, '$project', $start_time, $end_time, $duration_seconds, $notes, $duration_only, $session_date);"
+            execute_sqlite "INSERT INTO sessions (id, project, start_time, end_time, duration_seconds, notes, duration_only, session_date) 
+                VALUES ($id, '$project', $start_time, $end_time, $duration_seconds, $notes, $duration_only, $session_date);" "import_from_json" >/dev/null
         done
     fi
     
@@ -273,8 +273,8 @@ import_from_json() {
             created_at=$(sql_escape "$created_at")
             updated_at=$(sql_escape "$updated_at")
             
-            sqlite3 "$DB" "INSERT OR REPLACE INTO projects (project, description, created_at, updated_at) 
-                VALUES ('$project_name', '$description', '$created_at', '$updated_at');"
+            execute_sqlite "INSERT OR REPLACE INTO projects (project, description, created_at, updated_at) 
+                VALUES ('$project_name', '$description', '$created_at', '$updated_at');" "import_from_json" >/dev/null
         done
     fi
     

@@ -38,7 +38,7 @@ function focus_notes_add() {
     
     # Get the most recent session for this project
     local session_info
-    session_info=$(sqlite3 "$DB" "SELECT rowid, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE WHERE project = '$(sql_escape "$project")' ORDER BY end_time DESC LIMIT 1;" 2>/dev/null)
+    session_info=$(execute_sqlite "SELECT rowid, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE WHERE project = '$(sql_escape "$project")' ORDER BY end_time DESC LIMIT 1;" "focus_notes_add")
     
     if [[ -z "$session_info" ]]; then
         echo "❌ No sessions found for project: $project"
