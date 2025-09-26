@@ -606,7 +606,7 @@ install_nudge_script() {
     
     local nudge_script_path="$(readlink -f "$nudge_script")"
     
-    # Create focus data directory if it doesn't exist
+    # Create refocus data directory if it doesn't exist
     mkdir -p "$REFOCUS_DATA_PATH"
     
     print_verbose "Installing focus-nudge script to: $target_path"

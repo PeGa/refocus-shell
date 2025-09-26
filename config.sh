@@ -27,7 +27,7 @@ REFOCUS_INSTALL_DIR_DEFAULT="$HOME/.local/bin"
 # Installation directory (can be overridden by environment variable)
 REFOCUS_INSTALL_DIR="${REFOCUS_INSTALL_DIR:-$REFOCUS_INSTALL_DIR_DEFAULT}"
 
-# Focus data directory
+# Refocus data directory
 REFOCUS_DATA_DIR="$HOME/.local/refocus"
 
 # Library directory

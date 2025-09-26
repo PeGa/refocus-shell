@@ -188,7 +188,7 @@ function focus_export() {
         # Generate default filename
         local timestamp
         timestamp=$(date +%Y%m%d_%H%M%S)
-        output_file="focus-export-${timestamp}"
+        output_file="refocus-export-${timestamp}"
     fi
     
     # Check if database exists
