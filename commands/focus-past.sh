@@ -317,7 +317,7 @@ function focus_past_modify() {
         local duration="$current_duration"
         
         # Update only the project name for duration-only sessions
-        sqlite3 "$DB" "UPDATE $SESSIONS_TABLE SET project = '$(sql_escape "$project")' WHERE rowid = $session_id;"
+        execute_sqlite "UPDATE $SESSIONS_TABLE SET project = '$(sql_escape "$project")' WHERE rowid = $session_id;" "focus_past_modify" >/dev/null
         
         echo "✅ Modified session $session_id: $project"
         echo "   Type: Duration-only session"

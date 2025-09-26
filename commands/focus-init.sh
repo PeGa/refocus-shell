@@ -11,6 +11,11 @@ if [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
 else
     source "$SCRIPT_DIR/../lib/focus-db.sh"
     source "$SCRIPT_DIR/../lib/focus-utils.sh"
+
+# Set table names
+STATE_TABLE="${STATE_TABLE:-state}"
+SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
+PROJECTS_TABLE="${PROJECTS_TABLE:-projects}"
 fi
 
 function focus_init() {

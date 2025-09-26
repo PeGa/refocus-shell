@@ -13,10 +13,15 @@
         source "$SCRIPT_DIR/../lib/focus-utils.sh"
     fi
     
-    # Ensure database is migrated to include projects table (only if database exists)
-    if [[ -f "$DB" ]]; then
-        migrate_database
-    fi
+# Set table names
+STATE_TABLE="${STATE_TABLE:-state}"
+SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
+PROJECTS_TABLE="${PROJECTS_TABLE:-projects}"
+
+# Ensure database is migrated to include projects table (only if database exists)
+if [[ -f "$DB" ]]; then
+    migrate_database
+fi
 
 # Function to generate JSON export
 generate_json_export() {

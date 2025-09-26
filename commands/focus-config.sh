@@ -23,6 +23,11 @@ else
     exit 1
 fi
 
+# Set table names
+STATE_TABLE="${STATE_TABLE:-state}"
+SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
+PROJECTS_TABLE="${PROJECTS_TABLE:-projects}"
+
 # Ensure database is migrated to include projects table
 migrate_database
 

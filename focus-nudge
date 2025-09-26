@@ -24,6 +24,11 @@ REFOCUS_CONFIG="$HOME/.local/refocus/config.sh"
 REFOCUS_LOG_DIR="$HOME/.local/refocus"
 REFOCUS_ERROR_LOG="$REFOCUS_LOG_DIR/error.log"
 
+# Set table names
+STATE_TABLE="${STATE_TABLE:-state}"
+SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
+PROJECTS_TABLE="${PROJECTS_TABLE:-projects}"
+
 # Load configuration if it exists
 if [[ -f "$REFOCUS_CONFIG" ]]; then
     source "$REFOCUS_CONFIG"
@@ -107,7 +112,7 @@ check_focus_disabled() {
     fi
     
     local focus_disabled
-    focus_disabled=$(execute_sqlite "SELECT focus_disabled FROM state WHERE id = 1;" "check_focus_disabled")
+    focus_disabled=$(execute_sqlite "SELECT focus_disabled FROM $STATE_TABLE WHERE id = 1;" "check_focus_disabled")
     
     if [[ $? -ne 0 ]]; then
         log_message "error: failed to query focus_disabled status"
@@ -130,7 +135,7 @@ check_nudging_enabled() {
     fi
     
     local nudging_enabled
-    nudging_enabled=$(execute_sqlite "SELECT nudging_enabled FROM state WHERE id = 1;" "check_nudging_enabled")
+    nudging_enabled=$(execute_sqlite "SELECT nudging_enabled FROM $STATE_TABLE WHERE id = 1;" "check_nudging_enabled")
     
     if [[ $? -ne 0 ]]; then
         log_message "error: failed to query nudging_enabled status"
@@ -153,7 +158,7 @@ get_focus_status() {
     fi
     
     local state
-    state=$(execute_sqlite "SELECT active, project, start_time, paused, pause_notes FROM state WHERE id = 1;" "get_focus_status")
+    state=$(execute_sqlite "SELECT active, project, start_time, paused, pause_notes FROM $STATE_TABLE WHERE id = 1;" "get_focus_status")
     
     if [[ $? -ne 0 ]]; then
         log_message "error: failed to query focus status from database"
@@ -232,7 +237,7 @@ validate_database() {
     
     # Check if state record exists
     local record_exists
-    record_exists=$(execute_sqlite "SELECT COUNT(*) FROM state WHERE id = 1;" "validate_database")
+    record_exists=$(execute_sqlite "SELECT COUNT(*) FROM $STATE_TABLE WHERE id = 1;" "validate_database")
     
     if [[ "$record_exists" -eq 0 ]]; then
         log_message "error: no state record found in database"

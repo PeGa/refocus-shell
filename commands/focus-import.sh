@@ -13,8 +13,13 @@
         source "$SCRIPT_DIR/../lib/focus-utils.sh"
     fi
     
-    # Database migration is handled per-import-type
-    # migrate_database
+# Set table names
+STATE_TABLE="${STATE_TABLE:-state}"
+SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
+PROJECTS_TABLE="${PROJECTS_TABLE:-projects}"
+
+# Database migration is handled per-import-type
+# migrate_database
 
 # Function to import from SQLite dump
 import_from_sql() {
@@ -171,7 +176,7 @@ import_from_json() {
             pause_start_time="'$pause_start_time'"
         fi
         
-        execute_sqlite "UPDATE state SET 
+        execute_sqlite "UPDATE $STATE_TABLE SET 
             active = $active,
             project = $project,
             start_time = $start_time,
@@ -244,7 +249,7 @@ import_from_json() {
                 session_date="'$session_date'"
             fi
             
-            execute_sqlite "INSERT INTO sessions (id, project, start_time, end_time, duration_seconds, notes, duration_only, session_date) 
+            execute_sqlite "INSERT INTO $SESSIONS_TABLE (id, project, start_time, end_time, duration_seconds, notes, duration_only, session_date) 
                 VALUES ($id, '$project', $start_time, $end_time, $duration_seconds, $notes, $duration_only, $session_date);" "import_from_json" >/dev/null
         done
     fi
@@ -273,7 +278,7 @@ import_from_json() {
             created_at=$(sql_escape "$created_at")
             updated_at=$(sql_escape "$updated_at")
             
-            execute_sqlite "INSERT OR REPLACE INTO projects (project, description, created_at, updated_at) 
+            execute_sqlite "INSERT OR REPLACE INTO $PROJECTS_TABLE (project, description, created_at, updated_at) 
                 VALUES ('$project_name', '$description', '$created_at', '$updated_at');" "import_from_json" >/dev/null
         done
     fi
