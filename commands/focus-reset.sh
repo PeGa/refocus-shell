@@ -1,97 +1,11 @@
 #!/usr/bin/env bash
-# Refocus Shell - Reset Refocus Shell Subcommand
+# Refocus Shell - Reset Subcommand
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 
-# Source libraries
+# Source bootstrap module
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
-    source "$HOME/.local/refocus/lib/focus-db.sh"
-    source "$HOME/.local/refocus/lib/focus-utils.sh"
-else
-    source "$SCRIPT_DIR/../lib/focus-db.sh"
-    source "$SCRIPT_DIR/../lib/focus-utils.sh"
-fi
-
-# Set table names
-STATE_TABLE="${STATE_TABLE:-state}"
-SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
-
-# Ensure database is migrated to include projects table
-migrate_database
-
-# Function to reset database
-reset_database() {
-    local db_path="$1"
-    
-    echo "Resetting database at: $db_path"
-    
-    # Remove the database file
-    rm -f "$db_path"
-    echo "Database deleted."
-    
-    # Reinitialize the database
-    init_database "$db_path"
-    echo "Database reset complete."
-}
-
-# Function to initialize database
-init_database() {
-    local db_path="$1"
-    
-    echo "Initializing database at: $db_path"
-    
-    # Create directory if it doesn't exist
-    local db_dir=$(dirname "$db_path")
-    mkdir -p "$db_dir"
-    
-    # Create database and tables
-    sqlite3 "$db_path" "
-        CREATE TABLE IF NOT EXISTS state (
-            id INTEGER PRIMARY KEY,
-            active INTEGER DEFAULT 0,
-            project TEXT,
-            start_time TEXT,
-            prompt_content TEXT,
-            prompt_type TEXT DEFAULT 'default',
-            nudging_enabled BOOLEAN DEFAULT 1,
-            focus_disabled BOOLEAN DEFAULT 0,
-            last_focus_off_time TEXT,
-            paused INTEGER DEFAULT 0,
-            pause_notes TEXT,
-            pause_start_time TEXT,
-            previous_elapsed INTEGER DEFAULT 0
-        );
-        
-        CREATE TABLE IF NOT EXISTS sessions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            project TEXT NOT NULL,
-            start_time TEXT NOT NULL,
-            end_time TEXT NOT NULL,
-            duration_seconds INTEGER NOT NULL,
-            notes TEXT
-        );
-        
-        -- Insert initial state
-        INSERT OR IGNORE INTO state (id, active, project, start_time, prompt_content, prompt_type, nudging_enabled, focus_disabled, last_focus_off_time, paused, pause_notes, pause_start_time, previous_elapsed)
-        VALUES (1, 0, NULL, NULL, NULL, 'default', 1, 0, NULL, 0, NULL, NULL, 0);
-        
-        -- Create projects table for storing project descriptions
-        CREATE TABLE IF NOT EXISTS projects (
-            project TEXT PRIMARY KEY,
-            description TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        );
-    "
-    
-    if [[ $? -eq 0 ]]; then
-        echo "Database initialized successfully"
-    else
-        echo "Failed to initialize database"
-        return 1
-    fi
-}
+source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
 
 function focus_reset() {
     echo "This will delete all focus data and reset the database."
@@ -127,7 +41,6 @@ function focus_reset() {
     fi
 }
 
+
 # Main execution
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    focus_reset "$@"
-fi 
+refocus_script_main focus_reset "$@"

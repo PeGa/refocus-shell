@@ -1,22 +1,11 @@
 #!/usr/bin/env bash
-# Refocus Shell - Initialize Database Subcommand
+# Refocus Shell - Init Subcommand
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 
-# Source libraries
+# Source bootstrap module
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
-    source "$HOME/.local/refocus/lib/focus-db.sh"
-    source "$HOME/.local/refocus/lib/focus-utils.sh"
-else
-    source "$SCRIPT_DIR/../lib/focus-db.sh"
-    source "$SCRIPT_DIR/../lib/focus-utils.sh"
-
-# Set table names
-STATE_TABLE="${STATE_TABLE:-state}"
-SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
-PROJECTS_TABLE="${PROJECTS_TABLE:-projects}"
-fi
+source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
 
 function focus_init() {
     local db_path="$1"
@@ -87,26 +76,6 @@ function focus_init() {
     fi
 }
 
+
 # Main execution
-case "${1:-}" in
-    "help"|"--help"|"-h")
-        echo "Refocus Shell - Initialize Database"
-        echo "================================"
-        echo ""
-        echo "Usage: focus init [database_path]"
-        echo ""
-        echo "This command initializes a new refocus shell database with the required"
-        echo "tables and default state. If no database path is provided, it will"
-        echo "use the default location: ~/.local/refocus/refocus.db"
-        echo ""
-        echo "Examples:"
-        echo "  focus init                    # Initialize with default path"
-        echo "  focus init /path/to/db.db     # Initialize with custom path"
-        echo ""
-        echo "Note: This command is typically not needed as the database is"
-        echo "      automatically initialized during installation."
-        ;;
-    *)
-        focus_init "$1"
-        ;;
-esac 
+refocus_script_main focus_init "$@"

@@ -1,22 +1,11 @@
 #!/usr/bin/env bash
-# Refocus Shell - Manage Project Descriptions Subcommand
+# Refocus Shell - Description Subcommand
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 
-# Source libraries
+# Source bootstrap module
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
-    source "$HOME/.local/refocus/lib/focus-db.sh"
-    source "$HOME/.local/refocus/lib/focus-utils.sh"
-else
-    source "$SCRIPT_DIR/../lib/focus-db.sh"
-    source "$SCRIPT_DIR/../lib/focus-utils.sh"
-fi
-
-# Set table names
-STATE_TABLE="${STATE_TABLE:-state}"
-SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
-PROJECTS_TABLE="${PROJECTS_TABLE:-projects}"
+source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
 
 function focus_description_add() {
     local project="$1"
@@ -182,8 +171,6 @@ function focus_description() {
     esac
 }
 
-# Main execution
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    focus_description "$@"
-fi
 
+# Main execution
+refocus_script_main focus_description_add "$@"

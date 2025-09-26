@@ -1,35 +1,11 @@
 #!/usr/bin/env bash
-# Refocus Shell - Configuration Management Subcommand
+# Refocus Shell - Config Subcommand
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 
-# Source libraries
+# Source bootstrap module
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
-    source "$HOME/.local/refocus/lib/focus-db.sh"
-    source "$HOME/.local/refocus/lib/focus-utils.sh"
-else
-    source "$SCRIPT_DIR/../lib/focus-db.sh"
-    source "$SCRIPT_DIR/../lib/focus-utils.sh"
-fi
-
-# Source configuration
-if [[ -f "$SCRIPT_DIR/../config.sh" ]]; then
-    source "$SCRIPT_DIR/../config.sh"
-elif [[ -f "$HOME/.local/refocus/config.sh" ]]; then
-    source "$HOME/.local/refocus/config.sh"
-else
-    echo "❌ Configuration file not found"
-    exit 1
-fi
-
-# Set table names
-STATE_TABLE="${STATE_TABLE:-state}"
-SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
-PROJECTS_TABLE="${PROJECTS_TABLE:-projects}"
-
-# Ensure database is migrated to include projects table
-migrate_database
+source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
 
 function focus_config_show() {
     show_config
@@ -228,7 +204,6 @@ function focus_config() {
     esac
 }
 
+
 # Main execution
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    focus_config "$@"
-fi 
+refocus_script_main focus_config_show "$@"

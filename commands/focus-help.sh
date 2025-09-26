@@ -3,6 +3,10 @@
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 
+# Source bootstrap module
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
+
 function focus_help() {
     echo "Refocus Shell - Time Tracking Tool"
     echo "================================"
@@ -70,6 +74,4 @@ function focus_help() {
 }
 
 # Main execution
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    focus_help "$@"
-fi 
+refocus_script_main focus_help "$@" 
