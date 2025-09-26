@@ -241,6 +241,11 @@ function focus_past_modify() {
     
     # Get current session data
     local current_data
+    # Validate session_id is numeric to prevent injection
+    if ! [[ "$session_id" =~ ^[0-9]+$ ]]; then
+        echo "❌ Invalid session ID: $session_id"
+        exit 1
+    fi
     current_data=$(sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds, duration_only FROM $SESSIONS_TABLE WHERE rowid = $session_id;" 2>/dev/null)
     
     if [[ -z "$current_data" ]]; then
@@ -364,7 +369,13 @@ function focus_past_modify() {
     fi
     
     # Update session (preserve existing notes)
-    sqlite3 "$DB" "UPDATE $SESSIONS_TABLE SET project = '$(sql_escape "$project")', start_time = '$start_time', end_time = '$end_time', duration_seconds = $duration WHERE rowid = $session_id;"
+        # Escape timestamps for SQL
+        local escaped_start_time
+        local escaped_end_time
+        escaped_start_time=$(sql_escape "$start_time")
+        escaped_end_time=$(sql_escape "$end_time")
+        
+        sqlite3 "$DB" "UPDATE $SESSIONS_TABLE SET project = '$(sql_escape "$project")', start_time = '$escaped_start_time', end_time = '$escaped_end_time', duration_seconds = $duration WHERE rowid = $session_id;"
     
     echo "✅ Modified session $session_id: $project"
     echo "   Start: $start_time"
@@ -389,6 +400,11 @@ function focus_past_delete() {
     
     # Get session info for confirmation
     local session_info
+    # Validate session_id is numeric to prevent injection
+    if ! [[ "$session_id" =~ ^[0-9]+$ ]]; then
+        echo "❌ Invalid session ID: $session_id"
+        exit 1
+    fi
     session_info=$(sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds FROM $SESSIONS_TABLE WHERE rowid = $session_id;" 2>/dev/null)
     
     if [[ -z "$session_info" ]]; then
@@ -406,7 +422,12 @@ function focus_past_delete() {
     read -r response
     
     if [[ "$response" =~ ^[Yy]$ ]]; then
-        sqlite3 "$DB" "DELETE FROM $SESSIONS_TABLE WHERE rowid = $session_id;"
+        # Validate session_id is numeric to prevent injection
+    if ! [[ "$session_id" =~ ^[0-9]+$ ]]; then
+        echo "❌ Invalid session ID: $session_id"
+        exit 1
+    fi
+    sqlite3 "$DB" "DELETE FROM $SESSIONS_TABLE WHERE rowid = $session_id;"
         echo "✅ Session deleted"
     else
         echo "Deletion cancelled."
@@ -424,6 +445,11 @@ function focus_past_list() {
     echo
     
     local sessions
+    # Validate limit is numeric to prevent injection
+    if ! [[ "$limit" =~ ^[0-9]+$ ]]; then
+        echo "❌ Invalid limit: $limit"
+        exit 1
+    fi
     sessions=$(sqlite3 "$DB" "SELECT rowid, project, start_time, end_time, duration_seconds, notes, duration_only, session_date FROM $SESSIONS_TABLE WHERE project != '[idle]' ORDER BY rowid DESC LIMIT $limit;" 2>/dev/null)
     
     if [[ -z "$sessions" ]]; then

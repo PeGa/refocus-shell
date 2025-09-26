@@ -63,7 +63,12 @@ function focus_notes_add() {
         # Update the session with new notes
         local escaped_notes
         escaped_notes=$(sql_escape "$session_notes")
-        sqlite3 "$DB" "UPDATE $SESSIONS_TABLE SET notes = '$escaped_notes' WHERE rowid = $session_id;"
+        # Validate session_id is numeric to prevent injection
+    if ! [[ "$session_id" =~ ^[0-9]+$ ]]; then
+        echo "❌ Invalid session ID: $session_id"
+        exit 1
+    fi
+    sqlite3 "$DB" "UPDATE $SESSIONS_TABLE SET notes = '$escaped_notes' WHERE rowid = $session_id;"
         echo "✅ Notes added to session $session_id"
     else
         echo "No notes added."

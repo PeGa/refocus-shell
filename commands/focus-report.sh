@@ -88,7 +88,13 @@ function focus_generate_report() {
     
     # Get sessions in the specified period (including duration-only sessions)
     local sessions
-    sessions=$(sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds, notes, duration_only, session_date FROM $SESSIONS_TABLE WHERE project != '[idle]' AND (end_time >= '$start_time' AND end_time <= '$end_time') OR (duration_only = 1 AND session_date >= '$start_time' AND session_date <= '$end_time') ORDER BY COALESCE(end_time, session_date) DESC;" 2>/dev/null)
+    # Escape timestamps for SQL
+    local escaped_start_time
+    local escaped_end_time
+    escaped_start_time=$(sql_escape "$start_time")
+    escaped_end_time=$(sql_escape "$end_time")
+    
+    sessions=$(sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds, notes, duration_only, session_date FROM $SESSIONS_TABLE WHERE project != '[idle]' AND (end_time >= '$escaped_start_time' AND end_time <= '$escaped_end_time') OR (duration_only = 1 AND session_date >= '$escaped_start_time' AND session_date <= '$escaped_end_time') ORDER BY COALESCE(end_time, session_date) DESC;" 2>/dev/null)
     
     if [[ -z "$sessions" ]]; then
         echo "No focus sessions found in the specified period."

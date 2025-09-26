@@ -60,7 +60,11 @@ count_sessions_for_project() {
 get_sessions_in_range() {
     local start_time="$1"
     local end_time="$2"
-    sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE WHERE end_time >= '$start_time' AND end_time <= '$end_time' ORDER BY start_time;" 2>/dev/null
+    local escaped_start_time
+    local escaped_end_time
+    escaped_start_time=$(sql_escape "$start_time")
+    escaped_end_time=$(sql_escape "$end_time")
+    sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE WHERE end_time >= '$escaped_start_time' AND end_time <= '$escaped_end_time' ORDER BY start_time;" 2>/dev/null
 }
 
 # Function to get current focus state
@@ -91,7 +95,9 @@ get_prompt_content() {
 # Function to get prompt content by type
 get_prompt_content_by_type() {
     local prompt_type="$1"
-    sqlite3 "$DB" "SELECT prompt_content FROM $STATE_TABLE WHERE prompt_type = '$prompt_type' AND id = 1;" 2>/dev/null
+    local escaped_prompt_type
+    escaped_prompt_type=$(sql_escape "$prompt_type")
+    sqlite3 "$DB" "SELECT prompt_content FROM $STATE_TABLE WHERE prompt_type = '$escaped_prompt_type' AND id = 1;" 2>/dev/null
 }
 
 # Function to update focus state
@@ -113,12 +119,18 @@ update_focus_state() {
     local escaped_pause_notes
     escaped_pause_notes=$(sql_escape "$pause_notes")
     
+    # Escape timestamps for SQL
+    local escaped_start_time
+    local escaped_last_focus_off_time
+    escaped_start_time=$(sql_escape "$start_time")
+    escaped_last_focus_off_time=$(sql_escape "$last_focus_off_time")
+    
     # Update the state table with pause information
     sqlite3 "$DB" "UPDATE $STATE_TABLE SET 
         active = $active, 
         project = '$escaped_project', 
-        start_time = '$start_time', 
-        last_focus_off_time = '$last_focus_off_time',
+        start_time = '$escaped_start_time', 
+        last_focus_off_time = '$escaped_last_focus_off_time',
         paused = ${paused:-0},
         pause_notes = '$escaped_pause_notes',
         pause_start_time = '$pause_start_time',
@@ -133,7 +145,9 @@ update_prompt_content() {
     
     local escaped_prompt_content
     escaped_prompt_content=$(sql_escape "$prompt_content")
-    sqlite3 "$DB" "UPDATE $STATE_TABLE SET prompt_content = '$escaped_prompt_content', prompt_type = '$prompt_type' WHERE id = 1;"
+    local escaped_prompt_type
+    escaped_prompt_type=$(sql_escape "$prompt_type")
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET prompt_content = '$escaped_prompt_content', prompt_type = '$escaped_prompt_type' WHERE id = 1;"
 }
 
 # Function to insert a session
@@ -173,8 +187,12 @@ update_session() {
     local duration="$4"
     
     local escaped_project
+    local escaped_start_time
+    local escaped_end_time
     escaped_project=$(sql_escape "$project")
-    sqlite3 "$DB" "UPDATE $SESSIONS_TABLE SET start_time = '$start_time', end_time = '$end_time', duration_seconds = $duration WHERE project = '$escaped_project';"
+    escaped_start_time=$(sql_escape "$start_time")
+    escaped_end_time=$(sql_escape "$end_time")
+    sqlite3 "$DB" "UPDATE $SESSIONS_TABLE SET start_time = '$escaped_start_time', end_time = '$escaped_end_time', duration_seconds = $duration WHERE project = '$escaped_project';"
 }
 
 # Function to delete sessions for a project
@@ -301,7 +319,13 @@ update_state_record() {
         escaped_prompt_content="NULL"
     fi
     
-    sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = $active, project = $escaped_project, start_time = '$start_time', prompt_content = $escaped_prompt_content, prompt_type = '$prompt_type', nudging_enabled = $nudging_enabled, focus_disabled = $focus_disabled WHERE id = 1;"
+    # Escape timestamps for SQL
+    local escaped_start_time
+    local escaped_prompt_type
+    escaped_start_time=$(sql_escape "$start_time")
+    escaped_prompt_type=$(sql_escape "$prompt_type")
+    
+    sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = $active, project = $escaped_project, start_time = '$escaped_start_time', prompt_content = $escaped_prompt_content, prompt_type = '$escaped_prompt_type', nudging_enabled = $nudging_enabled, focus_disabled = $focus_disabled WHERE id = 1;"
 }
 
 # Function to clear all sessions
