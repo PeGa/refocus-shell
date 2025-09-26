@@ -16,23 +16,24 @@ focus() {
     local subcommand="$1"
     shift
     
-    # Get the focus script path
-    local focus_script
-    if [[ -f "$HOME/.local/bin/focus" ]]; then
-        focus_script="$HOME/.local/bin/focus"
-    elif [[ -f "/usr/local/bin/focus" ]]; then
-        focus_script="/usr/local/bin/focus"
-    elif [[ -f "/usr/bin/focus" ]]; then
-        focus_script="/usr/bin/focus"
-    elif [[ -f "$HOME/.local/refocus/focus" ]]; then
-        focus_script="$HOME/.local/refocus/focus"
+    # Get the command directory
+    local command_dir
+    if [[ -d "$HOME/.local/refocus/commands" ]]; then
+        command_dir="$HOME/.local/refocus/commands"
     else
         echo "❌ Refocus shell not found. Please install it first."
         return 1
     fi
     
-    # Execute the focus command
-    "$focus_script" "$subcommand" "$@"
+    # Execute the subcommand directly
+    local command_file="$command_dir/focus-$subcommand.sh"
+    if [[ -f "$command_file" ]]; then
+        "$command_file" "$@"
+    else
+        echo "❌ Unknown subcommand: $subcommand"
+        echo "Run 'focus help' for available commands"
+        return 1
+    fi
     
     # Update prompt immediately after command execution
     if [[ "$subcommand" == "on" ]] || [[ "$subcommand" == "off" ]]; then

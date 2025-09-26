@@ -30,16 +30,7 @@ execute_subcommand() {
     local command_file="$command_dir/focus-$subcommand.sh"
     
     if [[ -f "$command_file" ]]; then
-        # Source the libraries first
-        if [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
-            source "$HOME/.local/refocus/lib/focus-db.sh"
-            source "$HOME/.local/refocus/lib/focus-utils.sh"
-        else
-            source "$SCRIPT_DIR/lib/focus-db.sh"
-            source "$SCRIPT_DIR/lib/focus-utils.sh"
-        fi
-        
-        # Execute the subcommand
+        # Execute the subcommand (it will handle its own bootstrap)
         "$command_file" "$@"
     else
         echo "❌ Unknown subcommand: $subcommand"

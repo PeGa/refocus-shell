@@ -522,4 +522,4 @@ function focus_past() {
 
 
 # Main execution
-refocus_script_main focus_past_add "$@"
+refocus_script_main focus_past "$@"

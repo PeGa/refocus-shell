@@ -173,4 +173,4 @@ function focus_description() {
 
 
 # Main execution
-refocus_script_main focus_description_add "$@"
+refocus_script_main focus_description "$@"

@@ -61,9 +61,8 @@ refocus_script_main() {
     local command_function="$1"
     shift
     
-    if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-        refocus_command_main "$command_function" "$@"
-    fi
+    # Always execute the command, whether called directly or via function
+    refocus_command_main "$command_function" "$@"
 }
 
 # Function to validate required dependencies

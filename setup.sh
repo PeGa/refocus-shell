@@ -532,6 +532,21 @@ install_libraries() {
         chmod +x "$lib_dir/focus-utils.sh"
     fi
     
+    if [[ -f "$source_lib_dir/focus-bootstrap.sh" ]]; then
+        cp "$source_lib_dir/focus-bootstrap.sh" "$lib_dir/"
+        chmod +x "$lib_dir/focus-bootstrap.sh"
+    fi
+    
+    if [[ -f "$source_lib_dir/focus-validation.sh" ]]; then
+        cp "$source_lib_dir/focus-validation.sh" "$lib_dir/"
+        chmod +x "$lib_dir/focus-validation.sh"
+    fi
+    
+    if [[ -f "$source_lib_dir/focus-output.sh" ]]; then
+        cp "$source_lib_dir/focus-output.sh" "$lib_dir/"
+        chmod +x "$lib_dir/focus-output.sh"
+    fi
+    
     print_verbose "Libraries installed successfully to $lib_dir"
 }
 

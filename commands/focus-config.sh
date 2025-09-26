@@ -8,7 +8,23 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
 
 function focus_config_show() {
-    show_config
+    echo "Refocus Shell Configuration"
+    echo "=========================="
+    echo
+    echo "Database: $DB"
+    echo "Data Directory: $REFOCUS_DATA_PATH"
+    echo "Log Directory: $REFOCUS_LOG_DIR"
+    echo "Error Log: $REFOCUS_ERROR_LOG"
+    echo
+    echo "Table Names:"
+    echo "  State: $STATE_TABLE"
+    echo "  Sessions: $SESSIONS_TABLE"
+    echo "  Projects: $PROJECTS_TABLE"
+    echo
+    echo "Environment Variables:"
+    echo "  REFOCUS_DATA_PATH: ${REFOCUS_DATA_PATH:-not set}"
+    echo "  REFOCUS_LOG_DIR: ${REFOCUS_LOG_DIR:-not set}"
+    echo "  REFOCUS_ERROR_LOG: ${REFOCUS_ERROR_LOG:-not set}"
 }
 
 function focus_config_validate() {
@@ -206,4 +222,4 @@ function focus_config() {
 
 
 # Main execution
-refocus_script_main focus_config_show "$@"
+refocus_script_main focus_config "$@"
