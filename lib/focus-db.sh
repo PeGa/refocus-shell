@@ -376,6 +376,7 @@ migrate_database() {
     # Check if sessions table has notes column
     local has_notes_column
     has_notes_column=$(sqlite3 "$DB" "PRAGMA table_info($SESSIONS_TABLE);" 2>/dev/null | grep -c "notes" || echo "0")
+    has_notes_column=$(echo "$has_notes_column" | tr -d '\n')
     
     if [[ "$has_notes_column" -eq 0 ]]; then
         echo "Migrating database: adding notes column to sessions table..."
@@ -385,6 +386,7 @@ migrate_database() {
     # Check if state table has pause-related columns
     local has_pause_columns
     has_pause_columns=$(sqlite3 "$DB" "PRAGMA table_info($STATE_TABLE);" 2>/dev/null | grep -c -E "(paused|pause_notes|pause_start_time|previous_elapsed)" || echo "0")
+    has_pause_columns=$(echo "$has_pause_columns" | tr -d '\n')
     
     if [[ "$has_pause_columns" -lt 4 ]]; then
         echo "Migrating database: adding pause-related columns to state table..."
@@ -392,6 +394,7 @@ migrate_database() {
         # Add paused column
         local has_paused
         has_paused=$(sqlite3 "$DB" "PRAGMA table_info($STATE_TABLE);" 2>/dev/null | grep -c "paused" || echo "0")
+        has_paused=$(echo "$has_paused" | tr -d '\n')
         if [[ "$has_paused" -eq 0 ]]; then
             sqlite3 "$DB" "ALTER TABLE $STATE_TABLE ADD COLUMN paused INTEGER DEFAULT 0;"
         fi
@@ -399,6 +402,7 @@ migrate_database() {
         # Add pause_notes column
         local has_pause_notes
         has_pause_notes=$(sqlite3 "$DB" "PRAGMA table_info($STATE_TABLE);" 2>/dev/null | grep -c "pause_notes" || echo "0")
+        has_pause_notes=$(echo "$has_pause_notes" | tr -d '\n')
         if [[ "$has_pause_notes" -eq 0 ]]; then
             sqlite3 "$DB" "ALTER TABLE $STATE_TABLE ADD COLUMN pause_notes TEXT;"
         fi
@@ -406,6 +410,7 @@ migrate_database() {
         # Add pause_start_time column
         local has_pause_start_time
         has_pause_start_time=$(sqlite3 "$DB" "PRAGMA table_info($STATE_TABLE);" 2>/dev/null | grep -c "pause_start_time" || echo "0")
+        has_pause_start_time=$(echo "$has_pause_start_time" | tr -d '\n')
         if [[ "$has_pause_start_time" -eq 0 ]]; then
             sqlite3 "$DB" "ALTER TABLE $STATE_TABLE ADD COLUMN pause_start_time TEXT;"
         fi
@@ -413,6 +418,7 @@ migrate_database() {
         # Add previous_elapsed column
         local has_previous_elapsed
         has_previous_elapsed=$(sqlite3 "$DB" "PRAGMA table_info($STATE_TABLE);" 2>/dev/null | grep -c "previous_elapsed" || echo "0")
+        has_previous_elapsed=$(echo "$has_previous_elapsed" | tr -d '\n')
         if [[ "$has_previous_elapsed" -eq 0 ]]; then
             sqlite3 "$DB" "ALTER TABLE $STATE_TABLE ADD COLUMN previous_elapsed INTEGER DEFAULT 0;"
         fi

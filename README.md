@@ -454,18 +454,40 @@ If nudges don't appear:
 
 ### Data Import/Export
 
-Backup and restore your focus data:
+Backup and restore your focus data with enhanced JSON support:
 
 ```bash
-# Export all data to SQLite dump
-focus export backup.sql
-
-# Import data from SQLite dump
-focus import backup.sql
+# Export all data (generates both SQLite dump and JSON)
+focus export backup
+# Creates: backup.sql and backup.json
 
 # Export with timestamped filename
-focus export  # Creates focus-export-20250802_143022.sql
+focus export  # Creates focus-export-20250802_143022.sql and .json
+
+# Import from SQLite dump (backward compatible)
+focus import backup.sql
+
+# Import from JSON export (new format)
+focus import backup.json
 ```
+
+**Export Formats:**
+- **SQLite Dump** (`.sql`): Complete database dump for backward compatibility
+- **JSON Export** (`.json`): Structured, human-readable format with schema versioning
+
+**JSON Export Benefits:**
+- **Human-readable**: Easy to inspect and edit
+- **Version control friendly**: Clean diffs for tracking changes
+- **Cross-platform**: Works across different systems and tools
+- **Schema versioned**: Forward/backward compatibility support
+- **Portable**: No SQLite dependency for external tooling
+
+**Import Features:**
+- **Auto-detection**: Automatically detects file format (.sql or .json)
+- **Schema validation**: Validates JSON structure and version compatibility
+- **Error handling**: Graceful failure with clear error messages
+- **Backup creation**: Automatic backup before import
+- **Data integrity**: Preserves all session types (live and duration-only)
 
 ### Configuration
 

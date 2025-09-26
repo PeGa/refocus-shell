@@ -21,8 +21,8 @@ function focus_help() {
     echo "  focus init             - Initialize database"
     echo
     echo "Data Commands:"
-        echo "  focus export [file]    - Export focus data to SQLite dump"
-    echo "  focus import <file>    - Import focus data from SQLite dump"
+    echo "  focus export [file]    - Export focus data (generates both SQLite dump and JSON)"
+    echo "  focus import <file>    - Import focus data from SQLite dump or JSON file"
     echo
     echo "Past Sessions:"
     echo "  focus past add <project> <start> <end>  - Add past session (will ask for session notes)"

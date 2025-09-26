@@ -20,9 +20,14 @@ focus() {
     local focus_script
     if [[ -f "$HOME/.local/bin/focus" ]]; then
         focus_script="$HOME/.local/bin/focus"
+    elif [[ -f "/usr/local/bin/focus" ]]; then
+        focus_script="/usr/local/bin/focus"
+    elif [[ -f "/usr/bin/focus" ]]; then
+        focus_script="/usr/bin/focus"
     elif [[ -f "$HOME/.local/refocus/focus" ]]; then
         focus_script="$HOME/.local/refocus/focus"
     elif [[ -f "$HOME/dev/personal/refocus-shell/focus" ]]; then
+        # Development path - only for development use
         focus_script="$HOME/dev/personal/refocus-shell/focus"
     else
         echo "❌ Refocus shell not found. Please install it first."

@@ -1,2 +1,4 @@
 *.json
+*.sql
+*.db
 *report*.md
