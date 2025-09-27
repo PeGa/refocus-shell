@@ -17,7 +17,7 @@ function focus_off() {
 
     if [[ "$active" -ne 1 ]] && [[ "$paused" -ne 1 ]]; then
         echo "No active or paused focus session."
-        exit 1
+        exit 7  # State error - no active session
     fi
 
     local duration

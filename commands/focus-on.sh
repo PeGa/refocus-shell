@@ -16,14 +16,14 @@ function focus_on() {
     if [[ -n "$project" ]]; then
         project=$(sanitize_project_name "$project")
         if ! validate_project_name "$project"; then
-            exit 1
+            exit 2  # Invalid arguments
         fi
     fi
 
     # Check if refocus shell is disabled
     if is_focus_disabled; then
         echo "❌ Refocus shell is disabled. Run 'focus enable' first."
-        exit 1
+        exit 7  # State error - disabled
     fi
 
     # Check if already active
@@ -33,7 +33,7 @@ function focus_on() {
         IFS='|' read -r active current_project existing_start_time paused pause_notes pause_start_time previous_elapsed <<< "$state"
         if [[ "$active" -eq 1 ]]; then
             echo "Focus already active. Run 'focus off' before switching."
-            exit 1
+            exit 7  # State error - already active
         fi
         
         # Check if there's a paused session
@@ -47,7 +47,7 @@ function focus_on() {
             echo ""
             echo "💡 Use 'focus continue' to resume the paused session"
             echo "   Use 'focus off' to end the paused session permanently"
-            exit 1
+            exit 7  # State error - session paused
         fi
     fi
 
@@ -93,14 +93,14 @@ function focus_on() {
             if [[ "$response" =~ ^[Nn]$ ]]; then
                             echo "Focus session aborted — no project specified."
             echo "Run 'focus on \"project\"' to start a focus session."
-                exit 1
+                exit 2  # Invalid arguments - no project specified
             fi
             
             project="$last_project"
         else
             echo "No previous project found."
             echo "Run 'focus on \"project\"' to start a focus session."
-            exit 1
+            exit 2  # Invalid arguments - no project specified
         fi
     fi
 

@@ -74,13 +74,13 @@ function focus_past_add() {
         echo "  focus past add coding --duration 90m --date yesterday --notes 'retrospective'"
         echo ""
         echo "💡 Tip: Use YYYY/MM/DD-HH:MM format for easy, quote-free dates!"
-        exit 1
+        exit 2  # Invalid arguments
     fi
     
     # Sanitize and validate project name
     project=$(sanitize_project_name "$project")
     if ! validate_project_name "$project"; then
-        exit 1
+        exit 2  # Invalid arguments
     fi
     
     if [[ "$duration_mode" == "true" ]]; then
@@ -90,7 +90,7 @@ function focus_past_add() {
             echo "Usage: focus past add <project> --duration <time> --date <date> [--notes <notes>]"
             echo ""
             echo "Duration formats: 1h30m, 2h, 45m, 90m, 1.5h, 0.5h"
-            exit 1
+            exit 2  # Invalid arguments
         fi
         
         if [[ -z "$session_date" ]]; then
@@ -98,7 +98,7 @@ function focus_past_add() {
             echo "Usage: focus past add <project> --duration <time> --date <date> [--notes <notes>]"
             echo ""
             echo "Date formats: 2025/07/30, yesterday, 2 days ago, etc."
-            exit 1
+            exit 2  # Invalid arguments
         fi
         
         # Parse duration (e.g., "1h30m" -> 5400 seconds)
@@ -107,7 +107,7 @@ function focus_past_add() {
         if [[ $? -ne 0 ]]; then
             echo "❌ Invalid duration format: $duration"
             echo "Supported formats: 1h30m, 2h, 45m, 90m, 1.5h, 0.5h"
-            exit 1
+            exit 2  # Invalid arguments
         fi
         
         # Validate and convert session date
@@ -115,7 +115,7 @@ function focus_past_add() {
         converted_date=$(validate_timestamp "$session_date" "Session date")
         if [[ $? -ne 0 ]]; then
             echo "$converted_date"
-            exit 1
+            exit 2  # Invalid arguments
         fi
         
         # Extract just the date part (YYYY-MM-DD)
@@ -151,7 +151,7 @@ function focus_past_add() {
             echo "⚠️  Note: Times should be absolute timestamps, not durations."
             echo "   Use '7 hours ago' not '7h' to specify relative times."
             echo "   Example: focus past add meeting '7 hours ago' 'now'"
-            exit 1
+            exit 2  # Invalid arguments
         fi
         
         if [[ -z "$end_time" ]]; then
@@ -164,7 +164,7 @@ function focus_past_add() {
             echo "⚠️  Note: Times should be absolute timestamps, not durations."
             echo "   Use '7 hours ago' not '7h' to specify relative times."
             echo "   Example: focus past add meeting '7 hours ago' 'now'"
-            exit 1
+            exit 2  # Invalid arguments
         fi
         
         # Convert timestamps to ISO format
@@ -172,19 +172,19 @@ function focus_past_add() {
         converted_start_time=$(validate_timestamp "$start_time" "Start time")
         if [[ $? -ne 0 ]]; then
             echo "$converted_start_time"
-            exit 1
+            exit 2  # Invalid arguments
         fi
         
         local converted_end_time
         converted_end_time=$(validate_timestamp "$end_time" "End time")
         if [[ $? -ne 0 ]]; then
             echo "$converted_end_time"
-            exit 1
+            exit 2  # Invalid arguments
         fi
         
         # Validate time range
         if ! validate_time_range "$converted_start_time" "$converted_end_time"; then
-            exit 1
+            exit 2  # Invalid arguments
         fi
         
         # Calculate duration
@@ -226,7 +226,7 @@ function focus_past_modify() {
         echo "  focus past modify 1 'new-project'"
         echo "  focus past modify 1 'new-project' '2025/07/30-14:00' '2025/07/30-16:00'"
         echo "  focus past modify 1 '' '14:30' '15:30'  # Change only times"
-        exit 1
+        exit 2  # Invalid arguments
     fi
     
     # Get current session data
@@ -235,14 +235,14 @@ function focus_past_modify() {
     if ! [[ "$session_id" =~ ^[0-9]+$ ]]; then
         echo "❌ Invalid session ID: $session_id"
         show_error_info
-        exit 1
+        exit 2  # Invalid arguments
     fi
     current_data=$(execute_sqlite "SELECT project, start_time, end_time, duration_seconds, duration_only FROM $SESSIONS_TABLE WHERE rowid = $session_id;" "focus_past_modify")
     
     if [[ -z "$current_data" ]]; then
         echo "❌ Session not found with ID: $session_id"
         show_error_info
-        exit 1
+        exit 1  # General error - session not found
     fi
     
     IFS='|' read -r current_project current_start current_end current_duration current_duration_only <<< "$current_data"
@@ -295,12 +295,12 @@ function focus_past_modify() {
         if [[ -n "$start_time" ]] && [[ "$start_time" != "$current_start" ]]; then
             echo "❌ Cannot modify start time for duration-only sessions."
             echo "Duration-only sessions only support project name changes."
-            exit 1
+            exit 2  # Invalid arguments
         fi
         if [[ -n "$end_time" ]] && [[ "$end_time" != "$current_end" ]]; then
             echo "❌ Cannot modify end time for duration-only sessions."
             echo "Duration-only sessions only support project name changes."
-            exit 1
+            exit 2  # Invalid arguments
         fi
         
         # For duration-only sessions, preserve the original duration
@@ -319,7 +319,7 @@ function focus_past_modify() {
     if [[ "$project" != "$current_project" ]]; then
         project=$(sanitize_project_name "$project")
         if ! validate_project_name "$project"; then
-            exit 1
+            exit 2  # Invalid arguments
         fi
     fi
     
@@ -329,7 +329,7 @@ function focus_past_modify() {
         converted_start_time=$(validate_timestamp "$start_time" "Start time")
         if [[ $? -ne 0 ]]; then
             echo "$converted_start_time"
-            exit 1
+            exit 2  # Invalid arguments
         fi
         start_time="$converted_start_time"
     fi
@@ -339,7 +339,7 @@ function focus_past_modify() {
         converted_end_time=$(validate_timestamp "$end_time" "End time")
         if [[ $? -ne 0 ]]; then
             echo "$converted_end_time"
-            exit 1
+            exit 2  # Invalid arguments
         fi
         end_time="$converted_end_time"
     fi
@@ -347,7 +347,7 @@ function focus_past_modify() {
     # Validate time range if times were changed
     if [[ "$start_time" != "$current_start" ]] || [[ "$end_time" != "$current_end" ]]; then
         if ! validate_time_range "$start_time" "$end_time"; then
-            exit 1
+            exit 2  # Invalid arguments
         fi
     fi
     
@@ -382,12 +382,12 @@ function focus_past_delete() {
         echo "❌ Session ID is required."
         echo "Usage: focus past delete <session_id>"
         echo "Use 'focus past list' to see session IDs"
-        exit 1
+        exit 2  # Invalid arguments
     fi
     
     # Validate session ID exists
     if ! validate_session_id "$session_id"; then
-        exit 1
+        exit 2  # Invalid arguments
     fi
     
     # Get session info for confirmation
@@ -396,14 +396,14 @@ function focus_past_delete() {
     if ! [[ "$session_id" =~ ^[0-9]+$ ]]; then
         echo "❌ Invalid session ID: $session_id"
         show_error_info
-        exit 1
+        exit 2  # Invalid arguments
     fi
     session_info=$(execute_sqlite "SELECT project, start_time, end_time, duration_seconds FROM $SESSIONS_TABLE WHERE rowid = $session_id;" "focus_past_delete")
     
     if [[ -z "$session_info" ]]; then
         echo "❌ Session not found with ID: $session_id"
         show_error_info
-        exit 1
+        exit 1  # General error - session not found
     fi
     
     IFS='|' read -r project start_time end_time duration <<< "$session_info"
@@ -420,7 +420,7 @@ function focus_past_delete() {
     if ! [[ "$session_id" =~ ^[0-9]+$ ]]; then
         echo "❌ Invalid session ID: $session_id"
         show_error_info
-        exit 1
+        exit 2  # Invalid arguments
     fi
     execute_sqlite "DELETE FROM $SESSIONS_TABLE WHERE rowid = $session_id;" "focus_past_delete" >/dev/null
         echo "✅ Session deleted"
@@ -439,7 +439,7 @@ function focus_past_list() {
                 if [[ $# -lt 2 ]]; then
                     echo "❌ Missing value for option: $1"
                     echo "Usage: focus past list [-n|--number <number>] [<number>]"
-                    exit 1
+                    exit 2  # Invalid arguments
                 fi
                 limit="$2"
                 shift 2
@@ -452,7 +452,7 @@ function focus_past_list() {
                 echo "  focus past list 30"
                 echo "  focus past list -n 30"
                 echo "  focus past list --number 30"
-                exit 1
+                exit 2  # Invalid arguments
                 ;;
             *)
                 # If it's a number, use it as the limit
@@ -462,7 +462,7 @@ function focus_past_list() {
                     echo "❌ Invalid argument: $1"
                     echo "Usage: focus past list [-n|--number <number>] [<number>]"
                     echo "The number argument must be a positive integer."
-                    exit 1
+                    exit 2  # Invalid arguments
                 fi
                 shift
                 ;;
@@ -470,7 +470,7 @@ function focus_past_list() {
     done
     
     if ! validate_numeric_input "$limit" "Limit"; then
-        exit 1
+        exit 2  # Invalid arguments
     fi
     
     echo "📋 Recent focus sessions (last $limit):"
@@ -481,7 +481,7 @@ function focus_past_list() {
     if ! [[ "$limit" =~ ^[0-9]+$ ]]; then
         echo "❌ Invalid limit: $limit"
         show_error_info
-        exit 1
+        exit 2  # Invalid arguments
     fi
     sessions=$(execute_sqlite "SELECT rowid, project, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE WHERE project != '[idle]' ORDER BY rowid DESC LIMIT $limit;" "focus_past_list")
     
@@ -544,7 +544,7 @@ function focus_past() {
             echo "  focus past list"
             echo "  focus past list 30"
             echo "  focus past list -n 30"
-            exit 1
+            exit 2  # Invalid arguments
             ;;
     esac
 }

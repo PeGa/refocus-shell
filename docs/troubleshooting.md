@@ -2,6 +2,52 @@
 
 This guide helps you diagnose and fix common issues with Refocus Shell.
 
+## Exit Codes
+
+Refocus Shell uses standardized exit codes to help with script integration and error diagnosis:
+
+| Exit Code | Meaning | Common Causes |
+|-----------|---------|---------------|
+| `0` | Success | Command completed successfully |
+| `1` | General Error | Unspecified error, session not found, etc. |
+| `2` | Invalid Arguments | Missing required arguments, invalid format, etc. |
+| `3` | Database Error | Database connection failed, SQL errors, etc. |
+| `4` | Permission Error | Insufficient file permissions, etc. |
+| `5` | File System Error | File not found, disk space issues, etc. |
+| `6` | Configuration Error | Invalid config, missing config files, etc. |
+| `7` | State Error | Invalid application state (already active, disabled, etc.) |
+
+### Using Exit Codes in Scripts
+
+```bash
+#!/bin/bash
+focus on "my-project"
+case $? in
+    0) echo "Focus started successfully" ;;
+    2) echo "Invalid arguments - check usage" ;;
+    7) echo "Focus already active or disabled" ;;
+    *) echo "Unexpected error occurred" ;;
+esac
+```
+
+### Common Exit Code Examples
+
+```bash
+# Success
+focus on "coding"          # Exit code: 0
+
+# Invalid arguments
+focus on                   # Exit code: 2 (missing project)
+focus past add             # Exit code: 2 (missing arguments)
+
+# State errors
+focus off                  # Exit code: 7 (no active session)
+focus on "test"            # Exit code: 7 (already active)
+
+# General errors
+focus past delete 999      # Exit code: 1 (session not found)
+```
+
 ## Installation Issues
 
 ### Command Not Found
