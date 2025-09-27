@@ -12,6 +12,9 @@ PROJECTS_TABLE="${PROJECTS_TABLE:-projects}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
 
+# Source centralized validation functions
+source "$SCRIPT_DIR/../lib/focus-validation-centralized.sh"
+
 function focus_config_show() {
     echo "Refocus Shell Configuration"
     echo "=========================="
@@ -41,68 +44,68 @@ function focus_config_validate() {
     
     # Validate database path
     if [[ -z "$REFOCUS_DB_PATH" ]]; then
-        echo "❌ REFOCUS_DB_PATH is not set"
+        format_error_message "REFOCUS_DB_PATH is not set"
         ((errors++))
     else
-        echo "✅ REFOCUS_DB_PATH: $REFOCUS_DB_PATH"
+        format_success_message "REFOCUS_DB_PATH: $REFOCUS_DB_PATH"
     fi
     
     # Validate installation directory
     if [[ -z "$REFOCUS_INSTALL_DIR" ]]; then
-        echo "❌ REFOCUS_INSTALL_DIR is not set"
+        format_error_message "REFOCUS_INSTALL_DIR is not set"
         ((errors++))
     else
-        echo "✅ REFOCUS_INSTALL_DIR: $REFOCUS_INSTALL_DIR"
+        format_success_message "REFOCUS_INSTALL_DIR: $REFOCUS_INSTALL_DIR"
     fi
     
-    # Validate numeric values
-    if ! [[ "$REFOCUS_IDLE_THRESHOLD" =~ ^[0-9]+$ ]]; then
-        echo "❌ REFOCUS_IDLE_THRESHOLD must be a positive integer (current: $REFOCUS_IDLE_THRESHOLD)"
+    # Validate numeric values using centralized function
+    if ! validate_numeric_input_standardized "$REFOCUS_IDLE_THRESHOLD" "REFOCUS_IDLE_THRESHOLD" 1 3600; then
+        format_error_message "REFOCUS_IDLE_THRESHOLD validation failed" "Current value: $REFOCUS_IDLE_THRESHOLD"
         ((errors++))
     else
-        echo "✅ REFOCUS_IDLE_THRESHOLD: ${REFOCUS_IDLE_THRESHOLD}s"
+        format_success_message "REFOCUS_IDLE_THRESHOLD: ${REFOCUS_IDLE_THRESHOLD}s"
     fi
     
-    if ! [[ "$REFOCUS_MAX_PROJECT_LENGTH" =~ ^[0-9]+$ ]]; then
-        echo "❌ REFOCUS_MAX_PROJECT_LENGTH must be a positive integer (current: $REFOCUS_MAX_PROJECT_LENGTH)"
+    if ! validate_numeric_input_standardized "$REFOCUS_MAX_PROJECT_LENGTH" "REFOCUS_MAX_PROJECT_LENGTH" 1 1000; then
+        format_error_message "REFOCUS_MAX_PROJECT_LENGTH validation failed" "Current value: $REFOCUS_MAX_PROJECT_LENGTH"
         ((errors++))
     else
-        echo "✅ REFOCUS_MAX_PROJECT_LENGTH: ${REFOCUS_MAX_PROJECT_LENGTH} chars"
+        format_success_message "REFOCUS_MAX_PROJECT_LENGTH: ${REFOCUS_MAX_PROJECT_LENGTH} chars"
     fi
     
-    if ! [[ "$REFOCUS_NUDGE_INTERVAL" =~ ^[0-9]+$ ]]; then
-        echo "❌ REFOCUS_NUDGE_INTERVAL must be a positive integer (current: $REFOCUS_NUDGE_INTERVAL)"
+    if ! validate_numeric_input_standardized "$REFOCUS_NUDGE_INTERVAL" "REFOCUS_NUDGE_INTERVAL" 1 1440; then
+        format_error_message "REFOCUS_NUDGE_INTERVAL validation failed" "Current value: $REFOCUS_NUDGE_INTERVAL"
         ((errors++))
     else
-        echo "✅ REFOCUS_NUDGE_INTERVAL: ${REFOCUS_NUDGE_INTERVAL} minutes"
+        format_success_message "REFOCUS_NUDGE_INTERVAL: ${REFOCUS_NUDGE_INTERVAL} minutes"
     fi
     
-    if ! [[ "$REFOCUS_REPORT_LIMIT" =~ ^[0-9]+$ ]]; then
-        echo "❌ REFOCUS_REPORT_LIMIT must be a positive integer (current: $REFOCUS_REPORT_LIMIT)"
+    if ! validate_numeric_input_standardized "$REFOCUS_REPORT_LIMIT" "REFOCUS_REPORT_LIMIT" 1 10000; then
+        format_error_message "REFOCUS_REPORT_LIMIT validation failed" "Current value: $REFOCUS_REPORT_LIMIT"
         ((errors++))
     else
-        echo "✅ REFOCUS_REPORT_LIMIT: $REFOCUS_REPORT_LIMIT"
+        format_success_message "REFOCUS_REPORT_LIMIT: $REFOCUS_REPORT_LIMIT"
     fi
     
     # Check if database exists
     if [[ -f "$REFOCUS_DB_PATH" ]]; then
-        echo "✅ Database exists: $REFOCUS_DB_PATH"
+        format_success_message "Database exists: $REFOCUS_DB_PATH"
     else
-        echo "⚠️  Database does not exist: $REFOCUS_DB_PATH"
+        format_warning_message "Database does not exist: $REFOCUS_DB_PATH"
     fi
     
     # Check if installation directory exists
     if [[ -d "$REFOCUS_INSTALL_DIR" ]]; then
-        echo "✅ Installation directory exists: $REFOCUS_INSTALL_DIR"
+        format_success_message "Installation directory exists: $REFOCUS_INSTALL_DIR"
     else
-        echo "⚠️  Installation directory does not exist: $REFOCUS_INSTALL_DIR"
+        format_warning_message "Installation directory does not exist: $REFOCUS_INSTALL_DIR"
     fi
     
     echo
     if [[ $errors -eq 0 ]]; then
-        echo "✅ Configuration is valid!"
+        format_success_message "Configuration is valid!"
     else
-        echo "❌ Configuration has $errors error(s)."
+        format_error_message "Configuration has $errors error(s)."
         exit 1
     fi
 }

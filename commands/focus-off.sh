@@ -7,6 +7,9 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
 
+# Source centralized validation functions
+source "$SCRIPT_DIR/../lib/focus-validation-centralized.sh"
+
 function focus_off() {
     local now
     now=$(get_current_timestamp)
@@ -16,8 +19,7 @@ function focus_off() {
     IFS='|' read -r active current_project start_time paused pause_notes pause_start_time previous_elapsed <<< "$state"
 
     if [[ "$active" -ne 1 ]] && [[ "$paused" -ne 1 ]]; then
-        echo "No active or paused focus session."
-        exit 7  # State error - no active session
+        handle_state_error "no_active_session"
     fi
 
     local duration

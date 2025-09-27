@@ -7,23 +7,32 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
 
+# Source centralized validation functions
+source "$SCRIPT_DIR/../lib/focus-validation-centralized.sh"
+
 function focus_on() {
     local project="$1"
     local start_time
     start_time=$(date -Iseconds)
     
-    # Sanitize project name if provided
+    # Validate project name if provided
     if [[ -n "$project" ]]; then
-        project=$(sanitize_project_name "$project")
-        if ! validate_project_name "$project"; then
+        project=$(validate_project_name_standardized "$project" "Project")
+        if [[ $? -ne 0 ]]; then
             exit 2  # Invalid arguments
         fi
+    else
+        handle_argument_error "missing_project" \
+            "focus on <project>" \
+            "focus on coding
+  focus on 'my-project'
+  focus on meeting" \
+            "Project name is required to start a focus session"
     fi
 
     # Check if refocus shell is disabled
     if is_focus_disabled; then
-        echo "❌ Refocus shell is disabled. Run 'focus enable' first."
-        exit 7  # State error - disabled
+        handle_state_error "disabled"
     fi
 
     # Check if already active
@@ -32,22 +41,12 @@ function focus_on() {
     if [[ -n "$state" ]]; then
         IFS='|' read -r active current_project existing_start_time paused pause_notes pause_start_time previous_elapsed <<< "$state"
         if [[ "$active" -eq 1 ]]; then
-            echo "Focus already active. Run 'focus off' before switching."
-            exit 7  # State error - already active
+            handle_state_error "already_active"
         fi
         
         # Check if there's a paused session
         if [[ "$paused" -eq 1 ]]; then
-            echo "❌ Cannot start new focus session while one is paused."
-            echo "   Paused session: $current_project"
-            if [[ -n "$pause_notes" ]]; then
-                echo ""
-                echo "   Current session notes: $pause_notes"
-            fi
-            echo ""
-            echo "💡 Use 'focus continue' to resume the paused session"
-            echo "   Use 'focus off' to end the paused session permanently"
-            exit 7  # State error - session paused
+            handle_state_error "session_paused" "$current_project"
         fi
     fi
 
