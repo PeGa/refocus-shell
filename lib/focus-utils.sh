@@ -36,19 +36,66 @@ log_error() {
     echo "[$timestamp] [$context] $error_message" >> "$REFOCUS_ERROR_LOG"
 }
 
-# Function to execute SQLite command with proper error handling
+# Function to execute SQLite command with proper error handling and edge case checks
 execute_sqlite() {
     local sql_command="$1"
     local context="${2:-sqlite}"
     local output
     local exit_code
     
+    # Perform pre-operation checks for write operations
+    if [[ "$sql_command" =~ ^(INSERT|UPDATE|DELETE|CREATE|DROP|ALTER) ]]; then
+        if ! pre_database_operation_check "$context"; then
+            echo "❌ Pre-operation checks failed for: $context" >&2
+            return 1
+        fi
+    fi
+    
     # Execute SQLite command and capture both output and exit code
     output=$(sqlite3 "$DB" "$sql_command" 2>&1)
     exit_code=$?
     
-    # If there was an error, log it
+    # Handle specific error cases
     if [[ $exit_code -ne 0 ]]; then
+        # Check for disk space errors
+        if [[ "$output" =~ "disk I/O error" ]] || [[ "$output" =~ "database or disk is full" ]]; then
+            echo "❌ Disk space error detected" >&2
+            echo "   Available space: $(df -h "$(dirname "$DB")" | awk 'NR==2 {print $4}')" >&2
+            log_error "Disk space error: $output" "$context"
+            return 5  # File system error
+        fi
+        
+        # Check for permission errors
+        if [[ "$output" =~ "permission denied" ]] || [[ "$output" =~ "readonly database" ]]; then
+            echo "❌ Permission error detected" >&2
+            echo "   Database file: $DB" >&2
+            echo "   File permissions: $(ls -la "$DB" 2>/dev/null || echo 'File not accessible')" >&2
+            log_error "Permission error: $output" "$context"
+            return 4  # Permission error
+        fi
+        
+        # Check for database corruption
+        if [[ "$output" =~ "database disk image is malformed" ]] || [[ "$output" =~ "corrupt" ]]; then
+            echo "❌ Database corruption detected" >&2
+            echo "   Attempting recovery..." >&2
+            log_error "Database corruption: $output" "$context"
+            
+            # Attempt recovery
+            if attempt_database_recovery; then
+                echo "✅ Database recovered, retrying operation..." >&2
+                # Retry the operation
+                output=$(sqlite3 "$DB" "$sql_command" 2>&1)
+                exit_code=$?
+                if [[ $exit_code -eq 0 ]]; then
+                    echo "$output"
+                    return 0
+                fi
+            fi
+            
+            return 3  # Database error
+        fi
+        
+        # Log other errors
         log_error "SQLite error (exit code: $exit_code): $output" "$context"
         log_error "SQL command: $sql_command" "$context"
         return $exit_code

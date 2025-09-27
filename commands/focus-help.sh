@@ -53,6 +53,7 @@ function focus_help() {
     echo "  focus test-nudge       - Test notifications"
     echo "  focus config           - Manage configuration"
     echo "  focus description      - Manage project descriptions"
+    echo "  focus diagnose         - System diagnostics and repair"
     echo "  focus help             - Show this help"
     echo
     echo "Examples:"

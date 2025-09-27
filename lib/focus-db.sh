@@ -18,6 +18,9 @@
 # Database configuration
 DB_DEFAULT="$HOME/.local/refocus/refocus.db"
 DB="${REFOCUS_DB:-$DB_DEFAULT}"
+
+# Minimum disk space required (in MB)
+MIN_DISK_SPACE_MB=10
 # Table names - these should match what's used in the main script
 STATE_TABLE="${STATE_TABLE:-state}"
 SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
@@ -28,6 +31,190 @@ sql_escape() {
     local input="$1"
     # Replace single quotes with double single quotes (SQL escaping)
     echo "$input" | sed "s/'/''/g"
+}
+
+# Function to check available disk space
+check_disk_space() {
+    local db_dir
+    db_dir=$(dirname "$DB")
+    
+    # Ensure directory exists
+    if [[ ! -d "$db_dir" ]]; then
+        echo "❌ Database directory does not exist: $db_dir" >&2
+        return 1
+    fi
+    
+    # Get available space in MB
+    local available_mb
+    if command -v df >/dev/null 2>&1; then
+        available_mb=$(df -m "$db_dir" | awk 'NR==2 {print $4}')
+    else
+        echo "⚠️  Cannot check disk space: df command not available" >&2
+        return 0  # Don't fail if df is not available
+    fi
+    
+    if [[ -z "$available_mb" ]] || ! [[ "$available_mb" =~ ^[0-9]+$ ]]; then
+        echo "⚠️  Could not determine available disk space" >&2
+        return 0  # Don't fail if we can't determine space
+    fi
+    
+    if [[ "$available_mb" -lt "$MIN_DISK_SPACE_MB" ]]; then
+        echo "❌ Insufficient disk space: ${available_mb}MB available, ${MIN_DISK_SPACE_MB}MB required" >&2
+        echo "   Database directory: $db_dir" >&2
+        return 1
+    fi
+    
+    return 0
+}
+
+# Function to check database file permissions
+check_database_permissions() {
+    local db_dir
+    db_dir=$(dirname "$DB")
+    
+    # Check directory permissions
+    if [[ ! -r "$db_dir" ]]; then
+        echo "❌ Cannot read database directory: $db_dir" >&2
+        return 1
+    fi
+    
+    if [[ ! -w "$db_dir" ]]; then
+        echo "❌ Cannot write to database directory: $db_dir" >&2
+        return 1
+    fi
+    
+    # Check database file permissions if it exists
+    if [[ -f "$DB" ]]; then
+        if [[ ! -r "$DB" ]]; then
+            echo "❌ Cannot read database file: $DB" >&2
+            return 1
+        fi
+        
+        if [[ ! -w "$DB" ]]; then
+            echo "❌ Cannot write to database file: $DB" >&2
+            return 1
+        fi
+    fi
+    
+    return 0
+}
+
+# Function to check database integrity
+check_database_integrity() {
+    if [[ ! -f "$DB" ]]; then
+        return 0  # No database file to check
+    fi
+    
+    # Check if file is readable and not empty
+    if [[ ! -s "$DB" ]]; then
+        echo "❌ Database file is empty: $DB" >&2
+        return 1
+    fi
+    
+    # Use sqlite3 to check integrity
+    if command -v sqlite3 >/dev/null 2>&1; then
+        local integrity_check
+        integrity_check=$(sqlite3 "$DB" "PRAGMA integrity_check;" 2>&1)
+        
+        if [[ "$integrity_check" != "ok" ]]; then
+            echo "❌ Database integrity check failed: $integrity_check" >&2
+            echo "   Database file: $DB" >&2
+            return 1
+        fi
+    else
+        echo "⚠️  Cannot check database integrity: sqlite3 not available" >&2
+        return 0  # Don't fail if sqlite3 is not available
+    fi
+    
+    return 0
+}
+
+# Function to perform comprehensive pre-operation checks
+pre_database_operation_check() {
+    local operation="$1"
+    
+    echo "🔍 Performing pre-operation checks for: $operation"
+    
+    # Check disk space
+    if ! check_disk_space; then
+        echo "💾 Disk space check failed" >&2
+        return 1
+    fi
+    
+    # Check permissions
+    if ! check_database_permissions; then
+        echo "🔒 Permission check failed" >&2
+        return 1
+    fi
+    
+    # Check database integrity
+    if ! check_database_integrity; then
+        echo "🗃️  Database integrity check failed" >&2
+        return 1
+    fi
+    
+    echo "✅ All pre-operation checks passed"
+    return 0
+}
+
+# Function to create database backup before risky operations
+create_database_backup() {
+    local backup_dir
+    backup_dir="$(dirname "$DB")/backups"
+    
+    # Create backup directory if it doesn't exist
+    if [[ ! -d "$backup_dir" ]]; then
+        mkdir -p "$backup_dir" || {
+            echo "❌ Cannot create backup directory: $backup_dir" >&2
+            return 1
+        }
+    fi
+    
+    # Create timestamped backup
+    local timestamp
+    timestamp=$(date +"%Y%m%d_%H%M%S")
+    local backup_file="$backup_dir/refocus_backup_$timestamp.db"
+    
+    if cp "$DB" "$backup_file" 2>/dev/null; then
+        echo "💾 Database backup created: $backup_file"
+        return 0
+    else
+        echo "❌ Failed to create database backup" >&2
+        return 1
+    fi
+}
+
+# Function to attempt database recovery
+attempt_database_recovery() {
+    echo "🔧 Attempting database recovery..."
+    
+    # Try to dump and restore the database
+    local temp_file
+    temp_file=$(mktemp)
+    
+    if sqlite3 "$DB" ".dump" > "$temp_file" 2>/dev/null; then
+        # Create backup of corrupted file
+        local corrupted_backup="$DB.corrupted.$(date +%s)"
+        mv "$DB" "$corrupted_backup" 2>/dev/null
+        
+        # Restore from dump
+        if sqlite3 "$DB" < "$temp_file" 2>/dev/null; then
+            echo "✅ Database recovery successful"
+            echo "   Corrupted file backed up as: $corrupted_backup"
+            rm -f "$temp_file"
+            return 0
+        else
+            # Restore corrupted file if recovery failed
+            mv "$corrupted_backup" "$DB" 2>/dev/null
+            echo "❌ Database recovery failed" >&2
+            rm -f "$temp_file"
+            return 1
+        fi
+    else
+        echo "❌ Cannot create database dump for recovery" >&2
+        rm -f "$temp_file"
+        return 1
+    fi
 }
 
 # Function to get the last project from sessions
@@ -495,8 +682,14 @@ migrate_database() {
     fi
 }
 
-# Export function for use in other modules
+# Export functions for use in other modules
 export -f migrate_database
+export -f check_disk_space
+export -f check_database_permissions
+export -f check_database_integrity
+export -f pre_database_operation_check
+export -f create_database_backup
+export -f attempt_database_recovery
 
 # Function to check if a session is currently paused
 is_session_paused() {

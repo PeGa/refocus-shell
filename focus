@@ -95,6 +95,9 @@ case "${1:-}" in
     "config")
         execute_subcommand "config" "${@:2}"
         ;;
+    "diagnose")
+        execute_subcommand "diagnose" "${@:2}"
+        ;;
     "help"|"--help"|"-h"|"")
         execute_subcommand "help" "${@:2}"
         ;;
