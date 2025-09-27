@@ -430,7 +430,44 @@ function focus_past_delete() {
 }
 
 function focus_past_list() {
-    local limit="${1:-20}"
+    local limit=20
+    
+    # Parse arguments to support both -n flag and positional argument
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -n|--number)
+                if [[ $# -lt 2 ]]; then
+                    echo "❌ Missing value for option: $1"
+                    echo "Usage: focus past list [-n|--number <number>] [<number>]"
+                    exit 1
+                fi
+                limit="$2"
+                shift 2
+                ;;
+            -*)
+                echo "❌ Unknown option: $1"
+                echo "Usage: focus past list [-n|--number <number>] [<number>]"
+                echo "Examples:"
+                echo "  focus past list"
+                echo "  focus past list 30"
+                echo "  focus past list -n 30"
+                echo "  focus past list --number 30"
+                exit 1
+                ;;
+            *)
+                # If it's a number, use it as the limit
+                if [[ "$1" =~ ^[0-9]+$ ]]; then
+                    limit="$1"
+                else
+                    echo "❌ Invalid argument: $1"
+                    echo "Usage: focus past list [-n|--number <number>] [<number>]"
+                    echo "The number argument must be a positive integer."
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
     
     if ! validate_numeric_input "$limit" "Limit"; then
         exit 1
@@ -514,7 +551,9 @@ function focus_past() {
             echo "  focus past add 'meeting' '2025-01-15T10:00:00' '2025-01-15T11:30:00'"
             echo "  focus past modify 1 'new-project'"
             echo "  focus past delete 1"
-            echo "  focus past list 10"
+            echo "  focus past list"
+            echo "  focus past list 30"
+            echo "  focus past list -n 30"
             exit 1
             ;;
     esac
