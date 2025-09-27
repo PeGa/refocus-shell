@@ -22,7 +22,28 @@ VERBOSE="${VERBOSE:-false}"
 REFOCUS_LOG_DIR="${REFOCUS_LOG_DIR:-$HOME/.local/refocus}"
 REFOCUS_ERROR_LOG="${REFOCUS_ERROR_LOG:-$REFOCUS_LOG_DIR/error.log}"
 
-# Function to log errors to file
+# Function: log_error
+# Description: Logs error messages to the configured error log file with timestamp and context
+# Usage: log_error <error_message> [context]
+# Parameters:
+#   $1 - error_message: The error message to log (string)
+#   $2 - context: Optional context identifier for the error (string, default: "unknown")
+# Returns:
+#   0 - Success: Error message logged successfully
+# Side Effects:
+#   - Creates log directory if it doesn't exist
+#   - Appends timestamped error message to error log file
+# Dependencies:
+#   - REFOCUS_LOG_DIR environment variable
+#   - REFOCUS_ERROR_LOG environment variable
+#   - date command
+# Examples:
+#   log_error "Database connection failed" "focus_on"
+#   log_error "Invalid project name provided" "validation"
+# Notes:
+#   - Log format: [YYYY-MM-DD HH:MM:SS] [context] error_message
+#   - Log directory is created automatically if missing
+#   - Uses system date command for timestamp generation
 log_error() {
     local error_message="$1"
     local context="${2:-unknown}"
@@ -36,7 +57,40 @@ log_error() {
     echo "[$timestamp] [$context] $error_message" >> "$REFOCUS_ERROR_LOG"
 }
 
-# Function to execute SQLite command with proper error handling and edge case checks
+# Function: execute_sqlite
+# Description: Executes SQLite commands with comprehensive error handling, edge case checks, and automatic recovery
+# Usage: execute_sqlite <sql_command> [context]
+# Parameters:
+#   $1 - sql_command: The SQL command to execute (string)
+#   $2 - context: Optional context identifier for error logging (string, default: "sqlite")
+# Returns:
+#   0 - Success: SQL command executed successfully
+#   1 - Error: Database error occurred (connection, syntax, constraint violation)
+#   2 - Error: Disk space insufficient for operation
+#   3 - Error: Permission denied accessing database
+#   4 - Error: Database corruption detected
+# Side Effects:
+#   - Queries or modifies the SQLite database
+#   - Logs errors to error log file
+#   - May trigger database backup and recovery operations
+#   - Prints query results to stdout on success
+# Dependencies:
+#   - sqlite3 command
+#   - Database file at REFOCUS_DB_PATH
+#   - check_disk_space function
+#   - check_database_permissions function
+#   - check_database_integrity function
+#   - create_database_backup function
+#   - attempt_database_recovery function
+# Examples:
+#   execute_sqlite "SELECT * FROM sessions;" "get_sessions"
+#   execute_sqlite "INSERT INTO sessions (project) VALUES ('test');" "add_session"
+# Notes:
+#   - Performs pre-operation checks for disk space, permissions, and integrity
+#   - Automatically attempts recovery from database corruption
+#   - Uses prepared statements to prevent SQL injection
+#   - Logs all database operations for debugging
+#   - Returns standardized error codes for different failure types
 execute_sqlite() {
     local sql_command="$1"
     local context="${2:-sqlite}"
@@ -119,18 +173,75 @@ verbose_echo() {
     fi
 }
 
-# Function to get current timestamp in ISO format
+# Function: get_current_timestamp
+# Description: Gets the current timestamp in ISO 8601 format with timezone
+# Usage: get_current_timestamp
+# Parameters:
+#   None
+# Returns:
+#   0 - Success: Current timestamp printed to stdout in ISO format
+# Side Effects:
+#   - Calls system date command
+# Dependencies:
+#   - date command with -Iseconds support
+# Examples:
+#   local timestamp=$(get_current_timestamp)
+#   echo "Current time: $(get_current_timestamp)"
+# Notes:
+#   - Returns format: YYYY-MM-DDTHH:MM:SS±HH:MM
+#   - Uses system timezone settings
+#   - Compatible with SQLite datetime functions
 get_current_timestamp() {
     date -Iseconds
 }
 
-# Function to get timestamp for a specific time
+# Function: get_timestamp_for_time
+# Description: Converts a time specification to ISO 8601 timestamp format
+# Usage: get_timestamp_for_time <time_spec>
+# Parameters:
+#   $1 - time_spec: Time specification in various formats (string)
+# Returns:
+#   0 - Success: Converted timestamp printed to stdout in ISO format
+#   1 - Error: Invalid time specification provided
+# Side Effects:
+#   - Calls system date command for conversion
+# Dependencies:
+#   - date command with -Iseconds and -d support
+# Examples:
+#   get_timestamp_for_time "2025-01-15 14:30"
+#   get_timestamp_for_time "yesterday 09:00"
+#   get_timestamp_for_time "2 hours ago"
+# Notes:
+#   - Supports various time formats: absolute dates, relative times, ISO format
+#   - Returns format: YYYY-MM-DDTHH:MM:SS±HH:MM
+#   - Uses system timezone settings
+#   - Compatible with SQLite datetime functions
 get_timestamp_for_time() {
     local time_spec="$1"
     date -Iseconds -d "$time_spec"
 }
 
-# Function to calculate duration between two timestamps
+# Function: calculate_duration
+# Description: Calculates the duration in seconds between two ISO timestamp strings
+# Usage: calculate_duration <start_time> <end_time>
+# Parameters:
+#   $1 - start_time: Start timestamp in ISO format (string)
+#   $2 - end_time: End timestamp in ISO format (string)
+# Returns:
+#   0 - Success: Duration in seconds printed to stdout
+#   1 - Error: Invalid timestamp format or calculation error
+# Side Effects:
+#   - Calls system date command for timestamp conversion
+# Dependencies:
+#   - date command with --date support
+# Examples:
+#   calculate_duration "2025-01-15T14:30:00+00:00" "2025-01-15T16:30:00+00:00"
+#   local duration=$(calculate_duration "$start" "$end")
+# Notes:
+#   - Returns duration as positive integer seconds
+#   - Handles timezone differences automatically
+#   - Negative durations indicate end_time is before start_time
+#   - Uses Unix timestamp conversion for accurate calculation
 calculate_duration() {
     local start_time="$1"
     local end_time="$2"
@@ -143,7 +254,29 @@ calculate_duration() {
     echo $((end_ts - start_ts))
 }
 
-# Function to parse duration string (e.g., "1h30m", "2h", "45m") to seconds
+# Function: parse_duration
+# Description: Parses human-readable duration strings into seconds with comprehensive validation
+# Usage: parse_duration <duration_string>
+# Parameters:
+#   $1 - duration_string: Duration in human-readable format (string)
+# Returns:
+#   0 - Success: Duration in seconds printed to stdout
+#   1 - Error: Invalid duration format or parsing error
+# Side Effects:
+#   - Prints detailed error messages to stderr on failure
+# Dependencies:
+#   - bc command for decimal calculations
+# Examples:
+#   parse_duration "1h30m"    # Returns: 5400
+#   parse_duration "2h"        # Returns: 7200
+#   parse_duration "45m"       # Returns: 2700
+#   parse_duration "1.5h"      # Returns: 5400
+# Notes:
+#   - Supported formats: 1h30m, 2h, 45m, 90m, 1.5h, 0.5h
+#   - Hours and minutes must be positive integers
+#   - Decimal hours are supported (e.g., 1.5h = 1 hour 30 minutes)
+#   - Whitespace is automatically removed
+#   - Returns detailed error messages for unsupported formats
 parse_duration() {
     local duration_str="$1"
     local total_seconds=0

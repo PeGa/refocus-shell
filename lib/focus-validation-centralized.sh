@@ -16,7 +16,30 @@ PROJECTS_TABLE="${PROJECTS_TABLE:-projects}"
 # CENTRALIZED VALIDATION FUNCTIONS
 # =============================================================================
 
-# Function to validate required arguments with standardized error messages
+# Function: validate_required_args
+# Description: Validates that all required arguments are provided with standardized error messages
+# Usage: validate_required_args <command_name> <usage> [examples] <arg1> <arg2> ...
+# Parameters:
+#   $1 - command_name: Name of the command for error context (string)
+#   $2 - usage: Usage syntax string (string)
+#   $3 - examples: Optional examples string (string, default: empty)
+#   $4+ - args: Variable number of arguments to validate (strings)
+# Returns:
+#   0 - Success: All required arguments are provided
+#   1 - Error: One or more required arguments are missing
+# Side Effects:
+#   - Prints standardized error messages to stdout on validation failure
+#   - Displays usage syntax and examples if provided
+# Dependencies:
+#   - None
+# Examples:
+#   validate_required_args "focus_on" "focus on <project>" "focus on coding" "$project"
+#   validate_required_args "focus_past_add" "focus past add <project> <start> <end>" "" "$project" "$start" "$end"
+# Notes:
+#   - Checks for empty or undefined arguments
+#   - Provides consistent error messaging across all commands
+#   - Supports optional examples parameter for better user guidance
+#   - Used by all command functions for argument validation
 validate_required_args() {
     local args=("$@")
     local command_name="${args[0]}"
@@ -46,7 +69,30 @@ validate_required_args() {
     return 0
 }
 
-# Function to validate project name with standardized error handling
+# Function: validate_project_name_standardized
+# Description: Validates and sanitizes project names with standardized error handling
+# Usage: validate_project_name_standardized <project_name> [context]
+# Parameters:
+#   $1 - project_name: The project name to validate and sanitize (string)
+#   $2 - context: Optional context for error messages (string, default: "project")
+# Returns:
+#   0 - Success: Project name is valid and sanitized (prints sanitized name to stdout)
+#   1 - Error: Project name is invalid (empty, too long, or contains invalid characters)
+# Side Effects:
+#   - Prints error messages to stdout on validation failure
+#   - Prints sanitized project name to stdout on success
+# Dependencies:
+#   - sanitize_project_name function
+#   - validate_project_name function
+# Examples:
+#   local project=$(validate_project_name_standardized "my-project")
+#   validate_project_name_standardized "web-development" "Project"
+# Notes:
+#   - Automatically sanitizes input before validation
+#   - Returns sanitized name for immediate use
+#   - Uses centralized error handling for consistency
+#   - Context parameter allows customizing error messages
+#   - Used by all commands that accept project names
 validate_project_name_standardized() {
     local project="$1"
     local context="${2:-project}"

@@ -6,8 +6,26 @@
 # This module provides common validation functions for refocus commands
 # to ensure consistent input validation and error handling.
 
-# Function to validate project name
+# Function: validate_project_name
+# Description: Validates project name format, length, and character restrictions
 # Usage: validate_project_name <project_name>
+# Parameters:
+#   $1 - project_name: The project name to validate (string)
+# Returns:
+#   0 - Success: Project name is valid
+#   1 - Error: Project name is invalid (empty, too long, or contains invalid characters)
+# Side Effects:
+#   - Prints error messages to stdout on validation failure
+# Dependencies:
+#   - None
+# Examples:
+#   validate_project_name "my-project"
+#   validate_project_name "web-development"
+# Notes:
+#   - Project names are limited to 100 characters
+#   - Control characters are not allowed
+#   - Empty or whitespace-only names are rejected
+#   - Does not sanitize input, only validates
 validate_project_name() {
     local project="$1"
     
@@ -31,8 +49,26 @@ validate_project_name() {
     return 0
 }
 
-# Function to validate session ID
+# Function: validate_session_id
+# Description: Validates session ID format and ensures it's a positive integer
 # Usage: validate_session_id <session_id>
+# Parameters:
+#   $1 - session_id: The session ID to validate (string)
+# Returns:
+#   0 - Success: Session ID is valid
+#   1 - Error: Session ID is invalid (empty or non-numeric)
+# Side Effects:
+#   - Prints error messages to stdout on validation failure
+# Dependencies:
+#   - None
+# Examples:
+#   validate_session_id "123"
+#   validate_session_id "1"
+# Notes:
+#   - Session ID must be a positive integer
+#   - Empty or non-numeric values are rejected
+#   - Does not check if session exists in database
+#   - Used for input validation before database queries
 validate_session_id() {
     local session_id="$1"
     
@@ -49,8 +85,27 @@ validate_session_id() {
     return 0
 }
 
-# Function to validate date format
+# Function: validate_date_format
+# Description: Validates date string format against supported patterns
 # Usage: validate_date_format <date_string>
+# Parameters:
+#   $1 - date_string: The date string to validate (string)
+# Returns:
+#   0 - Success: Date format is valid
+#   1 - Error: Date format is invalid or unsupported
+# Side Effects:
+#   - Prints error messages to stdout on validation failure
+# Dependencies:
+#   - None
+# Examples:
+#   validate_date_format "2025/01/15-14:30"
+#   validate_date_format "14:30"
+#   validate_date_format "today"
+# Notes:
+#   - Supports formats: YYYY/MM/DD-HH:MM, HH:MM, 'today', 'yesterday', 'tomorrow'
+#   - Does not validate actual date values, only format
+#   - Used for input validation before date parsing
+#   - Provides helpful error messages with format examples
 validate_date_format() {
     local date_string="$1"
     
