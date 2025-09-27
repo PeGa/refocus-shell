@@ -483,7 +483,7 @@ function focus_past_list() {
         show_error_info
         exit 1
     fi
-    sessions=$(execute_sqlite "SELECT rowid, project, start_time, end_time, duration_seconds, notes, duration_only, session_date FROM $SESSIONS_TABLE WHERE project != '[idle]' ORDER BY rowid DESC LIMIT $limit;" "focus_past_list")
+    sessions=$(execute_sqlite "SELECT rowid, project, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE WHERE project != '[idle]' ORDER BY rowid DESC LIMIT $limit;" "focus_past_list")
     
     if [[ -z "$sessions" ]]; then
         echo "No focus sessions found."
@@ -493,31 +493,21 @@ function focus_past_list() {
     printf "%-4s %-20s %-19s %-19s %-8s %-6s\n" "ID" "Project" "Start" "End" "Duration" "Type"
     printf "%-4s %-20s %-19s %-19s %-8s %-6s\n" "----" "--------------------" "-------------------" "-------------------" "--------" "------"
     
-    while IFS='|' read -r id project start_time end_time duration notes duration_only session_date; do
+    while IFS='|' read -r id project start_time end_time duration notes; do
         local duration_min
         duration_min=$((duration / 60))
         
-        if [[ "$duration_only" == "1" ]]; then
-            # Duration-only session
-            printf "%-4s %-20s %-19s %-19s %-8s %-6s\n" "$id" "$project" "N/A" "N/A" "${duration_min}m" "Manual"
-            
-            # Show notes if available
-            if [[ -n "$notes" ]]; then
-                printf "     📝 %s\n" "$notes"
-            fi
-        else
-            # Regular session
-            local start_date
-            start_date=$(date --date="$start_time" +"%Y-%m-%d %H:%M")
-            local end_date
-            end_date=$(date --date="$end_time" +"%Y-%m-%d %H:%M")
-            
-            printf "%-4s %-20s %-19s %-19s %-8s %-6s\n" "$id" "$project" "$start_date" "$end_date" "${duration_min}m" "Live"
-            
-            # Show notes if available
-            if [[ -n "$notes" ]]; then
-                printf "     📝 %s\n" "$notes"
-            fi
+        # Regular session (all sessions in current schema are regular sessions)
+        local start_date
+        start_date=$(date --date="$start_time" +"%Y-%m-%d %H:%M")
+        local end_date
+        end_date=$(date --date="$end_time" +"%Y-%m-%d %H:%M")
+        
+        printf "%-4s %-20s %-19s %-19s %-8s %-6s\n" "$id" "$project" "$start_date" "$end_date" "${duration_min}m" "Live"
+        
+        # Show notes if available
+        if [[ -n "$notes" ]]; then
+            printf "     📝 %s\n" "$notes"
         fi
     done <<< "$sessions"
 }
