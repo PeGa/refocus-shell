@@ -373,7 +373,7 @@ cd refocus-shell
 #### Contributing Setup
 ```bash
 # Fork and clone your fork
-git clone https://github.com/yourusername/refocus-shell
+git clone https://github.com/PeGa/refocus-shell
 cd refocus-shell
 
 # Add upstream remote
