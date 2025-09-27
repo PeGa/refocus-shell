@@ -196,6 +196,8 @@ The final notes are combined chronologically with previous session and pause not
 focus past list        # Last 20 sessions
 focus past list 10     # Last 10 sessions
 focus past list 50     # Last 50 sessions
+focus past list -n 30  # Last 30 sessions (flag format)
+focus past list --number 100  # Last 100 sessions (long flag)
 ```
 
 Shows:

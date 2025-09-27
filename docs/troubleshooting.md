@@ -398,6 +398,7 @@ focus off      # Complete paused session
 ```bash
 # Check recent sessions
 focus past list 20
+focus past list -n 50  # Alternative flag format
 
 # Check database directly
 sqlite3 ~/.local/refocus/refocus.db "SELECT * FROM sessions ORDER BY id DESC LIMIT 10;"
@@ -430,6 +431,7 @@ date
 
 # Check session data
 focus past list 5
+focus past list -n 10  # Alternative flag format
 
 # Check for invalid sessions
 sqlite3 ~/.local/refocus/refocus.db "SELECT * FROM sessions WHERE duration_seconds < 0 OR duration_seconds > 86400;"
@@ -476,6 +478,7 @@ sqlite3 ~/.local/refocus/refocus.db "ANALYZE;"
 
 # Clean up old sessions
 focus past list 100
+focus past list -n 200  # Alternative flag format
 # Delete very old sessions manually:
 focus past delete <old_session_id>
 ```

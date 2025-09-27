@@ -94,6 +94,7 @@ focus continue          # Resume paused session
 
 # Quick history
 focus past list 5       # Show last 5 sessions
+focus past list -n 10   # Show last 10 sessions (flag format)
 focus report today      # Today's focus summary
 
 # System control
