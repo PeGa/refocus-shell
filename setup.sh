@@ -883,11 +883,11 @@ cleanup_old_bashrc_backups() {
     
     # Keep only the 3 most recent backups
     local backup_count
-    backup_count=$(find "$backup_dir" -name "$(basename "$backup_pattern")" 2>/dev/null | wc -l)
+    backup_count=$(find "$backup_dir" -maxdepth 1 -name "$(basename "$backup_pattern")" 2>/dev/null | wc -l)
     
     if [[ $backup_count -gt 3 ]]; then
         print_status "Cleaning up old bashrc backups (keeping 3 most recent)..."
-        find "$backup_dir" -name "$(basename "$backup_pattern")" -printf '%T@ %p\n' | sort -n | head -n -3 | cut -d' ' -f2- | xargs rm -f 2>/dev/null || true
+        find "$backup_dir" -maxdepth 1 -name "$(basename "$backup_pattern")" -printf '%T@ %p\n' | sort -n | head -n -3 | cut -d' ' -f2- | xargs rm -f 2>/dev/null || true
         print_success "Old bashrc backups cleaned up"
     fi
 }
