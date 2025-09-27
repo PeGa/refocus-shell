@@ -49,10 +49,12 @@ function focus_init() {
         CREATE TABLE IF NOT EXISTS sessions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             project TEXT NOT NULL,
-            start_time TEXT NOT NULL,
-            end_time TEXT NOT NULL,
+            start_time TEXT,
+            end_time TEXT,
             duration_seconds INTEGER NOT NULL,
-            notes TEXT
+            notes TEXT,
+            duration_only INTEGER DEFAULT 0,
+            session_date TEXT
         );
         
         INSERT OR IGNORE INTO state (id, active, project, start_time, prompt_content, prompt_type, nudging_enabled, focus_disabled, last_focus_off_time, paused, pause_notes, pause_start_time, previous_elapsed) 

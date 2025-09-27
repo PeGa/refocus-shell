@@ -3,6 +3,11 @@
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 
+# Table name variables
+STATE_TABLE="${STATE_TABLE:-state}"
+SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
+PROJECTS_TABLE="${PROJECTS_TABLE:-projects}"
+
 # Source bootstrap module
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"

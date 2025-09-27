@@ -404,10 +404,12 @@ init_database() {
         CREATE TABLE IF NOT EXISTS sessions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             project TEXT NOT NULL,
-            start_time TEXT NOT NULL,
-            end_time TEXT NOT NULL,
+            start_time TEXT,
+            end_time TEXT,
             duration_seconds INTEGER NOT NULL,
-            notes TEXT
+            notes TEXT,
+            duration_only INTEGER DEFAULT 0,
+            session_date TEXT
         );
         
         -- Insert initial state
@@ -790,7 +792,7 @@ function update-prompt(){
     # Check if database exists and get current prompt content
     if [[ -f "$REFOCUS_DB" ]]; then
         # Get the prompt content from database with better error handling
-        PROMPT_CONTENT=$(sqlite3 "$REFOCUS_DB" "SELECT prompt_content FROM state WHERE id = 1;" 2>/dev/null)
+        PROMPT_CONTENT=$(sqlite3 "$REFOCUS_DB" "SELECT prompt_content FROM $REFOCUS_STATE_TABLE WHERE id = 1;" 2>/dev/null)
         
         if [[ -n "$PROMPT_CONTENT" ]]; then
             # Set PS1 directly from database content
@@ -807,7 +809,7 @@ function update-prompt(){
 # Auto-update prompt on shell startup if focus is active
 if [[ -f "$HOME/.local/refocus/refocus.db" ]]; then
     # Check if focus is currently active
-    ACTIVE_STATE=$(sqlite3 "$HOME/.local/refocus/refocus.db" "SELECT active FROM state WHERE id = 1;" 2>/dev/null)
+    ACTIVE_STATE=$(sqlite3 "$HOME/.local/refocus/refocus.db" "SELECT active FROM $REFOCUS_STATE_TABLE WHERE id = 1;" 2>/dev/null)
     if [[ "$ACTIVE_STATE" == "1" ]]; then
         update-prompt
     fi
@@ -1039,7 +1041,7 @@ function update-prompt(){
     # Check if database exists and get current prompt file
     if [[ -f "$REFOCUS_DB" ]]; then
         # Get the prompt file from database
-        PROMPT_FILE=$(sqlite3 "$REFOCUS_DB" "SELECT prompt_file FROM state WHERE id = 1;" 2>/dev/null)
+        PROMPT_FILE=$(sqlite3 "$REFOCUS_DB" "SELECT prompt_file FROM $REFOCUS_STATE_TABLE WHERE id = 1;" 2>/dev/null)
         
         if [[ -n "$PROMPT_FILE" ]] && [[ -f "$PROMPT_FILE" ]]; then
             # Source the prompt file to set PS1

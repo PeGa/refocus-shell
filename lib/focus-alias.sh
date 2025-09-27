@@ -6,6 +6,10 @@
 # This provides a safe alias-based approach that avoids the -e exit issue
 # Usage: source ~/.local/refocus/lib/focus-alias.sh
 
+# Table name variables
+STATE_TABLE="${STATE_TABLE:-state}"
+SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
+
 # Store original PS1 if not already stored
 if [[ -z "$REFOCUS_ORIGINAL_PS1" ]]; then
     export REFOCUS_ORIGINAL_PS1="$PS1"
@@ -59,7 +63,7 @@ focus-update-prompt-safe() {
     if [[ -f "$focus_db" ]]; then
         # Get current prompt from database
         local prompt_content
-        prompt_content=$(sqlite3 "$focus_db" "SELECT prompt_content FROM state WHERE id = 1;" 2>/dev/null)
+        prompt_content=$(sqlite3 "$focus_db" "SELECT prompt_content FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null)
         
         if [[ -n "$prompt_content" ]]; then
             export PS1="$prompt_content"
@@ -89,7 +93,7 @@ focus-restore-prompt-safe() {
 # Auto-update prompt on function load if focus is active
 if [[ -f "$HOME/.local/refocus/refocus.db" ]]; then
     # Check if focus is currently active
-    ACTIVE_STATE=$(sqlite3 "$HOME/.local/refocus/refocus.db" "SELECT active FROM state WHERE id = 1;" 2>/dev/null)
+    ACTIVE_STATE=$(sqlite3 "$HOME/.local/refocus/refocus.db" "SELECT active FROM $STATE_TABLE WHERE id = 1;" 2>/dev/null)
     if [[ "$ACTIVE_STATE" == "1" ]]; then
         focus-update-prompt-safe
     fi

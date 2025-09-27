@@ -330,12 +330,12 @@ update_state_record() {
 
 # Function to clear all sessions
 clear_all_sessions() {
-    sqlite3 "$DB" "DELETE FROM sessions;"
+    sqlite3 "$DB" "DELETE FROM $SESSIONS_TABLE;"
 }
 
 # Function to clear additional state records
 clear_additional_state() {
-    sqlite3 "$DB" "DELETE FROM state WHERE id > 1;"
+    sqlite3 "$DB" "DELETE FROM $STATE_TABLE WHERE id > 1;"
 }
 
 # Project description functions
@@ -405,6 +405,52 @@ migrate_database() {
     if [[ "$has_notes_column" -eq 0 ]]; then
         echo "Migrating database: adding notes column to sessions table..."
         execute_sqlite "ALTER TABLE $SESSIONS_TABLE ADD COLUMN notes TEXT;" "migrate_database" >/dev/null
+    fi
+    
+    # Check if sessions table has duration_only column
+    local has_duration_only_column
+    has_duration_only_column=$(execute_sqlite "PRAGMA table_info($SESSIONS_TABLE);" "migrate_database" | grep -c "duration_only" || echo "0")
+    has_duration_only_column=$(echo "$has_duration_only_column" | tr -d '\n')
+    
+    if [[ "$has_duration_only_column" -eq 0 ]]; then
+        echo "Migrating database: adding duration_only column to sessions table..."
+        execute_sqlite "ALTER TABLE $SESSIONS_TABLE ADD COLUMN duration_only INTEGER DEFAULT 0;" "migrate_database" >/dev/null
+    fi
+    
+    # Check if sessions table has session_date column
+    local has_session_date_column
+    has_session_date_column=$(execute_sqlite "PRAGMA table_info($SESSIONS_TABLE);" "migrate_database" | grep -c "session_date" || echo "0")
+    has_session_date_column=$(echo "$has_session_date_column" | tr -d '\n')
+    
+    if [[ "$has_session_date_column" -eq 0 ]]; then
+        echo "Migrating database: adding session_date column to sessions table..."
+        execute_sqlite "ALTER TABLE $SESSIONS_TABLE ADD COLUMN session_date TEXT;" "migrate_database" >/dev/null
+    fi
+    
+    # Check if sessions table start_time/end_time are nullable (old schema had NOT NULL)
+    local start_time_nullable
+    start_time_nullable=$(execute_sqlite "PRAGMA table_info($SESSIONS_TABLE);" "migrate_database" | grep "start_time" | grep -c "NOT NULL" || echo "0")
+    start_time_nullable=$(echo "$start_time_nullable" | tr -d '\n')
+    
+    if [[ "$start_time_nullable" -gt 0 ]]; then
+        echo "Migrating database: making start_time/end_time nullable in sessions table..."
+        # SQLite doesn't support ALTER COLUMN, so we need to recreate the table
+        execute_sqlite "
+            CREATE TABLE sessions_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project TEXT NOT NULL,
+                start_time TEXT,
+                end_time TEXT,
+                duration_seconds INTEGER NOT NULL,
+                notes TEXT,
+                duration_only INTEGER DEFAULT 0,
+                session_date TEXT
+            );
+            INSERT INTO sessions_new SELECT id, project, start_time, end_time, duration_seconds, notes, 
+                COALESCE(duration_only, 0), COALESCE(session_date, '') FROM $SESSIONS_TABLE;
+            DROP TABLE $SESSIONS_TABLE;
+            ALTER TABLE sessions_new RENAME TO $SESSIONS_TABLE;
+        " "migrate_database" >/dev/null
     fi
     
     # Check if state table has pause-related columns
