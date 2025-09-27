@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
 
 # Source centralized validation functions
-source "$SCRIPT_DIR/../lib/focus-validation-centralized.sh"
+# Note: Using direct validation instead of centralized functions
 
 function focus_on() {
     local project="$1"

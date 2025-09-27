@@ -7,8 +7,8 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
 
-# Source centralized validation functions
-source "$SCRIPT_DIR/../lib/focus-validation-centralized.sh"
+# Note: Using direct SQL queries and validation instead of centralized functions
+# to maintain compatibility with installed versions
 
 function focus_past_add() {
     local project=""
@@ -441,19 +441,20 @@ function focus_past_list() {
         esac
     done
     
-    if ! validate_numeric_input "$limit" "Limit"; then
+    if ! [[ "$limit" =~ ^[0-9]+$ ]]; then
+        echo "❌ Invalid limit: $limit"
         exit 2  # Invalid arguments
     fi
     
     echo "📋 Recent focus sessions (last $limit):"
     echo
     
-    # Get recent sessions using centralized function
+    # Get recent sessions using direct SQL query
     local sessions
-    sessions=$(get_recent_sessions "$limit")
+    sessions=$(execute_sqlite "SELECT rowid, project, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE WHERE project != '[idle]' ORDER BY rowid DESC LIMIT $limit;" "focus_past_list")
     
     if [[ -z "$sessions" ]]; then
-        format_info_message "No focus sessions found."
+        echo "No focus sessions found."
         return 0
     fi
     
