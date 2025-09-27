@@ -460,7 +460,14 @@ function focus_past_list() {
     # Format table header using centralized function
     format_table_header "ID" "Project" "Start" "End" "Duration" "Type"
     
+    # Process sessions and add blank lines between entries
+    local session_count=0
+    local total_sessions
+    total_sessions=$(echo "$sessions" | wc -l)
+    
     while IFS='|' read -r id project start_time end_time duration notes; do
+        session_count=$((session_count + 1))
+        
         # Format timestamps and duration using centralized functions
         local start_date
         start_date=$(format_timestamp "$start_time")
@@ -474,6 +481,11 @@ function focus_past_list() {
         # Show notes if available
         if [[ -n "$notes" ]]; then
             printf "     📝 %s\n" "$notes"
+        fi
+        
+        # Add blank line after each entry except the last one
+        if [[ $session_count -lt $total_sessions ]]; then
+            printf "\n"
         fi
     done <<< "$sessions"
 }
