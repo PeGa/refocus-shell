@@ -105,8 +105,6 @@ function focus_past_add() {
         local duration_seconds
         duration_seconds=$(parse_duration "$duration")
         if [[ $? -ne 0 ]]; then
-            echo "❌ Invalid duration format: $duration"
-            echo "Supported formats: 1h30m, 2h, 45m, 90m, 1.5h, 0.5h"
             exit 2  # Invalid arguments
         fi
         

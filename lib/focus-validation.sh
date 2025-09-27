@@ -49,26 +49,6 @@ validate_session_id() {
     return 0
 }
 
-# Function to validate duration format
-# Usage: validate_duration <duration_string>
-validate_duration() {
-    local duration="$1"
-    
-    if [[ -z "$duration" ]]; then
-        echo "❌ Duration is required"
-        return 1
-    fi
-    
-    # Check for valid duration format (e.g., "1h30m", "45m", "2h")
-    if ! [[ "$duration" =~ ^[0-9]+[hm]?([0-9]+[hm])?$ ]]; then
-        echo "❌ Invalid duration format: $duration"
-        echo "   Use format like: 1h30m, 45m, 2h"
-        return 1
-    fi
-    
-    return 0
-}
-
 # Function to validate date format
 # Usage: validate_date_format <date_string>
 validate_date_format() {
@@ -260,7 +240,6 @@ validate_export_format() {
 # Export functions for use in other scripts
 export -f validate_project_name
 export -f validate_session_id
-export -f validate_duration
 export -f validate_date_format
 export -f validate_file_path
 export -f validate_config_key

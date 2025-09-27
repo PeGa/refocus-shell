@@ -101,6 +101,12 @@ parse_duration() {
     local duration_str="$1"
     local total_seconds=0
     
+    # Validate input
+    if [[ -z "$duration_str" ]]; then
+        echo "❌ Duration is required" >&2
+        return 1
+    fi
+    
     # Remove any whitespace
     duration_str=$(echo "$duration_str" | tr -d ' ')
     
@@ -123,7 +129,8 @@ parse_duration() {
         local minutes="${BASH_REMATCH[1]}"
         total_seconds=$((minutes * 60))
     else
-        echo "Invalid duration format: $duration_str" >&2
+        echo "❌ Invalid duration format: $duration_str" >&2
+        echo "   Supported formats: 1h30m, 2h, 45m, 1.5h, 0.5h" >&2
         return 1
     fi
     
