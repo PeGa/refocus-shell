@@ -15,13 +15,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-# Source configuration
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../config.sh"
-
 # Database configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DB_DEFAULT="$HOME/.local/refocus/refocus.db"
 DB="${REFOCUS_DB:-$DB_DEFAULT}"
+
+# Table names (defaults if not set by bootstrap)
+SESSIONS_TABLE="${REFOCUS_SESSIONS_TABLE:-sessions}"
+STATE_TABLE="${REFOCUS_STATE_TABLE:-state}"
+PROJECTS_TABLE="${REFOCUS_PROJECTS_TABLE:-projects}"
+PROMPT_TABLE="${REFOCUS_PROMPT_TABLE:-prompts}"
 
 # Minimum disk space required (in MB)
 MIN_DISK_SPACE_MB=10
@@ -815,7 +818,24 @@ _migrate_database() {
     return 0
 }
 
-# Export only the public functions
+# Additional public API functions for backward compatibility
+get_focus_state() {
+    _get_focus_state
+}
+
+get_focus_disabled() {
+    _get_focus_disabled
+}
+
+update_prompt_content() {
+    _update_prompt_content "$@"
+}
+
+install_focus_cron_job() {
+    _install_focus_cron_job "$@"
+}
+
+# Export all public functions
 export -f db_init
 export -f db_start_session
 export -f db_end_session
@@ -824,3 +844,7 @@ export -f db_resume
 export -f db_get_active
 export -f db_list
 export -f db_stats
+export -f get_focus_state
+export -f get_focus_disabled
+export -f update_prompt_content
+export -f install_focus_cron_job
