@@ -37,7 +37,7 @@ focus() {
     local rc=0
     if [[ -f "$command_file" ]]; then
         "$command_file" "$@" || rc=$?
-        focus-update-prompt   # always try to refresh
+        # Prompt hook will handle updates automatically
         return "$rc"
     else
         echo "❌ Unknown subcommand: $subcommand"
@@ -88,43 +88,29 @@ focus-update-prompt() {
                 segment=" ⏸ ${project:-"(no project)"}"
             fi
             
-            # Update prompt based on shell
-            if [[ -n "${ZSH_VERSION:-}" ]]; then
-                # Zsh: use RPROMPT
-                if [[ -n "$segment" ]]; then
-                    RPROMPT="${segment}${REFOCUS_ORIGINAL_RPROMPT:+ $REFOCUS_ORIGINAL_RPROMPT}"
-                else
-                    RPROMPT="${REFOCUS_ORIGINAL_RPROMPT:-}"
-                fi
+            # Write to prompt cache instead of directly modifying PS1/RPROMPT
+            # The prompt hook will read from cache and update the prompt
+            source "$HOME/.local/refocus/lib/focus-output.sh" 2>/dev/null || true
+            if [[ -n "$segment" ]]; then
+                write_prompt_cache "on" "$project" "$mins"
             else
-                # Bash: use PS1
-                if [[ -n "$segment" ]]; then
-                    PS1="${REFOCUS_ORIGINAL_PS1%\\$ }${segment}\$ "
-                else
-                    PS1="${REFOCUS_ORIGINAL_PS1:-}"
-                fi
+                write_prompt_cache "off" "-" "-"
             fi
             
             return 0
         fi
     fi
     
-    # Fallback: restore original prompt
-    if [[ -n "${ZSH_VERSION:-}" ]]; then
-        RPROMPT="${REFOCUS_ORIGINAL_RPROMPT:-}"
-    else
-        PS1="${REFOCUS_ORIGINAL_PS1:-}"
-    fi
+    # Fallback: write "off" to prompt cache
+    source "$HOME/.local/refocus/lib/focus-output.sh" 2>/dev/null || true
+    write_prompt_cache "off" "-" "-"
 }
 
 # Function to restore original prompt
 focus-restore-prompt() {
-    # Restore original prompts
-    if [[ -n "${ZSH_VERSION:-}" ]]; then
-        RPROMPT="${REFOCUS_ORIGINAL_RPROMPT:-}"
-    else
-        PS1="${REFOCUS_ORIGINAL_PS1:-}"
-    fi
+    # Write "off" to prompt cache instead of directly modifying PS1/RPROMPT
+    source "$HOME/.local/refocus/lib/focus-output.sh" 2>/dev/null || true
+    write_prompt_cache "off" "-" "-"
 }
 # Export the function for use
 export -f focus
