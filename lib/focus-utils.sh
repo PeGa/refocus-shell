@@ -23,6 +23,49 @@ REFOCUS_LOG_DIR="$(get_cfg DATA_DIR "$HOME/.local/refocus")"
 REFOCUS_ERROR_LOG="$(get_cfg DATA_DIR "$HOME/.local/refocus")/error.log"
 
 # =============================================================================
+# LOGGING SYSTEM
+# =============================================================================
+
+# Global quiet mode flag (set by -q/--quiet)
+REFOCUS_QUIET="${REFOCUS_QUIET:-false}"
+
+# Function: log_debug
+# Description: Log debug message to stderr (only if REFOCUS_DEBUG=true)
+# Usage: log_debug <message>
+log_debug() {
+    local message="$1"
+    if [[ "${REFOCUS_DEBUG:-false}" == "true" ]]; then
+        echo "🔍 DEBUG: $message" >&2
+    fi
+}
+
+# Function: log_info
+# Description: Log info message to stderr (suppressed if QUIET=true)
+# Usage: log_info <message>
+log_info() {
+    local message="$1"
+    if [[ "${REFOCUS_QUIET:-false}" != "true" ]]; then
+        echo "ℹ️  INFO: $message" >&2
+    fi
+}
+
+# Function: log_warn
+# Description: Log warning message to stderr (always shown)
+# Usage: log_warn <message>
+log_warn() {
+    local message="$1"
+    echo "⚠️  WARN: $message" >&2
+}
+
+# Function: log_err
+# Description: Log error message to stderr (always shown)
+# Usage: log_err <message>
+log_err() {
+    local message="$1"
+    echo "❌ ERROR: $message" >&2
+}
+
+# =============================================================================
 # ERROR HANDLING HELPERS
 # =============================================================================
 
@@ -702,7 +745,11 @@ get_custom_period() {
     echo "$start_time|$end_time"
 }
 
-# Export error handling helper functions
+# Export logging and error handling helper functions
+export -f log_debug
+export -f log_info
+export -f log_warn
+export -f log_err
 export -f die
 export -f usage
 export -f not_found

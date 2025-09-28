@@ -26,7 +26,7 @@ function focus_off() {
     
     # End the session using the façade
     if db_end_session "$now" "$session_notes"; then
-        echo "Stopped focus on: $current_project"
+        log_info "Stopped focus on: $current_project"
         
         # Restore original prompt
         restore_original_prompt

@@ -8,9 +8,39 @@
 
 # Focus function - main entry point
 focus() {
-    local subcommand="${1:-help}"
-    if [[ $# -gt 0 ]]; then
-        shift
+    # Handle global flags first
+    local args=()
+    local quiet_mode=false
+    
+    # Parse global flags
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -q|--quiet)
+                quiet_mode=true
+                shift
+                ;;
+            -*)
+                # Unknown global flag, pass through to subcommand
+                args+=("$1")
+                shift
+                ;;
+            *)
+                # Non-flag argument, add to args
+                args+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    # Set quiet mode globally
+    if [[ "$quiet_mode" == "true" ]]; then
+        export REFOCUS_QUIET=true
+    fi
+    
+    # Get subcommand (first argument)
+    local subcommand="${args[0]:-help}"
+    if [[ ${#args[@]} -gt 0 ]]; then
+        args=("${args[@]:1}")  # Remove first argument (subcommand)
     fi
     
     # Get the command directory
@@ -26,7 +56,7 @@ focus() {
     local command_file="$command_dir/focus-$subcommand.sh"
     local rc=0
     if [[ -f "$command_file" ]]; then
-        "$command_file" "$@" || rc=$?
+        "$command_file" "${args[@]}" || rc=$?
         # Always refresh prompt after any subcommand
         focus-update-prompt
         return "$rc"

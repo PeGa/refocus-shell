@@ -36,9 +36,9 @@ function focus_status() {
         current_minutes=$((elapsed / 60))
         
         if [[ $total_minutes -gt 0 ]]; then
-            echo "⏳ Focusing on: $current_project — ${current_minutes}m elapsed (Total: ${total_minutes}m)"
+            log_info "⏳ Focusing on: $current_project — ${current_minutes}m elapsed (Total: ${total_minutes}m)"
         else
-            echo "⏳ Focusing on: $current_project — ${current_minutes}m elapsed"
+            log_info "⏳ Focusing on: $current_project — ${current_minutes}m elapsed"
         fi
         
         # Refresh prompt cache with current state
@@ -58,20 +58,20 @@ function focus_status() {
         local pause_minutes=$((pause_duration / 60))
         local previous_minutes=$((previous_elapsed / 60))
         
-        echo "⏸️  Session paused: $current_project"
-        echo "   Previous session time: ${previous_minutes}m"
-        echo "   Pause duration: ${pause_minutes}m"
+        log_info "⏸️  Session paused: $current_project"
+        log_info "   Previous session time: ${previous_minutes}m"
+        log_info "   Pause duration: ${pause_minutes}m"
         if [[ -n "$pause_notes" ]]; then
-            echo "   Current session notes: $pause_notes"
+            log_info "   Current session notes: $pause_notes"
         fi
-        echo ""
-        echo "💡 Use 'focus continue' to resume this session"
-        echo "   Use 'focus off' to end the session permanently"
+        log_info ""
+        log_info "💡 Use 'focus continue' to resume this session"
+        log_info "   Use 'focus off' to end the session permanently"
         
         # Refresh prompt cache with paused state
         write_prompt_cache "off" "-" "-"
     else
-        echo "✅ Not currently tracking focus."
+        log_info "✅ Not currently tracking focus."
         
         # Show last focus session information using db_list
         local sessions
@@ -100,8 +100,8 @@ function focus_status() {
             local time_since_min
             time_since_min=$((time_since / 60))
             
-            echo "📊 Last session: $last_project (${duration_min}m)"
-            echo "⏰ Time since last focus: ${time_since_min}m"
+            log_info "📊 Last session: $last_project (${duration_min}m)"
+            log_info "⏰ Time since last focus: ${time_since_min}m"
         fi
         
         # Refresh prompt cache with inactive state

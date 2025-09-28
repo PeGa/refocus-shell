@@ -58,7 +58,7 @@ function focus_on() {
         # Install cron job for nudging
         install_focus_cron_job "$SCRIPT_DIR/../focus-nudge" "$(get_cfg NUDGE_INTERVAL "10")"
         
-        echo "Started focus on: $project"
+        log_info "Started focus on: $project"
     else
         die "Failed to start focus session"
     fi
