@@ -25,7 +25,7 @@ function focus_pause() {
     
     # Get current session info
     local current_state
-    current_state=$(get_focus_state)
+    current_state=$(_get_focus_state_public)
     if [[ -z "$current_state" ]]; then
         echo "❌ Could not retrieve current session information."
         return 1

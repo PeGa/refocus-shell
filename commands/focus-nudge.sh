@@ -51,7 +51,7 @@ function focus_nudge_status() {
         # Check if there's an active session
         if is_focus_active; then
             local state
-            state=$(get_focus_state)
+            state=$(_get_focus_state_public)
             IFS='|' read -r active project start_time <<< "$state"
             
             if [[ "$active" -eq 1 ]] && [[ -n "$project" ]]; then

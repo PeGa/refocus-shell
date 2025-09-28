@@ -818,24 +818,24 @@ _migrate_database() {
     return 0
 }
 
-# Additional public API functions for backward compatibility
-get_focus_state() {
+# Additional private API functions (internal use only)
+_get_focus_state_public() {
     _get_focus_state
 }
 
-get_focus_disabled() {
+_get_focus_disabled_public() {
     _get_focus_disabled
 }
 
-update_prompt_content() {
+_update_prompt_content_public() {
     _update_prompt_content "$@"
 }
 
-install_focus_cron_job() {
+_install_focus_cron_job_public() {
     _install_focus_cron_job "$@"
 }
 
-# Export all public functions
+# Export only the public DB API functions
 export -f db_init
 export -f db_start_session
 export -f db_end_session
@@ -844,7 +844,3 @@ export -f db_resume
 export -f db_get_active
 export -f db_list
 export -f db_stats
-export -f get_focus_state
-export -f get_focus_disabled
-export -f update_prompt_content
-export -f install_focus_cron_job
