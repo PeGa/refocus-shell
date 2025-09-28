@@ -5,24 +5,7 @@
 
 # Source bootstrap module
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$SCRIPT_DIR/../lib/focus-bootstrap.sh" ]]; then
-    source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
-elif [[ -f "$HOME/.local/refocus/lib/focus-bootstrap.sh" ]]; then
-    source "$HOME/.local/refocus/lib/focus-bootstrap.sh"
-else
-    echo "❌ Cannot find focus-bootstrap.sh"
-    exit 1
-fi
-
-# Source database functions
-if [[ -f "$SCRIPT_DIR/../lib/focus-db.sh" ]]; then
-    source "$SCRIPT_DIR/../lib/focus-db.sh"
-elif [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
-    source "$HOME/.local/refocus/lib/focus-db.sh"
-else
-    echo "❌ Cannot find focus-db.sh"
-    exit 1
-fi
+source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
 
 # Function to run comprehensive system diagnostics
 focus_diagnose_system() {
