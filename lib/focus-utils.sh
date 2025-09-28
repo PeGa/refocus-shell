@@ -418,6 +418,16 @@ parse_time_spec() {
 # =============================================================================
 
 
+# Function: verbose_echo
+# Description: Echo message only if verbose mode is enabled
+# Usage: verbose_echo <message>
+verbose_echo() {
+    local message="$1"
+    if [[ "${REFOCUS_VERBOSE:-false}" == "true" ]]; then
+        echo "$message"
+    fi
+}
+
 # Function: cron_install_nudger
 # Description: Install cron job for nudging
 # Usage: cron_install_nudger <script_path> [interval]
@@ -436,6 +446,14 @@ cron_install_nudger() {
     (crontab -l 2>/dev/null; echo "*/$interval * * * * $script_path") | crontab -
 }
 
+# Function: remove_focus_cron_job
+# Description: Remove focus cron job
+# Usage: remove_focus_cron_job
+# Returns: 0 on success, 1 on failure
+remove_focus_cron_job() {
+    crontab -l 2>/dev/null | grep -v "focus-nudge" | crontab -
+}
+
 # Export only essential functions
 export -f validate_timestamp
 export -f validate_time_range
@@ -451,3 +469,5 @@ export -f usage
 export -f not_found
 export -f conflict
 export -f cron_install_nudger
+export -f remove_focus_cron_job
+export -f verbose_echo

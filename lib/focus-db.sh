@@ -1028,6 +1028,28 @@ sql_escape() {
     _sql_escape "$1"
 }
 
+# Function: is_focus_disabled
+# Description: Check if focus is disabled
+# Usage: is_focus_disabled
+# Returns: 0 if disabled, 1 if enabled
+is_focus_disabled() {
+    local disabled
+    disabled=$(_get_focus_disabled)
+    if [[ "$disabled" -eq 1 ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Function: get_nudging_enabled
+# Description: Get nudging enabled status
+# Usage: get_nudging_enabled
+# Returns: 1 if enabled, 0 if disabled
+get_nudging_enabled() {
+    _get_nudging_enabled
+}
+
 # Function: db_get_state
 # Description: Get the current focus state as CSV
 # Usage: db_get_state
@@ -1055,3 +1077,5 @@ export -f create_database_backup
 export -f attempt_database_recovery
 export -f sql_escape
 export -f db_get_state
+export -f is_focus_disabled
+export -f get_nudging_enabled

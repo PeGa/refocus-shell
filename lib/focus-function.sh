@@ -252,6 +252,17 @@ restore_original_prompt() {
         echo "Run 'update-prompt' to update the current terminal prompt"
     fi
 }
+# Function to update prompt content
+# Usage: update_prompt_content <content> <type>
+update_prompt_content() {
+    local content="$1"
+    local type="${2:-default}"
+    
+    # This function is a placeholder for prompt content updates
+    # The actual prompt updating is handled by the shell integration
+    return 0
+}
+
 # Export the function for use
 export -f focus
 export -f focus-update-prompt
@@ -263,4 +274,5 @@ export -f get_current_prompt
 export -f create_focus_prompt
 export -f create_default_prompt
 export -f set_focus_prompt
-export -f restore_original_prompt 
+export -f restore_original_prompt
+export -f update_prompt_content 
