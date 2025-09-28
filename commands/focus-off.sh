@@ -14,8 +14,7 @@ function focus_off() {
     IFS='|' read -r active current_project start_time paused pause_notes pause_start_time previous_elapsed <<< "$state"
 
     if [[ "$active" -ne 1 ]] && [[ "$paused" -ne 1 ]]; then
-        echo "❌ No active focus session to stop" >&2
-        exit 4
+        not_found "No active focus session to stop"
     fi
     
     local now
@@ -37,8 +36,7 @@ function focus_off() {
         
         send_notification "Stopped focus on: $current_project"
     else
-        echo "❌ Failed to stop focus session" >&2
-        exit 1
+        die "Failed to stop focus session"
     fi
 }
 

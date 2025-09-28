@@ -12,24 +12,19 @@ function focus_on() {
     
     # Guard clauses
     if [[ -z "$project" ]]; then
-        echo "❌ Project name is required" >&2
-        echo "Usage: focus on <project>" >&2
-        exit 2
+        usage "Project name is required. Usage: focus on <project>"
     fi
     
     if [[ "$project" =~ [[:cntrl:]] ]] || [[ ${#project} -gt 100 ]]; then
-        echo "❌ Invalid project name" >&2
-        exit 2
+        usage "Invalid project name"
     fi
     
     if is_focus_disabled; then
-        echo "❌ Refocus shell is disabled. Run 'focus enable' to enable it." >&2
-        exit 1
+        die "Refocus shell is disabled. Run 'focus enable' to enable it."
     fi
     
     if is_focus_active; then
-        echo "❌ Already focusing on a project. Run 'focus off' first." >&2
-        exit 4
+        conflict "Already focusing on a project. Run 'focus off' first."
     fi
     
     # Sanitize project name
@@ -65,8 +60,7 @@ function focus_on() {
         
         echo "Started focus on: $project"
     else
-        echo "❌ Failed to start focus session" >&2
-        exit 1
+        die "Failed to start focus session"
     fi
 }
 

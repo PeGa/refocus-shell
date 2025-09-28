@@ -92,8 +92,7 @@ validate_time_range() {
 function focus_past_add() {
     # Guard clauses
     if [[ $# -lt 3 ]]; then
-        echo "❌ Usage: focus past add <project> <start> <end>" >&2
-        exit 2
+        usage "Usage: focus past add <project> <start> <end>"
     fi
     
     local project="$1"
@@ -101,28 +100,24 @@ function focus_past_add() {
     local end_time="$3"
     
     if [[ -z "$project" ]] || [[ "$project" =~ [[:cntrl:]] ]] || [[ ${#project} -gt 100 ]]; then
-        echo "❌ Invalid project name" >&2
-        exit 2
+        usage "Invalid project name"
     fi
     
     if [[ -z "$start_time" ]] || [[ -z "$end_time" ]]; then
-        echo "❌ Start and end times are required" >&2
-        exit 2
+        usage "Start and end times are required"
     fi
     
     # Parse and validate timestamps
     local converted_start_time
     converted_start_time=$(parse_date_to_timestamp "$start_time")
     if [[ $? -ne 0 ]]; then
-        echo "❌ Invalid start time format" >&2
-        exit 2
+        usage "Invalid start time format"
     fi
     
     local converted_end_time
     converted_end_time=$(parse_date_to_timestamp "$end_time")
     if [[ $? -ne 0 ]]; then
-        echo "❌ Invalid end time format" >&2
-        exit 2
+        usage "Invalid end time format"
     fi
     
     # Check if start time is before end time
@@ -132,8 +127,7 @@ function focus_past_add() {
     end_ts=$(date -d "$converted_end_time" +%s 2>/dev/null)
     
     if [[ -n "$start_ts" ]] && [[ -n "$end_ts" ]] && [[ "$start_ts" -ge "$end_ts" ]]; then
-        echo "❌ Start time must be before end time" >&2
-        exit 2
+        usage "Start time must be before end time"
     fi
     
     # Sanitize project name

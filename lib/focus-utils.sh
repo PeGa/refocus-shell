@@ -22,6 +22,46 @@ VERBOSE="${VERBOSE:-false}"
 REFOCUS_LOG_DIR="$(get_cfg DATA_DIR "$HOME/.local/refocus")"
 REFOCUS_ERROR_LOG="$(get_cfg DATA_DIR "$HOME/.local/refocus")/error.log"
 
+# =============================================================================
+# ERROR HANDLING HELPERS
+# =============================================================================
+
+# Function: die
+# Description: Exit with generic error (exit code 1)
+# Usage: die <message>
+die() {
+    local message="$1"
+    echo "❌ $message" >&2
+    exit 1
+}
+
+# Function: usage
+# Description: Exit with usage/validation error (exit code 2)
+# Usage: usage <message>
+usage() {
+    local message="$1"
+    echo "❌ $message" >&2
+    exit 2
+}
+
+# Function: not_found
+# Description: Exit with not found error (exit code 3)
+# Usage: not_found <message>
+not_found() {
+    local message="$1"
+    echo "❌ $message" >&2
+    exit 3
+}
+
+# Function: conflict
+# Description: Exit with conflict error (exit code 4)
+# Usage: conflict <message>
+conflict() {
+    local message="$1"
+    echo "❌ $message" >&2
+    exit 4
+}
+
 # Function: log_error
 # Description: Logs error messages to the configured error log file with timestamp and context
 # Usage: log_error <error_message> [context]
@@ -660,4 +700,10 @@ get_custom_period() {
     local end_time
     end_time=$(get_current_timestamp)
     echo "$start_time|$end_time"
-} 
+}
+
+# Export error handling helper functions
+export -f die
+export -f usage
+export -f not_found
+export -f conflict 

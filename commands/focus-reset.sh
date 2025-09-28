@@ -25,8 +25,7 @@ function focus_reset() {
         if [[ -f "$HOME/.local/refocus/refocus.db" ]]; then
             db_path="$HOME/.local/refocus/refocus.db"
         else
-            echo "❌ Database not found. Please install refocus shell first."
-            exit 1
+            not_found "Database not found. Please install refocus shell first."
         fi
         
         # Reset database
@@ -34,8 +33,7 @@ function focus_reset() {
         if reset_database "$db_path"; then
             echo "✅ Database reset successfully"
         else
-            echo "❌ Failed to reset database"
-            exit 1
+            die "Failed to reset database"
         fi
     else
         echo "Reset cancelled."
