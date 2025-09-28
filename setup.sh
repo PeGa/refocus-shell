@@ -1275,6 +1275,7 @@ DB_PATH="$DB_DEFAULT"
 INSTALL_DIR="$INSTALL_DIR_DEFAULT"
 INTERACTIVE=true
 VERBOSE=false
+NO_FUNCTION=false
 
 # Function to show usage (defined after variables are set)
 show_usage() {
@@ -1336,6 +1337,10 @@ while [[ $# -gt 0 ]]; do
             VERBOSE=true
             shift
             ;;
+        --no-function)
+            NO_FUNCTION=true
+            shift
+            ;;
         -h|--help)
             show_usage
             exit 0
@@ -1375,7 +1380,9 @@ case "$COMMAND" in
         install_nudge_script
         
         # Install based on chosen method
-        setup_focus_function
+        if [[ "$NO_FUNCTION" != "true" ]]; then
+            setup_focus_function
+        fi
         
         # Install prompt hooks
         install_prompt_hooks

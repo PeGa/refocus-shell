@@ -11,6 +11,11 @@ if [[ -z "${REFOCUS_ORIGINAL_PS1:-}" ]]; then
     export REFOCUS_ORIGINAL_PS1="${PS1:-}"
 fi
 
+# Store original RPROMPT if not already stored (for zsh)
+if [[ -n "${ZSH_VERSION:-}" ]] && [[ -z "${REFOCUS_ORIGINAL_RPROMPT:-}" ]]; then
+    export REFOCUS_ORIGINAL_RPROMPT="${RPROMPT:-}"
+fi
+
 # Focus function - main entry point
 focus() {
     local subcommand="${1:-help}"
@@ -29,17 +34,15 @@ focus() {
     
     # Execute the subcommand directly
     local command_file="$command_dir/focus-$subcommand.sh"
+    local rc=0
     if [[ -f "$command_file" ]]; then
-        "$command_file" "$@"
+        "$command_file" "$@" || rc=$?
+        focus-update-prompt   # always try to refresh
+        return "$rc"
     else
         echo "❌ Unknown subcommand: $subcommand"
         echo "Run 'focus help' for available commands"
         return 1
-    fi
-    
-    # Update prompt immediately after command execution
-    if [[ "$subcommand" == "on" ]] || [[ "$subcommand" == "off" ]]; then
-        focus-update-prompt
     fi
 }
 
@@ -48,35 +51,80 @@ focus-update-prompt() {
     # Source config.sh to get table names
     source "$HOME/.local/refocus/config.sh"
     
-    # Source focus-output.sh to get write_prompt_cache function
-    source "$HOME/.local/refocus/lib/focus-output.sh" 2>/dev/null || true
-    
     local focus_db="$HOME/.local/refocus/refocus.db"
     
     if [[ -f "$focus_db" ]]; then
         # Get current state from database
-        local active=$(sqlite3 "$focus_db" "SELECT active FROM ${REFOCUS_STATE_TABLE:-state} WHERE id = 1;" 2>/dev/null)
-        local project=$(sqlite3 "$focus_db" "SELECT project FROM ${REFOCUS_STATE_TABLE:-state} WHERE id = 1;" 2>/dev/null)
+        local state_row
+        state_row=$(sqlite3 "$focus_db" "SELECT active, project, start_time, paused FROM ${REFOCUS_STATE_TABLE:-state} WHERE id = 1;" 2>/dev/null)
         
-        if [[ "$active" == "1" && -n "$project" ]]; then
-            write_prompt_cache "on" "$project" "0"
-        else
-            write_prompt_cache "off" "-" "-"
+        if [[ -n "$state_row" ]]; then
+            # Parse the row into shell variables
+            IFS='|' read -r active project start_time paused <<< "$state_row"
+            
+            # Compute minutes if active and not paused
+            local mins=0
+            if [[ "$active" == "1" && "$paused" == "0" && -n "$start_time" ]]; then
+                local start_ts
+                start_ts=$(date -d "$start_time" +%s 2>/dev/null || echo "")
+                if [[ -n "$start_ts" ]]; then
+                    local now_ts
+                    now_ts=$(date +%s)
+                    mins=$(( (now_ts - start_ts) / 60 ))
+                    [[ "$mins" -lt 0 ]] && mins=0
+                fi
+            fi
+            
+            # Build segment based on state
+            local segment=""
+            if [[ "$active" == "1" ]]; then
+                if [[ "$paused" == "1" ]]; then
+                    segment=" ⏸ ${project:-"(no project)"}"
+                else
+                    segment=" ⏳ ${project:-"(no project)"} (${mins}m)"
+                fi
+            elif [[ "$paused" == "1" ]]; then
+                # Show pause state even when active=0
+                segment=" ⏸ ${project:-"(no project)"}"
+            fi
+            
+            # Update prompt based on shell
+            if [[ -n "${ZSH_VERSION:-}" ]]; then
+                # Zsh: use RPROMPT
+                if [[ -n "$segment" ]]; then
+                    RPROMPT="${segment}${REFOCUS_ORIGINAL_RPROMPT:+ $REFOCUS_ORIGINAL_RPROMPT}"
+                else
+                    RPROMPT="${REFOCUS_ORIGINAL_RPROMPT:-}"
+                fi
+            else
+                # Bash: use PS1
+                if [[ -n "$segment" ]]; then
+                    PS1="${REFOCUS_ORIGINAL_PS1%\\$ }${segment}\$ "
+                else
+                    PS1="${REFOCUS_ORIGINAL_PS1:-}"
+                fi
+            fi
+            
+            return 0
         fi
-        return 0
     fi
     
-    # Fallback - write to cache instead of direct PS1 mutation
-    write_prompt_cache "off" "-" "-"
+    # Fallback: restore original prompt
+    if [[ -n "${ZSH_VERSION:-}" ]]; then
+        RPROMPT="${REFOCUS_ORIGINAL_RPROMPT:-}"
+    else
+        PS1="${REFOCUS_ORIGINAL_PS1:-}"
+    fi
 }
 
 # Function to restore original prompt
 focus-restore-prompt() {
-    # Source focus-output.sh to get write_prompt_cache function
-    source "$HOME/.local/refocus/lib/focus-output.sh" 2>/dev/null || true
-    
-    # Use write_prompt_cache instead of direct PS1 mutation
-    write_prompt_cache "off" "-" "-"
+    # Restore original prompts
+    if [[ -n "${ZSH_VERSION:-}" ]]; then
+        RPROMPT="${REFOCUS_ORIGINAL_RPROMPT:-}"
+    else
+        PS1="${REFOCUS_ORIGINAL_PS1:-}"
+    fi
 }
 # Export the function for use
 export -f focus
