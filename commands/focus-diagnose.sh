@@ -341,4 +341,4 @@ focus_diagnose() {
 }
 
 # Execute the main function
-focus_diagnose "$@"
+refocus_script_main focus_diagnose "$@"
