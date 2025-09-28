@@ -266,6 +266,15 @@ format_section_header() {
     echo
 }
 
+# Function to write current focus state to prompt cache files
+# Usage: write_prompt_cache <status> <project> <minutes>
+write_prompt_cache() {
+    local dir="${REFOCUS_STATE_DIR:-$HOME/.local/refocus}"
+    mkdir -p "$dir"
+    printf "%s|%s|%s\n" "${1:-idle}" "${2:--}" "${3:--}" >"$dir/prompt.cache"
+    date +%s >"$dir/prompt.ver"
+}
+
 # Export functions for use in other scripts
 export -f format_duration
 export -f format_timestamp
@@ -282,3 +291,4 @@ export -f format_table_header
 export -f format_config_display
 export -f format_usage
 export -f format_section_header
+export -f write_prompt_cache
