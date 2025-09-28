@@ -22,6 +22,14 @@ print_status() {
 smoke() {
     print_status "$YELLOW" "Running smoke tests..."
     
+    # Uninstall current version
+    print_status "$YELLOW" "Uninstalling current version..."
+    ./setup.sh uninstall >/dev/null 2>&1 || true
+    
+    # Install fresh version
+    print_status "$YELLOW" "Installing fresh version..."
+    ./setup.sh install --auto >/dev/null 2>&1
+    
     # Source bashrc to get focus function
     source ~/.bashrc
     
