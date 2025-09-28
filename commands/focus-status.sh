@@ -41,6 +41,9 @@ function focus_status() {
         if [[ -n "$project_description" ]]; then
             echo "📋 $project_description"
         fi
+        
+        # Refresh prompt cache with current state
+        write_prompt_cache "on" "$current_project" "$current_minutes"
     elif [[ "$paused" -eq 1 ]]; then
         # Show paused session information
         local now
@@ -65,6 +68,9 @@ function focus_status() {
         echo ""
         echo "💡 Use 'focus continue' to resume this session"
         echo "   Use 'focus off' to end the session permanently"
+        
+        # Refresh prompt cache with paused state
+        write_prompt_cache "off" "-" "-"
     else
         echo "✅ Not currently tracking focus."
         
@@ -92,6 +98,9 @@ function focus_status() {
                 echo "⏰ Time since last focus: ${time_since_min}m"
             fi
         fi
+        
+        # Refresh prompt cache with inactive state
+        write_prompt_cache "off" "-" "-"
     fi
 }
 

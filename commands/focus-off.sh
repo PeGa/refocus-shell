@@ -85,6 +85,11 @@ $session_notes"
     # Update focus state - clear all pause-related fields
     update_focus_state 0 "" "" "$now" 0 "" "" 0
     
+    # Clear start timestamp and update prompt cache
+    local dir="${REFOCUS_STATE_DIR:-$HOME/.local/refocus}"
+    rm -f "$dir/start.ts"
+    write_prompt_cache "off" "-" "-"
+    
     # Remove cron job for nudging
     if remove_focus_cron_job; then
         verbose_echo "Real-time nudging disabled"
