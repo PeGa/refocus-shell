@@ -3,9 +3,10 @@
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 
-# Source bootstrap module
+# Source required modules
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
+source "$SCRIPT_DIR/../lib/focus-utils.sh"
 
 # Note: Using direct SQL queries and validation instead of centralized functions
 # to maintain compatibility with installed versions
