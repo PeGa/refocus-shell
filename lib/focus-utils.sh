@@ -712,11 +712,11 @@ set_focus_prompt() {
         fi
     fi
     
-    # Method 3: Direct PS1 export as fallback
+    # Method 3: Write to prompt cache as fallback
     if [[ "$prompt_updated" == "false" ]]; then
-        export PS1="$focus_prompt"
+        write_prompt_cache "on" "$project" "0"
         prompt_updated=true
-        verbose_echo "Focus prompt set via direct PS1 export"
+        verbose_echo "Focus prompt set via prompt cache"
     fi
     
     verbose_echo "Focus prompt set for project: $project"
@@ -765,11 +765,11 @@ restore_original_prompt() {
         fi
     fi
     
-    # Method 3: Direct PS1 export as fallback
+    # Method 3: Write to prompt cache as fallback
     if [[ "$prompt_updated" == "false" ]]; then
-        export PS1="$original_prompt"
+        write_prompt_cache "off" "-" "-"
         prompt_updated=true
-        verbose_echo "Original prompt restored via direct PS1 export"
+        verbose_echo "Original prompt restored via prompt cache"
     fi
     
     verbose_echo "Original prompt restored"

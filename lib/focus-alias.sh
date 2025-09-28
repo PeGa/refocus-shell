@@ -58,36 +58,35 @@ focus-safe() {
 
 # Function to update prompt from database (safe version)
 focus-update-prompt-safe() {
+    # Source focus-output.sh to get write_prompt_cache function
+    source "$HOME/.local/refocus/lib/focus-output.sh" 2>/dev/null || true
+    
     local focus_db="$HOME/.local/refocus/refocus.db"
     
     if [[ -f "$focus_db" ]]; then
-        # Get current prompt from database
-        local prompt_content
-        prompt_content=$(sqlite3 "$focus_db" "SELECT prompt_content FROM ${REFOCUS_STATE_TABLE:-state} WHERE id = 1;" 2>/dev/null)
+        # Get current state from database
+        local active=$(sqlite3 "$focus_db" "SELECT active FROM ${REFOCUS_STATE_TABLE:-state} WHERE id = 1;" 2>/dev/null)
+        local project=$(sqlite3 "$focus_db" "SELECT project FROM ${REFOCUS_STATE_TABLE:-state} WHERE id = 1;" 2>/dev/null)
         
-        if [[ -n "$prompt_content" ]]; then
-            export PS1="$prompt_content"
-            return 0
+        if [[ "$active" == "1" && -n "$project" ]]; then
+            write_prompt_cache "on" "$project" "0"
+        else
+            write_prompt_cache "off" "-" "-"
         fi
+        return 0
     fi
     
-    # Fallback to original prompt
-    if [[ -n "$REFOCUS_ORIGINAL_PS1" ]]; then
-        export PS1="$REFOCUS_ORIGINAL_PS1"
-    else
-        # Default prompt if no original stored
-        export PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01:34m\]\w\[\033[00m\]\$ '
-    fi
+    # Fallback - write to cache instead of direct PS1 mutation
+    write_prompt_cache "off" "-" "-"
 }
 
 # Function to restore original prompt (safe version)
 focus-restore-prompt-safe() {
-    if [[ -n "$REFOCUS_ORIGINAL_PS1" ]]; then
-        export PS1="$REFOCUS_ORIGINAL_PS1"
-    else
-        # Default prompt if no original stored
-        export PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01:34m\]\w\[\033[00m\]\$ '
-    fi
+    # Source focus-output.sh to get write_prompt_cache function
+    source "$HOME/.local/refocus/lib/focus-output.sh" 2>/dev/null || true
+    
+    # Use write_prompt_cache instead of direct PS1 mutation
+    write_prompt_cache "off" "-" "-"
 }
 
 # Auto-update prompt on function load if focus is active

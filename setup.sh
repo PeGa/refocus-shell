@@ -804,14 +804,14 @@ function update-prompt(){
         PROMPT_CONTENT=$(sqlite3 "$REFOCUS_DB" "SELECT prompt_content FROM ${REFOCUS_STATE_TABLE:-state} WHERE id = 1;" 2>/dev/null)
         
         if [[ -n "$PROMPT_CONTENT" ]]; then
-            # Set PS1 directly from database content
-            export PS1="$PROMPT_CONTENT"
+            # Write to prompt cache instead of direct PS1 mutation
+            write_prompt_cache "on" "active" "0"
             return 0
         fi
     fi
     
-    # If no prompt found in database, use default
-    export PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01:34m\]\w\[\033[00m\]\$ '
+    # If no prompt found in database, write to cache
+    write_prompt_cache "off" "-" "-"
     return 0
 }
 
@@ -1053,8 +1053,8 @@ function update-prompt(){
         PROMPT_FILE=$(sqlite3 "$REFOCUS_DB" "SELECT prompt_file FROM ${REFOCUS_STATE_TABLE:-state} WHERE id = 1;" 2>/dev/null)
         
         if [[ -n "$PROMPT_FILE" ]] && [[ -f "$PROMPT_FILE" ]]; then
-            # Source the prompt file to set PS1
-            source "$PROMPT_FILE"
+            # Write to prompt cache instead of sourcing prompt file
+            write_prompt_cache "on" "active" "0"
         fi
     fi
 }
