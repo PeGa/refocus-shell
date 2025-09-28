@@ -27,7 +27,8 @@ focus() {
     local rc=0
     if [[ -f "$command_file" ]]; then
         "$command_file" "$@" || rc=$?
-        # Prompt hook will handle updates automatically
+        # Always refresh prompt after any subcommand
+        focus-update-prompt
         return "$rc"
     else
         echo "❌ Unknown subcommand: $subcommand"
@@ -42,6 +43,7 @@ focus-update-prompt() {
     source "$HOME/.local/refocus/config.sh"
     
     local focus_db="$HOME/.local/refocus/refocus.db"
+    local state_dir="${REFOCUS_STATE_DIR:-$HOME/.local/refocus}"
     
     if [[ -f "$focus_db" ]]; then
         # Get current state from database
@@ -52,37 +54,22 @@ focus-update-prompt() {
             # Parse the row into shell variables
             IFS='|' read -r active project start_time paused <<< "$state_row"
             
-            # Compute minutes if active and not paused
-            local mins=0
+            # Write start.ts for live minutes computation
             if [[ "$active" == "1" && "$paused" == "0" && -n "$start_time" ]]; then
                 local start_ts
                 start_ts=$(date -d "$start_time" +%s 2>/dev/null || echo "")
                 if [[ -n "$start_ts" ]]; then
-                    local now_ts
-                    now_ts=$(date +%s)
-                    mins=$(( (now_ts - start_ts) / 60 ))
-                    [[ "$mins" -lt 0 ]] && mins=0
+                    echo "$start_ts" > "$state_dir/start.ts"
                 fi
+            else
+                # Remove start.ts when not active or paused
+                rm -f "$state_dir/start.ts"
             fi
             
-            # Build segment based on state
-            local segment=""
-            if [[ "$active" == "1" ]]; then
-                if [[ "$paused" == "1" ]]; then
-                    segment=" ⏸ ${project:-"(no project)"}"
-                else
-                    segment=" ⏳ ${project:-"(no project)"} (${mins}m)"
-                fi
-            elif [[ "$paused" == "1" ]]; then
-                # Show pause state even when active=0
-                segment=" ⏸ ${project:-"(no project)"}"
-            fi
-            
-            # Write to prompt cache instead of directly modifying PS1/RPROMPT
-            # The prompt hook will read from cache and update the prompt
+            # Write to prompt cache - the prompt hook will handle live minutes computation
             source "$HOME/.local/refocus/lib/focus-output.sh" 2>/dev/null || true
-            if [[ -n "$segment" ]]; then
-                write_prompt_cache "on" "$project" "$mins"
+            if [[ "$active" == "1" ]]; then
+                write_prompt_cache "on" "$project" "0"  # Minutes computed live by prompt hook
             else
                 write_prompt_cache "off" "-" "-"
             fi
@@ -91,7 +78,8 @@ focus-update-prompt() {
         fi
     fi
     
-    # Fallback: write "off" to prompt cache
+    # Fallback: write "off" to prompt cache and remove start.ts
+    rm -f "$state_dir/start.ts"
     source "$HOME/.local/refocus/lib/focus-output.sh" 2>/dev/null || true
     write_prompt_cache "off" "-" "-"
 }
