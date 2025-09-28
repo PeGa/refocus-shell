@@ -1130,6 +1130,145 @@ remove_focus_function() {
     done
 }
 
+# Function to install prompt hooks
+install_prompt_hooks() {
+    local DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+    local HOOK_DST="$DATA_HOME/refocus/prompt"
+    local BEGIN_MARK="# >>> refocus prompt hook >>>"
+    local END_MARK="# <<< refocus prompt hook <<<"
+    
+    print_verbose "Installing prompt hooks to: $HOOK_DST"
+    
+    # Create hook directory and copy files
+    mkdir -p "$HOOK_DST"
+    if [[ -f "./extras/prompt/refocus-prompt.bash" ]]; then
+        cp -f "./extras/prompt/refocus-prompt.bash" "$HOOK_DST/"
+        print_verbose "Copied refocus-prompt.bash"
+    elif [[ -f "$(dirname "$0")/extras/prompt/refocus-prompt.bash" ]]; then
+        cp -f "$(dirname "$0")/extras/prompt/refocus-prompt.bash" "$HOOK_DST/"
+        print_verbose "Copied refocus-prompt.bash"
+    else
+        print_warning "Could not find refocus-prompt.bash"
+    fi
+    
+    if [[ -f "./extras/prompt/refocus-prompt.zsh" ]]; then
+        cp -f "./extras/prompt/refocus-prompt.zsh" "$HOOK_DST/"
+        print_verbose "Copied refocus-prompt.zsh"
+    elif [[ -f "$(dirname "$0")/extras/prompt/refocus-prompt.zsh" ]]; then
+        cp -f "$(dirname "$0")/extras/prompt/refocus-prompt.zsh" "$HOOK_DST/"
+        print_verbose "Copied refocus-prompt.zsh"
+    else
+        print_warning "Could not find refocus-prompt.zsh"
+    fi
+    
+    # Detect shell
+    local USER_SHELL_BASENAME="$(basename "${SHELL:-}")"
+    local BASH_RC="${HOME}/.bashrc"
+    local ZSH_RC="${HOME}/.zshrc"
+    
+    # Install bash hook
+    if [[ "$USER_SHELL_BASENAME" == "bash" ]]; then
+        if ! grep -Fq "$BEGIN_MARK" "$BASH_RC" 2>/dev/null; then
+            print_verbose "Adding bash prompt hook to $BASH_RC"
+            cat >> "$BASH_RC" << EOF
+
+$BEGIN_MARK
+# Added by refocus installer — live prompt (no daemon)
+# Uninstall: run 'setup.sh --uninstall' from the repo
+export REFOCUS_STATE_DIR="\${REFOCUS_STATE_DIR:-\$HOME/.local/refocus}"
+if [ -f "$HOOK_DST/refocus-prompt.bash" ]; then
+  # shellcheck disable=SC1090
+  . "$HOOK_DST/refocus-prompt.bash"
+  case ":\$PROMPT_COMMAND:" in *:_refocus_prompt:*) :;; *) PROMPT_COMMAND="_refocus_prompt\${PROMPT_COMMAND:+;\$PROMPT_COMMAND}";; esac
+fi
+$END_MARK
+EOF
+            print_success "Added prompt hook to ~/.bashrc"
+        else
+            print_verbose "Bash prompt hook already installed"
+        fi
+    fi
+    
+    # Install zsh hook
+    if [[ "$USER_SHELL_BASENAME" == "zsh" ]]; then
+        if ! grep -Fq "$BEGIN_MARK" "$ZSH_RC" 2>/dev/null; then
+            print_verbose "Adding zsh prompt hook to $ZSH_RC"
+            cat >> "$ZSH_RC" << EOF
+
+$BEGIN_MARK
+# Added by refocus installer — live prompt (no daemon)
+export REFOCUS_STATE_DIR="\${REFOCUS_STATE_DIR:-\$HOME/.local/refocus}"
+if [ -f "$HOOK_DST/refocus-prompt.zsh" ]; then
+  source "$HOOK_DST/refocus-prompt.zsh"
+  # If user didn't include the segment in PROMPT, default to RPROMPT so we don't clobber themes.
+  if [[ "\$PROMPT" != *"\${REFOCUS_PROMPT_SEG}"* && "\$RPROMPT" != *"\${REFOCUS_PROMPT_SEG}"* ]]; then
+    RPROMPT="\${REFOCUS_PROMPT_SEG} \${RPROMPT}"
+  fi
+fi
+$END_MARK
+EOF
+            print_success "Added prompt hook to ~/.zshrc"
+        else
+            print_verbose "Zsh prompt hook already installed"
+        fi
+    fi
+    
+    # Print instructions for other shells
+    if [[ "$USER_SHELL_BASENAME" != "bash" && "$USER_SHELL_BASENAME" != "zsh" ]]; then
+        print_warning "Shell '$USER_SHELL_BASENAME' not supported for automatic prompt hook installation"
+        echo "Prompt hooks installed to: $HOOK_DST"
+        echo "Manual installation:"
+        echo "  Bash: source $HOOK_DST/refocus-prompt.bash"
+        echo "  Zsh:  source $HOOK_DST/refocus-prompt.zsh"
+    fi
+}
+
+# Function to remove prompt hooks
+remove_prompt_hooks() {
+    local DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+    local HOOK_DST="$DATA_HOME/refocus/prompt"
+    local BEGIN_MARK="# >>> refocus prompt hook >>>"
+    local END_MARK="# <<< refocus prompt hook <<<"
+    local BASH_RC="${HOME}/.bashrc"
+    local ZSH_RC="${HOME}/.zshrc"
+    
+    print_verbose "Removing prompt hooks..."
+    
+    # Function to strip block from file
+    strip_block() {
+        local file="$1"
+        [[ -f "$file" ]] || return 0
+        awk -v s="$BEGIN_MARK" -v e="$END_MARK" '
+          $0==s {inblk=1; next}
+          $0==e {inblk=0; next}
+          !inblk {print}
+        ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+    }
+    
+    # Remove from bashrc
+    if grep -Fq "$BEGIN_MARK" "$BASH_RC" 2>/dev/null; then
+        strip_block "$BASH_RC"
+        print_success "Removed prompt hook from ~/.bashrc"
+    fi
+    
+    # Remove from zshrc
+    if grep -Fq "$BEGIN_MARK" "$ZSH_RC" 2>/dev/null; then
+        strip_block "$ZSH_RC"
+        print_success "Removed prompt hook from ~/.zshrc"
+    fi
+    
+    # Remove hook directory if it only contains our files
+    if [[ -d "$HOOK_DST" ]]; then
+        local file_count=$(find "$HOOK_DST" -type f | wc -l)
+        if [[ "$file_count" -eq 2 ]] && [[ -f "$HOOK_DST/refocus-prompt.bash" ]] && [[ -f "$HOOK_DST/refocus-prompt.zsh" ]]; then
+            rm -rf "$HOOK_DST"
+            print_success "Removed prompt hook directory: $HOOK_DST"
+        else
+            print_verbose "Left prompt hook directory intact (contains other files): $HOOK_DST"
+        fi
+    fi
+}
+
 # Parse command line arguments
 COMMAND="install"
 DB_PATH="$DB_DEFAULT"
@@ -1238,6 +1377,9 @@ case "$COMMAND" in
         # Install based on chosen method
         setup_focus_function
         
+        # Install prompt hooks
+        install_prompt_hooks
+        
         # For function mode, remove focus script from PATH after function is set up
         if [[ "$INSTALL_METHOD" == "a" ]]; then
             print_verbose "Removing focus script from PATH for function mode"
@@ -1253,6 +1395,11 @@ case "$COMMAND" in
         echo ""
         echo "✅ Installation complete!"
         echo "🔄 Run 'source ~/.bashrc' or open a new terminal to be able to access refocus shell."
+        echo ""
+        echo "📝 Prompt hook installed:"
+        echo "   Added prompt hook to ~/.bashrc / ~/.zshrc under a marked block."
+        echo "   Open a new terminal or run: \`source ~/.bashrc\` or \`source ~/.zshrc\`"
+        echo "   Run \`focus on demo \"hello\"\` and you should see ⏳ demo (0m)."
         ;;
     uninstall)
         set_abort_message "uninstall"
@@ -1266,6 +1413,7 @@ case "$COMMAND" in
         fi
         remove_shell_integration
         remove_focus_function
+        remove_prompt_hooks
         
         # Check if focus directory exists and ask user about cleanup
         focus_dir=$(dirname "$DB_PATH")
