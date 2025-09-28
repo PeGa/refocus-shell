@@ -121,6 +121,12 @@ function focus_on() {
     # Update focus state
     update_focus_state 1 "$project" "$start_time" "$last_focus_off_time"
     
+    # Write start timestamp and prompt cache
+    local dir="${REFOCUS_STATE_DIR:-$HOME/.local/refocus}"
+    mkdir -p "$dir"
+    date +%s >"$dir/start.ts"
+    write_prompt_cache "on" "$project" "0"
+    
     # Install cron job for real-time nudging
     if install_focus_cron_job "$project" "$start_time"; then
         verbose_echo "Real-time nudging enabled"
