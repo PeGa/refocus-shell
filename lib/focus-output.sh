@@ -283,6 +283,36 @@ write_prompt_cache() {
 # Export functions for use in other scripts
 export -f format_duration
 export -f format_ts
+# Function: print_past_table_header
+# Description: Print header for past sessions table (human format)
+# Usage: print_past_table_header
+print_past_table_header() {
+    printf "%-4s %-20s %-19s %-19s %-8s %-6s\n" "ID" "Project" "Start" "End" "Duration" "Type"
+    echo "---- -------------------- ------------------- ------------------- -------- ------"
+}
+
+# Function: print_past_table_footer
+# Description: Print footer for past sessions table (human format)
+# Usage: print_past_table_footer
+print_past_table_footer() {
+    # Empty footer for now, can be extended if needed
+    :
+}
+
+# Function: print_past_table_row_raw
+# Description: Print raw CSV row for past sessions
+# Usage: print_past_table_row_raw <id> <start_ts> <end_ts> <project> <desc> <note>
+print_past_table_row_raw() {
+    local id="$1"
+    local start_ts="$2"
+    local end_ts="$3"
+    local project="$4"
+    local desc="$5"
+    local note="$6"
+    
+    echo "$id,$start_ts,$end_ts,$project,$desc,$note"
+}
+
 export -f print_session_row
 export -f print_status
 export -f print_past_row
@@ -293,3 +323,6 @@ export -f print_report_project_row
 export -f print_report_footer
 export -f print_report_row_raw
 export -f write_prompt_cache
+export -f print_past_table_header
+export -f print_past_table_footer
+export -f print_past_table_row_raw

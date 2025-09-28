@@ -458,82 +458,55 @@ function focus_past_delete() {
 }
 
 function focus_past_list() {
-    local limit=20
+    # Parse flags using centralized function
+    parse_past_flags "$@"
     
-    # Parse arguments to support both -n flag and positional argument
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            -n|--number)
-                if [[ $# -lt 2 ]]; then
-                    echo "❌ Missing value for option: $1"
-                    echo "Usage: focus past list [-n|--number <number>] [<number>]"
-                    exit 2  # Invalid arguments
-                fi
-                limit="$2"
-                shift 2
-                ;;
-            -*)
-                echo "❌ Unknown option: $1"
-                echo "Usage: focus past list [-n|--number <number>] [<number>]"
-                echo "Examples:"
-                echo "  focus past list"
-                echo "  focus past list 30"
-                echo "  focus past list -n 30"
-                echo "  focus past list --number 30"
-                exit 2  # Invalid arguments
-                ;;
-            *)
-                # If it's a number, use it as the limit
-                if [[ "$1" =~ ^[0-9]+$ ]]; then
-                    limit="$1"
-                else
-                    echo "❌ Invalid argument: $1"
-                    echo "Usage: focus past list [-n|--number <number>] [<number>]"
-                    echo "The number argument must be a positive integer."
-                    exit 2  # Invalid arguments
-                fi
-                shift
-                ;;
-        esac
-    done
-    
-    if ! [[ "$limit" =~ ^[0-9]+$ ]]; then
-        echo "❌ Invalid limit: $limit"
+    if ! [[ "$PAST_LIMIT" =~ ^[0-9]+$ ]]; then
+        echo "❌ Invalid limit: $PAST_LIMIT"
         exit 2  # Invalid arguments
     fi
     
-    echo "📋 Recent focus sessions (last $limit):"
+    echo "📋 Recent focus sessions (last $PAST_LIMIT):"
     echo
     
-    # Get recent sessions using direct SQL query
+    # Get sessions from database
     local sessions
-    sessions=$(execute_sqlite "SELECT rowid, project, start_time, end_time, duration_seconds, notes FROM ${REFOCUS_SESSIONS_TABLE:-sessions} WHERE project != '[idle]' ORDER BY rowid DESC LIMIT $limit;" "focus_past_list")
+    sessions=$(execute_sqlite "SELECT rowid, project, start_time, end_time, duration_seconds, notes FROM ${REFOCUS_SESSIONS_TABLE:-sessions} WHERE project != '[idle]' ORDER BY rowid DESC LIMIT $PAST_LIMIT;" "focus_past_list")
     
     if [[ -z "$sessions" ]]; then
         echo "No focus sessions found."
         return 0
     fi
     
-    # Format table header using centralized function
-    printf "%-4s %-20s %-19s %-19s %-8s %-6s\n" "ID" "Project" "Start" "End" "Duration" "Type"
-    echo "---- -------------------- ------------------- ------------------- -------- ------"
-    
-    # Process sessions and add blank lines between entries
-    local session_count=0
-    local total_sessions
-    total_sessions=$(echo "$sessions" | wc -l)
-    
-    while IFS='|' read -r id project start_time end_time duration notes; do
-        session_count=$((session_count + 1))
+    # Print table using centralized functions
+    if [[ "$PAST_RAW_MODE" == true ]]; then
+        # Raw CSV output
+        while IFS='|' read -r id project start_time end_time duration notes; do
+            print_past_table_row_raw "$id" "$start_time" "$end_time" "$project" "" "$notes"
+        done <<< "$sessions"
+    else
+        # Human-readable table
+        print_past_table_header
         
-        # Use the new printer function for consistent formatting
-        print_past_row "$id" "$start_time" "$end_time" "$project" "" "$notes"
+        # Process sessions and add blank lines between entries
+        local session_count=0
+        local total_sessions
+        total_sessions=$(echo "$sessions" | wc -l)
         
-        # Add blank line after each entry except the last one
-        if [[ $session_count -lt $total_sessions ]]; then
-            printf "\n"
-        fi
-    done <<< "$sessions"
+        while IFS='|' read -r id project start_time end_time duration notes; do
+            session_count=$((session_count + 1))
+            
+            # Use the printer function for consistent formatting
+            print_past_row "$id" "$start_time" "$end_time" "$project" "" "$notes"
+            
+            # Add blank line after each entry except the last one
+            if [[ $session_count -lt $total_sessions ]]; then
+                printf "\n"
+            fi
+        done <<< "$sessions"
+        
+        print_past_table_footer
+    fi
 }
 
 function focus_past() {

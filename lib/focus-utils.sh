@@ -461,6 +461,58 @@ export -f validate_file_path
 export -f validate_session_id
 export -f parse_time_spec
 export -f log_debug
+# Function: parse_past_flags
+# Description: Parse flags for focus past list command
+# Usage: parse_past_flags "$@"
+# Returns: Sets global variables: PAST_LIMIT, PAST_RAW_MODE
+# Exits with code 2 on usage errors
+parse_past_flags() {
+    PAST_LIMIT=20
+    PAST_RAW_MODE=false
+    
+    # Parse arguments to support both -n flag and positional argument
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -n|--number)
+                if [[ $# -lt 2 ]]; then
+                    echo "❌ Missing value for option: $1"
+                    echo "Usage: focus past list [-n|--number <number>] [<number>]"
+                    exit 2  # Invalid arguments
+                fi
+                PAST_LIMIT="$2"
+                shift 2
+                ;;
+            --raw)
+                PAST_RAW_MODE=true
+                shift
+                ;;
+            -*)
+                echo "❌ Unknown option: $1"
+                echo "Usage: focus past list [-n|--number <number>] [--raw] [<number>]"
+                echo "Examples:"
+                echo "  focus past list"
+                echo "  focus past list 30"
+                echo "  focus past list -n 30"
+                echo "  focus past list --number 30"
+                echo "  focus past list --raw"
+                exit 2  # Invalid arguments
+                ;;
+            *)
+                # If it's a number, use it as the limit
+                if [[ "$1" =~ ^[0-9]+$ ]]; then
+                    PAST_LIMIT="$1"
+                else
+                    echo "❌ Invalid argument: $1"
+                    echo "Usage: focus past list [-n|--number <number>] [--raw] [<number>]"
+                    echo "The number argument must be a positive integer."
+                    exit 2  # Invalid arguments
+                fi
+                shift
+                ;;
+        esac
+    done
+}
+
 export -f log_info
 export -f log_warn
 export -f log_err
@@ -471,3 +523,4 @@ export -f conflict
 export -f cron_install_nudger
 export -f remove_focus_cron_job
 export -f verbose_echo
+export -f parse_past_flags
