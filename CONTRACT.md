@@ -357,9 +357,10 @@ focus nudge test
 #### `focus report today`
 Today's focus report.
 
-**Usage:** `focus report today`
+**Usage:** `focus report today [--raw]`
 
-**Parameters:** None
+**Parameters:**
+- `--raw` (optional): Output machine-readable format with epoch timestamps and CSV data
 
 **Exit Codes:**
 - `0`: Success (always)
@@ -367,14 +368,16 @@ Today's focus report.
 **Examples:**
 ```bash
 focus report today
+focus report today --raw
 ```
 
 #### `focus report week`
 This week's focus report.
 
-**Usage:** `focus report week`
+**Usage:** `focus report week [--raw]`
 
-**Parameters:** None
+**Parameters:**
+- `--raw` (optional): Output machine-readable format with epoch timestamps and CSV data
 
 **Exit Codes:**
 - `0`: Success (always)
@@ -382,14 +385,16 @@ This week's focus report.
 **Examples:**
 ```bash
 focus report week
+focus report week --raw
 ```
 
 #### `focus report month`
 This month's focus report.
 
-**Usage:** `focus report month`
+**Usage:** `focus report month [--raw]`
 
-**Parameters:** None
+**Parameters:**
+- `--raw` (optional): Output machine-readable format with epoch timestamps and CSV data
 
 **Exit Codes:**
 - `0`: Success (always)
@@ -397,15 +402,17 @@ This month's focus report.
 **Examples:**
 ```bash
 focus report month
+focus report month --raw
 ```
 
 #### `focus report custom <days>`
 Custom period report.
 
-**Usage:** `focus report custom <days>`
+**Usage:** `focus report custom <days> [--raw]`
 
 **Parameters:**
 - `days` (required): Number of days to report
+- `--raw` (optional): Output machine-readable format with epoch timestamps and CSV data
 
 **Exit Codes:**
 - `0`: Success
@@ -415,6 +422,7 @@ Custom period report.
 ```bash
 focus report custom 7
 focus report custom 30
+focus report custom 7 --raw
 ```
 
 ### Utility Commands
@@ -538,6 +546,18 @@ focus help
 - `REFOCUS_DATE_FORMAT`: Date format for reports (default: `%Y-%m-%d %H:%M`)
 - `REFOCUS_TIME_FORMAT`: Time format for reports (default: `%H:%M`)
 
+### Raw Mode Format
+When using the `--raw` flag with report commands, output is formatted as CSV with the following structure:
+
+**Summary Data:**
+- `start_time,end_time`: Period boundaries (epoch timestamps)
+- `total_duration_seconds,total_sessions,active_projects`: Summary statistics
+
+**Session Data:**
+- `project,start_time,end_time,duration_seconds,notes,duration_only,session_date`: Individual session details
+- All timestamps are in epoch format for machine processing
+- Empty fields are represented as empty strings
+
 ### Export/Import Configuration
 - `REFOCUS_EXPORT_FORMAT`: Export filename format (default: `refocus-export-%Y%m%d_%H%M%S.sql`)
 - `REFOCUS_EXPORT_DIR`: Export directory (default: current directory)
@@ -609,6 +629,11 @@ focus past modify 1 "updated-project"
 focus report today
 focus report week
 focus report custom 7
+
+# Generate machine-readable reports
+focus report today --raw
+focus report week --raw
+focus report custom 7 --raw
 ```
 
 ### Configuration

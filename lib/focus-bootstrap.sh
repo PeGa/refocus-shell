@@ -149,7 +149,7 @@ refocus_bootstrap() {
     
     # Run database migration if needed
     if [[ -f "$REFOCUS_DB_PATH" ]]; then
-        migrate_database
+        _migrate_database
     fi
     
     # Set up error context
