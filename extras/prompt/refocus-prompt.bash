@@ -1,4 +1,5 @@
-# Source this from ~/.bashrc:  source /path/to/extras/prompt/refocus-prompt.bash
+# Source this in ~/.bashrc:
+#   source /full/path/to/extras/prompt/refocus-prompt.bash
 _refocus_prompt() {
   local dir="${REFOCUS_STATE_DIR:-$HOME/.local/refocus}"
   local verfile="$dir/prompt.ver" cache="$dir/prompt.cache"
@@ -12,20 +13,10 @@ _refocus_prompt() {
       if [[ "$st" == "on" ]]; then
         [[ -z "$proj" || "$proj" == "-" ]] && proj="(no project)"
         [[ -z "$mins" || "$mins" == "-" ]] && mins="0"
-        
-        # Compute live minutes if start.ts exists
-        local startfile="$dir/start.ts"
-        if [[ -r "$startfile" ]]; then
-          local start_ts=$(<"$startfile")
-          local now_ts=$(date +%s)
-          local live_mins=$(((now_ts - start_ts) / 60))
-          __REFOCUS_PROMPT_SEG=" ⏳ ${proj} (${live_mins}m)"
-        else
-          __REFOCUS_PROMPT_SEG=" ⏳ ${proj} (${mins}m)"
-        fi
+        __REFOCUS_PROMPT_SEG=" ⏳ ${proj} (${mins}m)"
       fi
     fi
   fi
   PS1="${PS1%\\$ }${__REFOCUS_PROMPT_SEG}\$ "
 }
-case ":${PROMPT_COMMAND:-}:" in *:_refocus_prompt:*) ;; *) PROMPT_COMMAND="_refocus_prompt${PROMPT_COMMAND:+;$PROMPT_COMMAND}";; esac
+case ":$PROMPT_COMMAND:" in *:_refocus_prompt:*) ;; *) PROMPT_COMMAND="_refocus_prompt${PROMPT_COMMAND:+;$PROMPT_COMMAND}";; esac
