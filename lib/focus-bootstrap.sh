@@ -190,6 +190,52 @@ load_configuration() {
 # Load configuration on bootstrap
 load_configuration
 
+# Function to ensure data directories exist
+# Usage: ensure_data_dirs
+ensure_data_dirs() {
+    local data_dir="${REFOCUS_DATA_DIR:-$HOME/.local/refocus}"
+    local lib_dir="${REFOCUS_LIB_DIR:-$data_dir/lib}"
+    local commands_dir="${REFOCUS_COMMANDS_DIR:-$data_dir/commands}"
+    
+    mkdir -p "$data_dir" "$lib_dir" "$commands_dir"
+}
+
+# Function to parse global flags
+# Usage: parse_global_flags "$@"
+# Sets REFOCUS_QUIET=true if -q/--quiet is found
+parse_global_flags() {
+    local args=()
+    local quiet_mode=false
+    
+    # Parse global flags
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -q|--quiet)
+                quiet_mode=true
+                shift
+                ;;
+            -*)
+                # Unknown global flag, pass through to subcommand
+                args+=("$1")
+                shift
+                ;;
+            *)
+                # Non-flag argument, add to args
+                args+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    # Set quiet mode globally
+    if [[ "$quiet_mode" == "true" ]]; then
+        export REFOCUS_QUIET=true
+    fi
+    
+    # Return remaining arguments
+    echo "${args[@]}"
+}
+
 # Function to initialize refocus environment
 # Usage: refocus_bootstrap [command_name]
 refocus_bootstrap() {
@@ -242,95 +288,11 @@ refocus_script_main() {
     refocus_command_main "$command_function" "$@"
 }
 
-# Function to validate required dependencies
-# Usage: refocus_validate_dependencies [dependency1] [dependency2] ...
-refocus_validate_dependencies() {
-    local missing_deps=()
-    
-    for dep in "$@"; do
-        if ! command -v "$dep" >/dev/null 2>&1; then
-            missing_deps+=("$dep")
-        fi
-    done
-    
-    if [[ ${#missing_deps[@]} -gt 0 ]]; then
-        echo "❌ Missing required dependencies: ${missing_deps[*]}"
-        echo "Please install them and try again."
-        return 1
-    fi
-    
-    return 0
-}
-
-# Function to handle user confirmation prompts
-# Usage: refocus_confirm <message> [default_response]
-# Returns: 0 for yes, 1 for no
-refocus_confirm() {
-    local message="$1"
-    local default="${2:-N}"
-    local response
-    
-    echo "$message"
-    read -r response
-    
-    # Handle empty response with default
-    if [[ -z "$response" ]]; then
-        response="$default"
-    fi
-    
-    [[ "$response" =~ ^[Yy]$ ]]
-}
-
-# Source the centralized output formatting functions
-if [[ -f "${REFOCUS_LIB_DIR:-$HOME/.local/refocus/lib}/focus-output.sh" ]]; then
-    source "${REFOCUS_LIB_DIR:-$HOME/.local/refocus/lib}/focus-output.sh"
-fi
-
-# Note: Validation functions have been removed - each command now has its own guard clauses
-
-# Function to create backup of database
-# Usage: refocus_backup_database [backup_suffix]
-refocus_backup_database() {
-    local suffix="${1:-backup}"
-    
-    if [[ -f "$DB" ]]; then
-        local backup_file
-        backup_file="${DB}.${suffix}.$(date +%Y%m%d_%H%M%S)"
-        cp "$DB" "$backup_file"
-        echo "📋 Created backup: $backup_file"
-        return 0
-    fi
-    
-    return 1
-}
-
-# Function to get current timestamp
-# Usage: refocus_timestamp [format]
-refocus_timestamp() {
-    local format="${1:-%Y-%m-%d %H:%M:%S}"
-    date "+$format"
-}
-
-# Function to log command execution
-# Usage: refocus_log_command <command> <args...>
-refocus_log_command() {
-    local command="$1"
-    shift
-    local args="$*"
-    
-    if [[ "$VERBOSE" == "true" ]]; then
-        echo "🔧 Executing: $command $args"
-    fi
-}
-
 # Export functions for use in other scripts
 export -f get_cfg
 export -f load_configuration
+export -f ensure_data_dirs
+export -f parse_global_flags
 export -f refocus_bootstrap
 export -f refocus_command_main
 export -f refocus_script_main
-export -f refocus_validate_dependencies
-export -f refocus_confirm
-export -f refocus_backup_database
-export -f refocus_timestamp
-export -f refocus_log_command

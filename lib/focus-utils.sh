@@ -859,6 +859,80 @@ parse_time_spec() {
     return 0
 }
 
+# Function to get current timestamp
+# Usage: refocus_timestamp [format]
+refocus_timestamp() {
+    local format="${1:-%Y-%m-%d %H:%M:%S}"
+    date "+$format"
+}
+
+# Function to log command execution
+# Usage: refocus_log_command <command> <args...>
+refocus_log_command() {
+    local command="$1"
+    shift
+    local args="$*"
+    
+    if [[ "$VERBOSE" == "true" ]]; then
+        echo "🔧 Executing: $command $args"
+    fi
+}
+
+# Function to create backup of database
+# Usage: refocus_backup_database [backup_suffix]
+refocus_backup_database() {
+    local suffix="${1:-backup}"
+    
+    if [[ -f "$DB" ]]; then
+        local backup_file
+        backup_file="${DB}.${suffix}.$(date +%Y%m%d_%H%M%S)"
+        cp "$DB" "$backup_file"
+        echo "📋 Created backup: $backup_file"
+        return 0
+    fi
+    
+    return 1
+}
+
+# Function to validate required dependencies
+# Usage: refocus_validate_dependencies [dependency1] [dependency2] ...
+refocus_validate_dependencies() {
+    local missing_deps=()
+    
+    for dep in "$@"; do
+        if ! command -v "$dep" >/dev/null 2>&1; then
+            missing_deps+=("$dep")
+        fi
+    done
+    
+    if [[ ${#missing_deps[@]} -gt 0 ]]; then
+        echo "❌ Missing required dependencies: ${missing_deps[*]}"
+        echo "Please install them and try again."
+        return 1
+    fi
+    
+    return 0
+}
+
+# Function to handle user confirmation prompts
+# Usage: refocus_confirm <message> [default_response]
+# Returns: 0 for yes, 1 for no
+refocus_confirm() {
+    local message="$1"
+    local default="${2:-N}"
+    local response
+    
+    echo "$message"
+    read -r response
+    
+    # Handle empty response with default
+    if [[ -z "$response" ]]; then
+        response="$default"
+    fi
+    
+    [[ "$response" =~ ^[Yy]$ ]]
+}
+
 # Export logging and utility functions
 export -f log_debug
 export -f log_info
@@ -868,4 +942,9 @@ export -f die
 export -f usage
 export -f not_found
 export -f conflict
-export -f parse_time_spec 
+export -f parse_time_spec
+export -f refocus_timestamp
+export -f refocus_log_command
+export -f refocus_backup_database
+export -f refocus_validate_dependencies
+export -f refocus_confirm 
