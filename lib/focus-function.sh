@@ -142,7 +142,7 @@ get_current_prompt() {
 # Function to create focus prompt string
 create_focus_prompt() {
     local project="$1"
-    echo '⏳ ['$project'] ${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+    printf '⏳ [%s] ${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ ' "$project"
 }
 
 # Function to create default prompt string

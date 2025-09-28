@@ -249,11 +249,18 @@ function focus_generate_report() {
     
     # Generate markdown report file
     local report_filename
-    report_filename="focus-report-$(format_ts "$(date -d "$end_time" +%s)" "%Y-%m-%d").md"
+    local end_epoch_for_filename
+    end_epoch_for_filename=$(date -d "$end_time" +%s)
+    report_filename="focus-report-$(format_ts "$end_epoch_for_filename" "%Y-%m-%d").md"
+    
+    # Pre-calculate epoch timestamps for markdown report
+    local start_epoch_for_report end_epoch_for_report
+    start_epoch_for_report=$(date -d "$start_time" +%s)
+    end_epoch_for_report=$(date -d "$end_time" +%s)
     
     # Create markdown report
     {
-        echo "# Focus Report - $(format_ts "$(date -d "$start_time" +%s)" "%Y-%m-%d") to $(format_ts "$(date -d "$end_time" +%s)" "%Y-%m-%d")"
+        echo "# Focus Report - $(format_ts "$start_epoch_for_report" "%Y-%m-%d") to $(format_ts "$end_epoch_for_report" "%Y-%m-%d")"
         echo ""
         echo "## Summary"
         echo "- **Total focus time**: ${total_hours}h ${total_minutes}m"
@@ -277,8 +284,9 @@ function focus_generate_report() {
                 
                 # Parse date range
                 IFS='|' read -r earliest_start latest_end <<< "$date_range"
-                local start_date=$(format_ts "$(date -d "$earliest_start" +%s)" "%Y-%m-%d")
-                local end_date=$(format_ts "$(date -d "$latest_end" +%s)" "%Y-%m-%d")
+                local start_date end_date
+                start_date=$(format_ts "$(date -d "$earliest_start" +%s)" "%Y-%m-%d")
+                end_date=$(format_ts "$(date -d "$latest_end" +%s)" "%Y-%m-%d")
                 
                 if [[ "$start_date" == "$end_date" ]]; then
                     local date_display="$start_date"
@@ -313,14 +321,18 @@ function focus_generate_report() {
                     if [[ "$duration_only" == "1" ]]; then
                         # Duration-only session
                         local session_date_display
-                        session_date_display=$(format_ts "$(date -d "$session_date" +%s)" "%Y-%m-%d")
+                        local session_epoch
+                        session_epoch=$(date -d "$session_date" +%s)
+                        session_date_display=$(format_ts "$session_epoch" "%Y-%m-%d")
                         echo "$session_num. **$project** (Manual entry: $session_date_display, $duration_display)"
                     else
                         # Regular session
-                        local start_date
-                        start_date=$(format_ts "$(date -d "$start" +%s)" "%Y-%m-%d %H:%M")
-                        local end_date
-                        end_date=$(format_ts "$(date -d "$end" +%s)" "%H:%M")
+                        local start_date end_date
+                        local start_epoch end_epoch
+                        start_epoch=$(date -d "$start" +%s)
+                        end_epoch=$(date -d "$end" +%s)
+                        start_date=$(format_ts "$start_epoch" "%Y-%m-%d %H:%M")
+                        end_date=$(format_ts "$end_epoch" "%H:%M")
                         echo "$session_num. **$project** ($start_date - $end_date, $duration_display)"
                     fi
                     

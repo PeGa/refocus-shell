@@ -731,6 +731,31 @@ _ensure_database_directory() {
     return 0
 }
 
+# Function to ensure indices exist
+_ensure_indices() {
+    # Check and create indices if they don't exist
+    local indices=(
+        "idx_sessions_project:$SESSIONS_TABLE(project)"
+        "idx_sessions_start_time:$SESSIONS_TABLE(start_time)"
+        "idx_sessions_end_time:$SESSIONS_TABLE(end_time)"
+        "idx_sessions_session_date:$SESSIONS_TABLE(session_date)"
+        "idx_sessions_duration_only:$SESSIONS_TABLE(duration_only)"
+    )
+    
+    for index_spec in "${indices[@]}"; do
+        local index_name="${index_spec%%:*}"
+        local index_def="${index_spec##*:}"
+        
+        # Check if index exists
+        local exists
+        exists=$(sqlite3 "$DB" "SELECT name FROM sqlite_master WHERE type='index' AND name='$index_name';" 2>/dev/null)
+        
+        if [[ -z "$exists" ]]; then
+            sqlite3 "$DB" "CREATE INDEX $index_name ON $index_def;" 2>/dev/null
+        fi
+    done
+}
+
 # Function to migrate database
 _migrate_database() {
     # Check if database exists
@@ -765,6 +790,13 @@ _migrate_database() {
                 content TEXT
             );
             
+            -- Add indices for frequently queried columns
+            CREATE INDEX idx_sessions_project ON $SESSIONS_TABLE(project);
+            CREATE INDEX idx_sessions_start_time ON $SESSIONS_TABLE(start_time);
+            CREATE INDEX idx_sessions_end_time ON $SESSIONS_TABLE(end_time);
+            CREATE INDEX idx_sessions_session_date ON $SESSIONS_TABLE(session_date);
+            CREATE INDEX idx_sessions_duration_only ON $SESSIONS_TABLE(duration_only);
+            
             INSERT INTO $STATE_TABLE DEFAULT VALUES;
         " 2>/dev/null
         
@@ -776,6 +808,9 @@ _migrate_database() {
     
     # Ensure projects table exists
     _ensure_projects_table
+    
+    # Ensure indices exist (for existing databases)
+    _ensure_indices
     
     return 0
 }

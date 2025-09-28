@@ -90,38 +90,101 @@ load_configuration() {
     local config_file="${XDG_CONFIG_HOME:-$HOME/.config}/refocus/refocus.conf"
     
     # Set default values
-    export REFOCUS_DB_PATH="$(get_cfg DB_PATH "$HOME/.local/refocus/refocus.db")"
-    export REFOCUS_STATE_TABLE="$(get_cfg STATE_TABLE "state")"
-    export REFOCUS_SESSIONS_TABLE="$(get_cfg SESSIONS_TABLE "sessions")"
-    export REFOCUS_PROJECTS_TABLE="$(get_cfg PROJECTS_TABLE "projects")"
+    local db_path
+    db_path=$(get_cfg DB_PATH "$HOME/.local/refocus/refocus.db")
+    export REFOCUS_DB_PATH="$db_path"
     
-    export REFOCUS_INSTALL_DIR="$(get_cfg INSTALL_DIR "$HOME/.local/bin")"
-    export REFOCUS_DATA_DIR="$(get_cfg DATA_DIR "$HOME/.local/refocus")"
-    export REFOCUS_LIB_DIR="$(get_cfg LIB_DIR "$REFOCUS_DATA_DIR/lib")"
-    export REFOCUS_COMMANDS_DIR="$(get_cfg COMMANDS_DIR "$REFOCUS_DATA_DIR/commands")"
+    local state_table
+    state_table=$(get_cfg STATE_TABLE "state")
+    export REFOCUS_STATE_TABLE="$state_table"
     
-    export REFOCUS_VERBOSE="$(get_cfg VERBOSE "false")"
-    export REFOCUS_IDLE_THRESHOLD="$(get_cfg IDLE_THRESHOLD "60")"
-    export REFOCUS_MAX_PROJECT_LENGTH="$(get_cfg MAX_PROJECT_LENGTH "100")"
+    local sessions_table
+    sessions_table=$(get_cfg SESSIONS_TABLE "sessions")
+    export REFOCUS_SESSIONS_TABLE="$sessions_table"
     
-    export REFOCUS_NOTIFICATIONS="$(get_cfg NOTIFICATIONS "true")"
-    export REFOCUS_NOTIFICATION_TIMEOUT="$(get_cfg NOTIFICATION_TIMEOUT "5000")"
+    local projects_table
+    projects_table=$(get_cfg PROJECTS_TABLE "projects")
+    export REFOCUS_PROJECTS_TABLE="$projects_table"
     
-    export REFOCUS_NUDGING="$(get_cfg NUDGING "true")"
-    export REFOCUS_NUDGE_INTERVAL="$(get_cfg NUDGE_INTERVAL "10")"
+    local install_dir
+    install_dir=$(get_cfg INSTALL_DIR "$HOME/.local/bin")
+    export REFOCUS_INSTALL_DIR="$install_dir"
     
-    export REFOCUS_REPORT_LIMIT="$(get_cfg REPORT_LIMIT "20")"
-    export REFOCUS_DATE_FORMAT="$(get_cfg DATE_FORMAT "%Y-%m-%d %H:%M")"
-    export REFOCUS_TIME_FORMAT="$(get_cfg TIME_FORMAT "%H:%M")"
+    local data_dir
+    data_dir=$(get_cfg DATA_DIR "$HOME/.local/refocus")
+    export REFOCUS_DATA_DIR="$data_dir"
     
-    export REFOCUS_EXPORT_FORMAT="$(get_cfg EXPORT_FORMAT "refocus-export-%Y%m%d_%H%M%S.sql")"
-    export REFOCUS_EXPORT_DIR="$(get_cfg EXPORT_DIR "")"
+    local lib_dir
+    lib_dir=$(get_cfg LIB_DIR "$REFOCUS_DATA_DIR/lib")
+    export REFOCUS_LIB_DIR="$lib_dir"
     
-    export REFOCUS_MAX_SESSION_HOURS="$(get_cfg MAX_SESSION_HOURS "24")"
-    export REFOCUS_MIN_SESSION_SECONDS="$(get_cfg MIN_SESSION_SECONDS "1")"
+    local commands_dir
+    commands_dir=$(get_cfg COMMANDS_DIR "$REFOCUS_DATA_DIR/commands")
+    export REFOCUS_COMMANDS_DIR="$commands_dir"
     
-    export REFOCUS_DEBUG="$(get_cfg DEBUG "false")"
-    export REFOCUS_LOG_FILE="$(get_cfg LOG_FILE "")"
+    local verbose
+    verbose=$(get_cfg VERBOSE "false")
+    export REFOCUS_VERBOSE="$verbose"
+    
+    local idle_threshold
+    idle_threshold=$(get_cfg IDLE_THRESHOLD "60")
+    export REFOCUS_IDLE_THRESHOLD="$idle_threshold"
+    
+    local max_project_length
+    max_project_length=$(get_cfg MAX_PROJECT_LENGTH "100")
+    export REFOCUS_MAX_PROJECT_LENGTH="$max_project_length"
+    
+    local notifications
+    notifications=$(get_cfg NOTIFICATIONS "true")
+    export REFOCUS_NOTIFICATIONS="$notifications"
+    
+    local notification_timeout
+    notification_timeout=$(get_cfg NOTIFICATION_TIMEOUT "5000")
+    export REFOCUS_NOTIFICATION_TIMEOUT="$notification_timeout"
+    
+    local nudging
+    nudging=$(get_cfg NUDGING "true")
+    export REFOCUS_NUDGING="$nudging"
+    
+    local nudge_interval
+    nudge_interval=$(get_cfg NUDGE_INTERVAL "10")
+    export REFOCUS_NUDGE_INTERVAL="$nudge_interval"
+    
+    local report_limit
+    report_limit=$(get_cfg REPORT_LIMIT "20")
+    export REFOCUS_REPORT_LIMIT="$report_limit"
+    
+    local date_format
+    date_format=$(get_cfg DATE_FORMAT "%Y-%m-%d %H:%M")
+    export REFOCUS_DATE_FORMAT="$date_format"
+    
+    local time_format
+    time_format=$(get_cfg TIME_FORMAT "%H:%M")
+    export REFOCUS_TIME_FORMAT="$time_format"
+    
+    local export_format
+    export_format=$(get_cfg EXPORT_FORMAT "refocus-export-%Y%m%d_%H%M%S.sql")
+    export REFOCUS_EXPORT_FORMAT="$export_format"
+    
+    local export_dir
+    export_dir=$(get_cfg EXPORT_DIR "")
+    export REFOCUS_EXPORT_DIR="$export_dir"
+    
+    local max_session_hours
+    max_session_hours=$(get_cfg MAX_SESSION_HOURS "24")
+    export REFOCUS_MAX_SESSION_HOURS="$max_session_hours"
+    
+    local min_session_seconds
+    min_session_seconds=$(get_cfg MIN_SESSION_SECONDS "1")
+    export REFOCUS_MIN_SESSION_SECONDS="$min_session_seconds"
+    
+    local debug
+    debug=$(get_cfg DEBUG "false")
+    export REFOCUS_DEBUG="$debug"
+    
+    local log_file
+    log_file=$(get_cfg LOG_FILE "")
+    export REFOCUS_LOG_FILE="$log_file"
 }
 
 # Load configuration on bootstrap
