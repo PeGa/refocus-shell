@@ -12,7 +12,17 @@ _refocus_precmd() {
       if [[ "$st" == "on" ]]; then
         [[ -z "$proj" || "$proj" == "-" ]] && proj="(no project)"
         [[ -z "$mins" || "$mins" == "-" ]] && mins="0"
-        seg=" ⏳ ${proj} (${mins}m)"
+        
+        # Compute live minutes if start.ts exists
+        local startfile="$dir/start.ts"
+        if [[ -r "$startfile" ]]; then
+          local start_ts=$(<"$startfile")
+          local now_ts=$(date +%s)
+          local live_mins=$(((now_ts - start_ts) / 60))
+          seg=" ⏳ ${proj} (${live_mins}m)"
+        else
+          seg=" ⏳ ${proj} (${mins}m)"
+        fi
       fi
     fi
     typeset -g REFOCUS_PROMPT_SEG="$seg"
