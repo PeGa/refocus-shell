@@ -30,6 +30,20 @@ PROMPT_TABLE="${REFOCUS_PROMPT_TABLE:-prompts}"
 MIN_DISK_SPACE_MB=10
 
 # =============================================================================
+# PRIVATE SQL EXECUTION HELPER
+# =============================================================================
+
+# Function: _db_exec
+# Description: Execute SQL query with consistent flags (PRIVATE)
+# Usage: _db_exec <sql_query>
+# Parameters:
+#   $1 - SQL query string
+# Returns: Query results in CSV format
+_db_exec() {
+    sqlite3 -noheader -csv "$DB" "$1" 2>/dev/null
+}
+
+# =============================================================================
 # PUBLIC DATABASE API (6-7 functions only)
 # =============================================================================
 
@@ -409,12 +423,12 @@ _attempt_database_recovery() {
 
 # Function to get last project
 _get_last_project() {
-    sqlite3 "$DB" "SELECT project FROM $SESSIONS_TABLE WHERE project != '[idle]' ORDER BY rowid DESC LIMIT 1;" 2>/dev/null
+    _db_exec "SELECT project FROM $SESSIONS_TABLE WHERE project != '[idle]' ORDER BY rowid DESC LIMIT 1;"
 }
 
 # Function to get last session
 _get_last_session() {
-    sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE ORDER BY rowid DESC LIMIT 1;" 2>/dev/null
+    _db_exec "SELECT project, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE ORDER BY rowid DESC LIMIT 1;"
 }
 
 # Function to get total project time
@@ -423,7 +437,7 @@ _get_total_project_time() {
     local escaped_project
     escaped_project=$(_sql_escape "$project")
     
-    sqlite3 "$DB" "SELECT COALESCE(SUM(duration_seconds), 0) FROM $SESSIONS_TABLE WHERE project = '$escaped_project' AND project != '[idle]';" 2>/dev/null
+    _db_exec "SELECT COALESCE(SUM(duration_seconds), 0) FROM $SESSIONS_TABLE WHERE project = '$escaped_project' AND project != '[idle]';"
 }
 
 # Function to count sessions for project
@@ -432,7 +446,7 @@ _count_sessions_for_project() {
     local escaped_project
     escaped_project=$(_sql_escape "$project")
     
-    sqlite3 "$DB" "SELECT COUNT(*) FROM $SESSIONS_TABLE WHERE project = '$escaped_project' AND project != '[idle]';" 2>/dev/null
+    _db_exec "SELECT COUNT(*) FROM $SESSIONS_TABLE WHERE project = '$escaped_project' AND project != '[idle]';"
 }
 
 # Function to get sessions in range
@@ -470,38 +484,59 @@ _get_sessions_in_range() {
             ;;
     esac
     
-    sqlite3 "$DB" "SELECT rowid, project, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE WHERE DATE(start_time) >= '$start_date' AND DATE(start_time) <= '$end_date' ORDER BY start_time DESC;" 2>/dev/null
+    _db_exec "SELECT rowid, project, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE WHERE DATE(start_time) >= '$start_date' AND DATE(start_time) <= '$end_date' ORDER BY start_time DESC;"
+}
+
+# Function to get all state data in one query
+_get_all_state_data() {
+    _db_exec "SELECT active, current_project, start_time, paused, pause_notes, pause_start_time, previous_elapsed, focus_disabled, nudging_enabled, last_focus_off_time FROM $STATE_TABLE LIMIT 1;"
 }
 
 # Function to get focus state
 _get_focus_state() {
-    sqlite3 "$DB" "SELECT active, current_project, start_time, paused, pause_notes, pause_start_time, previous_elapsed FROM $STATE_TABLE LIMIT 1;" 2>/dev/null
+    local state_data
+    state_data=$(_get_all_state_data)
+    if [[ -n "$state_data" ]]; then
+        echo "$state_data" | cut -d',' -f1-7
+    fi
 }
 
 # Function to get focus disabled status
 _get_focus_disabled() {
-    sqlite3 "$DB" "SELECT focus_disabled FROM $STATE_TABLE LIMIT 1;" 2>/dev/null
+    local state_data
+    state_data=$(_get_all_state_data)
+    if [[ -n "$state_data" ]]; then
+        echo "$state_data" | cut -d',' -f8
+    fi
 }
 
 # Function to get nudging enabled status
 _get_nudging_enabled() {
-    sqlite3 "$DB" "SELECT nudging_enabled FROM $STATE_TABLE LIMIT 1;" 2>/dev/null
+    local state_data
+    state_data=$(_get_all_state_data)
+    if [[ -n "$state_data" ]]; then
+        echo "$state_data" | cut -d',' -f9
+    fi
 }
 
 # Function to get last focus off time
 _get_last_focus_off_time() {
-    sqlite3 "$DB" "SELECT last_focus_off_time FROM $STATE_TABLE LIMIT 1;" 2>/dev/null
+    local state_data
+    state_data=$(_get_all_state_data)
+    if [[ -n "$state_data" ]]; then
+        echo "$state_data" | cut -d',' -f10
+    fi
 }
 
 # Function to get prompt content
 _get_prompt_content() {
-    sqlite3 "$DB" "SELECT content FROM $PROMPT_TABLE ORDER BY rowid DESC LIMIT 1;" 2>/dev/null
+    _db_exec "SELECT content FROM $PROMPT_TABLE ORDER BY rowid DESC LIMIT 1;"
 }
 
 # Function to get prompt content by type
 _get_prompt_content_by_type() {
     local type="$1"
-    sqlite3 "$DB" "SELECT content FROM $PROMPT_TABLE WHERE type = '$type' ORDER BY rowid DESC LIMIT 1;" 2>/dev/null
+    _db_exec "SELECT content FROM $PROMPT_TABLE WHERE type = '$type' ORDER BY rowid DESC LIMIT 1;"
 }
 
 # Function to update focus state
@@ -520,7 +555,7 @@ _update_focus_state() {
     local escaped_pause_notes
     escaped_pause_notes=$(_sql_escape "$pause_notes")
     
-    sqlite3 "$DB" "UPDATE $STATE_TABLE SET active = $active, current_project = '$escaped_project', start_time = '$start_time', paused = $paused, pause_notes = '$escaped_pause_notes', pause_start_time = '$pause_start_time', previous_elapsed = $previous_elapsed;" 2>/dev/null
+    _db_exec "UPDATE $STATE_TABLE SET active = $active, current_project = '$escaped_project', start_time = '$start_time', paused = $paused, pause_notes = '$escaped_pause_notes', pause_start_time = '$pause_start_time', previous_elapsed = $previous_elapsed;"
 }
 
 # Function to update prompt content
@@ -531,7 +566,7 @@ _update_prompt_content() {
     local escaped_content
     escaped_content=$(_sql_escape "$content")
     
-    sqlite3 "$DB" "INSERT OR REPLACE INTO $PROMPT_TABLE (type, content) VALUES ('$type', '$escaped_content');" 2>/dev/null
+    _db_exec "INSERT OR REPLACE INTO $PROMPT_TABLE (type, content) VALUES ('$type', '$escaped_content');"
 }
 
 # Function to insert session
@@ -548,7 +583,7 @@ _insert_session() {
     local escaped_notes
     escaped_notes=$(_sql_escape "$notes")
     
-    sqlite3 "$DB" "INSERT INTO $SESSIONS_TABLE (project, start_time, end_time, duration_seconds, notes) VALUES ('$escaped_project', '$start_time', '$end_time', $duration_seconds, '$escaped_notes');" 2>/dev/null
+    _db_exec "INSERT INTO $SESSIONS_TABLE (project, start_time, end_time, duration_seconds, notes) VALUES ('$escaped_project', '$start_time', '$end_time', $duration_seconds, '$escaped_notes');"
 }
 
 # Function to insert duration-only session
@@ -564,7 +599,7 @@ _insert_duration_only_session() {
     local escaped_notes
     escaped_notes=$(_sql_escape "$notes")
     
-    sqlite3 "$DB" "INSERT INTO $SESSIONS_TABLE (project, start_time, end_time, duration_seconds, notes, duration_only, session_date) VALUES ('$escaped_project', '', '', $duration_seconds, '$escaped_notes', 1, '$session_date');" 2>/dev/null
+    _db_exec "INSERT INTO $SESSIONS_TABLE (project, start_time, end_time, duration_seconds, notes, duration_only, session_date) VALUES ('$escaped_project', '', '', $duration_seconds, '$escaped_notes', 1, '$session_date');"
 }
 
 # Function to update session
@@ -582,7 +617,7 @@ _update_session() {
     local escaped_notes
     escaped_notes=$(_sql_escape "$notes")
     
-    sqlite3 "$DB" "UPDATE $SESSIONS_TABLE SET project = '$escaped_project', start_time = '$start_time', end_time = '$end_time', duration_seconds = $duration_seconds, notes = '$escaped_notes' WHERE rowid = $session_id;" 2>/dev/null
+    _db_exec "UPDATE $SESSIONS_TABLE SET project = '$escaped_project', start_time = '$start_time', end_time = '$end_time', duration_seconds = $duration_seconds, notes = '$escaped_notes' WHERE rowid = $session_id;"
 }
 
 # Function to delete sessions for project
@@ -591,25 +626,25 @@ _delete_sessions_for_project() {
     local escaped_project
     escaped_project=$(_sql_escape "$project")
     
-    sqlite3 "$DB" "DELETE FROM $SESSIONS_TABLE WHERE project = '$escaped_project';" 2>/dev/null
+    _db_exec "DELETE FROM $SESSIONS_TABLE WHERE project = '$escaped_project';"
 }
 
 # Function to get session info
 _get_session_info() {
     local session_id="$1"
-    sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE WHERE rowid = $session_id;" 2>/dev/null
+    _db_exec "SELECT project, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE WHERE rowid = $session_id;"
 }
 
 # Function to update focus disabled status
 _update_focus_disabled() {
     local disabled="$1"
-    sqlite3 "$DB" "UPDATE $STATE_TABLE SET focus_disabled = $disabled;" 2>/dev/null
+    _db_exec "UPDATE $STATE_TABLE SET focus_disabled = $disabled;"
 }
 
 # Function to update nudging enabled status
 _update_nudging_enabled() {
     local enabled="$1"
-    sqlite3 "$DB" "UPDATE $STATE_TABLE SET nudging_enabled = $enabled;" 2>/dev/null
+    _db_exec "UPDATE $STATE_TABLE SET nudging_enabled = $enabled;"
 }
 
 # Function to install focus cron job
@@ -637,18 +672,18 @@ _update_state_record() {
     local escaped_value
     escaped_value=$(_sql_escape "$value")
     
-    sqlite3 "$DB" "UPDATE $STATE_TABLE SET $key = '$escaped_value';" 2>/dev/null
+    _db_exec "UPDATE $STATE_TABLE SET $key = '$escaped_value';"
 }
 
 # Function to clear all sessions
 _clear_all_sessions() {
-    sqlite3 "$DB" "DELETE FROM $SESSIONS_TABLE;" 2>/dev/null
+    _db_exec "DELETE FROM $SESSIONS_TABLE;"
 }
 
 # Function to clear additional state
 _clear_additional_state() {
-    sqlite3 "$DB" "DELETE FROM $PROMPT_TABLE;" 2>/dev/null
-    sqlite3 "$DB" "DELETE FROM $PROJECTS_TABLE;" 2>/dev/null
+    _db_exec "DELETE FROM $PROMPT_TABLE;"
+    _db_exec "DELETE FROM $PROJECTS_TABLE;"
 }
 
 # Function to get project description
@@ -657,7 +692,7 @@ _get_project_description() {
     local escaped_project
     escaped_project=$(_sql_escape "$project")
     
-    sqlite3 "$DB" "SELECT description FROM $PROJECTS_TABLE WHERE project = '$escaped_project';" 2>/dev/null
+    _db_exec "SELECT description FROM $PROJECTS_TABLE WHERE project = '$escaped_project';"
 }
 
 # Function to set project description
@@ -674,7 +709,7 @@ _set_project_description() {
     local now
     now=$(date -Iseconds)
     
-    sqlite3 "$DB" "INSERT OR REPLACE INTO $PROJECTS_TABLE (project, description, created_at, updated_at) VALUES ('$escaped_project', '$escaped_description', '$now', '$now');" 2>/dev/null
+    _db_exec "INSERT OR REPLACE INTO $PROJECTS_TABLE (project, description, created_at, updated_at) VALUES ('$escaped_project', '$escaped_description', '$now', '$now');"
 }
 
 # Function to remove project description
@@ -683,17 +718,17 @@ _remove_project_description() {
     local escaped_project
     escaped_project=$(_sql_escape "$project")
     
-    sqlite3 "$DB" "DELETE FROM $PROJECTS_TABLE WHERE project = '$escaped_project';" 2>/dev/null
+    _db_exec "DELETE FROM $PROJECTS_TABLE WHERE project = '$escaped_project';"
 }
 
 # Function to get projects with descriptions
 _get_projects_with_descriptions() {
-    sqlite3 "$DB" "SELECT project, description FROM $PROJECTS_TABLE ORDER BY project;" 2>/dev/null
+    _db_exec "SELECT project, description FROM $PROJECTS_TABLE ORDER BY project;"
 }
 
 # Function to check if projects table exists
 _projects_table_exists() {
-    sqlite3 "$DB" "SELECT name FROM sqlite_master WHERE type='table' AND name='$PROJECTS_TABLE';" 2>/dev/null
+    _db_exec "SELECT name FROM sqlite_master WHERE type='table' AND name='$PROJECTS_TABLE';"
 }
 
 # Function to ensure projects table exists
@@ -861,7 +896,7 @@ _get_sessions_in_range_detailed() {
     esac
     
     # Get sessions including duration-only sessions
-    sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds, notes, duration_only, session_date FROM $SESSIONS_TABLE WHERE project != '[idle]' AND ((end_time >= '$start_date' AND end_time <= '$end_date') OR (duration_only = 1 AND session_date >= '$start_date' AND session_date <= '$end_date')) ORDER BY COALESCE(end_time, session_date) DESC;" 2>/dev/null
+    _db_exec "SELECT project, start_time, end_time, duration_seconds, notes, duration_only, session_date FROM $SESSIONS_TABLE WHERE project != '[idle]' AND ((end_time >= '$start_date' AND end_time <= '$end_date') OR (duration_only = 1 AND session_date >= '$start_date' AND session_date <= '$end_date')) ORDER BY COALESCE(end_time, session_date) DESC;"
 }
 
 # Function to ensure database directory exists
@@ -896,10 +931,10 @@ _ensure_indices() {
         
         # Check if index exists
         local exists
-        exists=$(sqlite3 "$DB" "SELECT name FROM sqlite_master WHERE type='index' AND name='$index_name';" 2>/dev/null)
+        exists=$(_db_exec "SELECT name FROM sqlite_master WHERE type='index' AND name='$index_name';")
         
         if [[ -z "$exists" ]]; then
-            sqlite3 "$DB" "CREATE INDEX $index_name ON $index_def;" 2>/dev/null
+            _db_exec "CREATE INDEX $index_name ON $index_def;"
         fi
     done
 }
