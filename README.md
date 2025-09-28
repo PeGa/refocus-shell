@@ -51,6 +51,23 @@ focus off       # End session (allows adding session notes)
 
 ---
 
+## Live Prompt (no daemon)
+
+Show live focus information in your terminal prompt without any daemons or background processes. The prompt updates right after any `focus` command and also on every Enter, without re-running the DB or spawning daemons.
+
+### Bash
+```bash
+echo 'source /path/to/extras/prompt/refocus-prompt.bash' >>~/.bashrc
+```
+
+### Zsh
+```bash
+echo 'source /path/to/extras/prompt/refocus-prompt.zsh' >>~/.zshrc
+# And ensure ${REFOCUS_PROMPT_SEG} is in PROMPT or RPROMPT.
+```
+
+---
+
 ## 🧠 Why Refocus?
 
 - **🎯 Automatic Logging** - No manual timers, no complex interfaces. Just `focus on` and go.
