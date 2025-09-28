@@ -55,29 +55,29 @@ function focus_config_validate() {
         format_success_message "REFOCUS_INSTALL_DIR: $REFOCUS_INSTALL_DIR"
     fi
     
-    # Validate numeric values using centralized function
-    if ! validate_numeric_input_standardized "$REFOCUS_IDLE_THRESHOLD" "REFOCUS_IDLE_THRESHOLD" 1 3600; then
+    # Validate numeric values
+    if ! [[ "$REFOCUS_IDLE_THRESHOLD" =~ ^[0-9]+$ ]] || [[ "$REFOCUS_IDLE_THRESHOLD" -lt 1 ]] || [[ "$REFOCUS_IDLE_THRESHOLD" -gt 3600 ]]; then
         format_error_message "REFOCUS_IDLE_THRESHOLD validation failed" "Current value: $REFOCUS_IDLE_THRESHOLD"
         ((errors++))
     else
         format_success_message "REFOCUS_IDLE_THRESHOLD: ${REFOCUS_IDLE_THRESHOLD}s"
     fi
     
-    if ! validate_numeric_input_standardized "$REFOCUS_MAX_PROJECT_LENGTH" "REFOCUS_MAX_PROJECT_LENGTH" 1 1000; then
+    if ! [[ "$REFOCUS_MAX_PROJECT_LENGTH" =~ ^[0-9]+$ ]] || [[ "$REFOCUS_MAX_PROJECT_LENGTH" -lt 1 ]] || [[ "$REFOCUS_MAX_PROJECT_LENGTH" -gt 1000 ]]; then
         format_error_message "REFOCUS_MAX_PROJECT_LENGTH validation failed" "Current value: $REFOCUS_MAX_PROJECT_LENGTH"
         ((errors++))
     else
         format_success_message "REFOCUS_MAX_PROJECT_LENGTH: ${REFOCUS_MAX_PROJECT_LENGTH} chars"
     fi
     
-    if ! validate_numeric_input_standardized "$REFOCUS_NUDGE_INTERVAL" "REFOCUS_NUDGE_INTERVAL" 1 1440; then
+    if ! [[ "$REFOCUS_NUDGE_INTERVAL" =~ ^[0-9]+$ ]] || [[ "$REFOCUS_NUDGE_INTERVAL" -lt 1 ]] || [[ "$REFOCUS_NUDGE_INTERVAL" -gt 1440 ]]; then
         format_error_message "REFOCUS_NUDGE_INTERVAL validation failed" "Current value: $REFOCUS_NUDGE_INTERVAL"
         ((errors++))
     else
         format_success_message "REFOCUS_NUDGE_INTERVAL: ${REFOCUS_NUDGE_INTERVAL} minutes"
     fi
     
-    if ! validate_numeric_input_standardized "$REFOCUS_REPORT_LIMIT" "REFOCUS_REPORT_LIMIT" 1 10000; then
+    if ! [[ "$REFOCUS_REPORT_LIMIT" =~ ^[0-9]+$ ]] || [[ "$REFOCUS_REPORT_LIMIT" -lt 1 ]] || [[ "$REFOCUS_REPORT_LIMIT" -gt 10000 ]]; then
         format_error_message "REFOCUS_REPORT_LIMIT validation failed" "Current value: $REFOCUS_REPORT_LIMIT"
         ((errors++))
     else

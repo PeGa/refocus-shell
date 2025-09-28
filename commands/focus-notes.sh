@@ -21,10 +21,10 @@ function focus_notes_add() {
         exit 1
     fi
     
-    # Sanitize and validate project name
+    # Sanitize project name
     project=$(sanitize_project_name "$project")
-    if ! validate_project_name "$project"; then
-        exit 1
+    if [[ -z "$project" ]] || [[ "$project" =~ [[:cntrl:]] ]]; then
+        usage "Invalid project name"
     fi
     
     # Get the most recent session for this project

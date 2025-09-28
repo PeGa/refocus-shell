@@ -32,10 +32,10 @@ function focus_description_add() {
         exit 1
     fi
     
-    # Sanitize and validate project name
+    # Sanitize project name
     project=$(sanitize_project_name "$project")
-    if ! validate_project_name "$project"; then
-        exit 1
+    if [[ -z "$project" ]] || [[ "$project" =~ [[:cntrl:]] ]]; then
+        usage "Invalid project name"
     fi
     
     # Set project description
@@ -57,10 +57,10 @@ function focus_description_show() {
         exit 1
     fi
     
-    # Sanitize and validate project name
+    # Sanitize project name
     project=$(sanitize_project_name "$project")
-    if ! validate_project_name "$project"; then
-        exit 1
+    if [[ -z "$project" ]] || [[ "$project" =~ [[:cntrl:]] ]]; then
+        usage "Invalid project name"
     fi
     
     # Get project description
@@ -89,10 +89,10 @@ function focus_description_remove() {
         exit 1
     fi
     
-    # Sanitize and validate project name
+    # Sanitize project name
     project=$(sanitize_project_name "$project")
-    if ! validate_project_name "$project"; then
-        exit 1
+    if [[ -z "$project" ]] || [[ "$project" =~ [[:cntrl:]] ]]; then
+        usage "Invalid project name"
     fi
     
     # Check if description exists

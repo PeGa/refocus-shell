@@ -68,28 +68,6 @@ parse_date_to_timestamp() {
     fi
 }
 
-# Function to validate time range
-validate_time_range() {
-    local start_time="$1"
-    local end_time="$2"
-    
-    # Convert to seconds for comparison
-    local start_seconds=$(date -d "$start_time" +%s 2>/dev/null)
-    local end_seconds=$(date -d "$end_time" +%s 2>/dev/null)
-    
-    if [[ -z "$start_seconds" ]] || [[ -z "$end_seconds" ]]; then
-        echo "❌ Invalid time format" >&2
-        return 1
-    fi
-    
-    if [[ $start_seconds -ge $end_seconds ]]; then
-        echo "❌ Start time must be before end time" >&2
-        return 1
-    fi
-    
-    return 0
-}
-
 function focus_past_add() {
     # Guard clauses
     if [[ $# -lt 3 ]]; then

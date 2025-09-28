@@ -746,6 +746,13 @@ get_custom_period() {
 }
 
 # Export logging and error handling helper functions
+# Export essential validation functions
+export -f validate_timestamp
+export -f validate_time_range
+export -f validate_file_path
+export -f validate_session_id
+
+# Export logging and utility functions
 export -f log_debug
 export -f log_info
 export -f log_warn
