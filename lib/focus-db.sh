@@ -61,11 +61,6 @@ db_start_session() {
     # Update focus state to active
     _update_focus_state 1 "$project" "$start_ts" 0 "" "" 0
     
-    # Store original prompt if not already stored
-    if [[ -z "$(_get_prompt_content_by_type "original")" ]]; then
-        _update_prompt_content "$PS1" "original"
-    fi
-    
     return 0
 }
 

@@ -101,26 +101,10 @@ refocus_confirm() {
     [[ "$response" =~ ^[Yy]$ ]]
 }
 
-# Function to format duration in human-readable format
-# Usage: refocus_format_duration <seconds>
-refocus_format_duration() {
-    local seconds="$1"
-    local hours=$((seconds / 3600))
-    local minutes=$(((seconds % 3600) / 60))
-    local remaining_seconds=$((seconds % 60))
-    
-    if [[ $hours -gt 0 ]]; then
-        if [[ $minutes -gt 0 ]]; then
-            echo "${hours}h ${minutes}m"
-        else
-            echo "${hours}h"
-        fi
-    elif [[ $minutes -gt 0 ]]; then
-        echo "${minutes}m"
-    else
-        echo "${remaining_seconds}s"
-    fi
-}
+# Source the centralized output formatting functions
+if [[ -f "${REFOCUS_LIB_DIR:-$HOME/.local/refocus/lib}/focus-output.sh" ]]; then
+    source "${REFOCUS_LIB_DIR:-$HOME/.local/refocus/lib}/focus-output.sh"
+fi
 
 # Note: Validation functions have been removed - each command now has its own guard clauses
 
@@ -165,7 +149,6 @@ export -f refocus_command_main
 export -f refocus_script_main
 export -f refocus_validate_dependencies
 export -f refocus_confirm
-export -f refocus_format_duration
 export -f refocus_backup_database
 export -f refocus_timestamp
 export -f refocus_log_command

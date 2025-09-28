@@ -17,6 +17,11 @@
 
 set -e
 
+# Source the centralized output formatting functions
+if [[ -f "${REFOCUS_LIB_DIR:-$HOME/.local/refocus/lib}/focus-output.sh" ]]; then
+    source "${REFOCUS_LIB_DIR:-$HOME/.local/refocus/lib}/focus-output.sh"
+fi
+
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -233,10 +238,6 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Function to print colored output
-print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
 
 print_success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"

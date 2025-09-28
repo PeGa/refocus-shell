@@ -6,16 +6,6 @@
 # This function can be sourced directly into the shell environment
 # Usage: source ~/.local/refocus/lib/focus-function.sh
 
-# Store original PS1 if not already stored
-if [[ -z "${REFOCUS_ORIGINAL_PS1:-}" ]]; then
-    export REFOCUS_ORIGINAL_PS1="${PS1:-}"
-fi
-
-# Store original RPROMPT if not already stored (for zsh)
-if [[ -n "${ZSH_VERSION:-}" ]] && [[ -z "${REFOCUS_ORIGINAL_RPROMPT:-}" ]]; then
-    export REFOCUS_ORIGINAL_RPROMPT="${RPROMPT:-}"
-fi
-
 # Focus function - main entry point
 focus() {
     local subcommand="${1:-help}"

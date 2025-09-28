@@ -6,6 +6,22 @@
 # This module provides common output formatting functions for refocus commands
 # to ensure consistent, clean, and user-friendly display.
 
+# Function to format duration in minutes only
+# Usage: format_duration_minutes <seconds>
+format_duration_minutes() {
+    local duration_seconds="$1"
+    echo $((duration_seconds / 60))
+}
+
+# Function to format duration in hours and minutes
+# Usage: format_duration_hours_minutes <seconds>
+format_duration_hours_minutes() {
+    local duration_seconds="$1"
+    local hours=$((duration_seconds / 3600))
+    local minutes=$(((duration_seconds % 3600) / 60))
+    echo "${hours}h ${minutes}m"
+}
+
 # Function to format duration in human-readable format
 # Usage: format_duration <seconds> [compact]
 format_duration() {
@@ -38,18 +54,28 @@ format_duration() {
     fi
 }
 
+# Legacy function for backward compatibility
+refocus_format_duration() {
+    format_duration "$@"
+}
+
 # Function to format timestamp for display
-# Usage: format_timestamp <timestamp> [format]
-format_timestamp() {
-    local timestamp="$1"
-    local format="${2:-%Y-%m-%d %H:%M}"
+# Usage: format_ts <epoch> [format]
+format_ts() {
+    local epoch="$1"
+    local format="${2:-${TIME_FMT:-%Y-%m-%d %H:%M}}"
     
-    if [[ -z "$timestamp" ]] || [[ "$timestamp" == "N/A" ]]; then
+    if [[ -z "$epoch" ]] || [[ "$epoch" == "N/A" ]]; then
         echo "N/A"
         return
     fi
     
-    date --date="$timestamp" "+$format" 2>/dev/null || echo "N/A"
+    date --date="@$epoch" "+$format" 2>/dev/null || echo "N/A"
+}
+
+# Legacy function for backward compatibility
+format_timestamp() {
+    format_ts "$@"
 }
 
 # Function to format project name with description
@@ -65,9 +91,9 @@ format_project_with_description() {
     fi
 }
 
-# Function to format session summary
-# Usage: format_session_summary <project> <start> <end> <duration> <type> [notes]
-format_session_summary() {
+# Function to print session row
+# Usage: print_session_row <project> <start> <end> <duration> <type> [notes]
+print_session_row() {
     local project="$1"
     local start="$2"
     local end="$3"
@@ -80,8 +106,8 @@ format_session_summary() {
     
     local formatted_start
     local formatted_end
-    formatted_start=$(format_timestamp "$start")
-    formatted_end=$(format_timestamp "$end")
+    formatted_start=$(format_ts "$start")
+    formatted_end=$(format_ts "$end")
     
     printf "%-20s %-19s %-19s %-8s %-6s\n" \
         "$project" "$formatted_start" "$formatted_end" "$formatted_duration" "$type"
@@ -89,6 +115,17 @@ format_session_summary() {
     if [[ -n "$notes" ]]; then
         echo "     📝 $notes"
     fi
+}
+
+# Legacy function for backward compatibility
+format_session_summary() {
+    print_session_row "$@"
+}
+
+# Function to print status message
+# Usage: print_status <message>
+print_status() {
+    echo -e "\033[0;34m[INFO]\033[0m $1"
 }
 
 # Function to format focus status
@@ -117,6 +154,7 @@ format_focus_status() {
         echo "✅ Not currently tracking focus."
     fi
 }
+
 
 # Function to format paused session status
 # Usage: format_paused_status <project> <previous_elapsed> <pause_duration> [notes]
@@ -277,9 +315,15 @@ write_prompt_cache() {
 
 # Export functions for use in other scripts
 export -f format_duration
+export -f format_duration_minutes
+export -f format_duration_hours_minutes
+export -f refocus_format_duration
+export -f format_ts
 export -f format_timestamp
 export -f format_project_with_description
+export -f print_session_row
 export -f format_session_summary
+export -f print_status
 export -f format_focus_status
 export -f format_paused_status
 export -f format_last_session

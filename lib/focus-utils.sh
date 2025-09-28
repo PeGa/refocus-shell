@@ -317,19 +317,10 @@ parse_duration() {
     echo "$total_seconds"
 }
 
-# Function to format duration in minutes
-format_duration_minutes() {
-    local duration_seconds="$1"
-    echo $((duration_seconds / 60))
-}
-
-# Function to format duration in hours and minutes
-format_duration_hours_minutes() {
-    local duration_seconds="$1"
-    local hours=$((duration_seconds / 3600))
-    local minutes=$(((duration_seconds % 3600) / 60))
-    echo "${hours}h ${minutes}m"
-}
+# Source the centralized output formatting functions
+if [[ -f "${REFOCUS_LIB_DIR:-$HOME/.local/refocus/lib}/focus-output.sh" ]]; then
+    source "${REFOCUS_LIB_DIR:-$HOME/.local/refocus/lib}/focus-output.sh"
+fi
 
 # Note: Validation functions have been removed - each command now has its own guard clauses
 
