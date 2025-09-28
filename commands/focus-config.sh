@@ -17,9 +17,9 @@ function focus_config_show() {
     echo "=========================="
     echo
     echo "Database: $DB"
-    echo "Data Directory: $REFOCUS_DATA_PATH"
-    echo "Log Directory: $REFOCUS_LOG_DIR"
-    echo "Error Log: $REFOCUS_ERROR_LOG"
+    echo "Data Directory: $(get_cfg DATA_DIR "$HOME/.local/refocus")"
+    echo "Log Directory: $(get_cfg DATA_DIR "$HOME/.local/refocus")"
+    echo "Error Log: $(get_cfg DATA_DIR "$HOME/.local/refocus")/error.log"
     echo
     echo "Table Names:"
     echo "  State: ${REFOCUS_STATE_TABLE:-state}"
@@ -40,7 +40,7 @@ function focus_config_validate() {
     local errors=0
     
     # Validate database path
-    if [[ -z "$REFOCUS_DB_PATH" ]]; then
+    if [[ -z "$(get_cfg DB_PATH "$HOME/.local/refocus/refocus.db")" ]]; then
         format_error_message "REFOCUS_DB_PATH is not set"
         ((errors++))
     else

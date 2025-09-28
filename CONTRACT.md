@@ -553,7 +553,7 @@ focus help
 ## Configuration Precedence
 
 1. Environment variables (highest priority)
-2. User configuration file (`$HOME/.config/refocus-shell/config.sh`)
+2. User configuration file (`$XDG_CONFIG_HOME/refocus/refocus.conf` or `$HOME/.config/refocus/refocus.conf`)
 3. Default values (lowest priority)
 
 ## Exit Codes

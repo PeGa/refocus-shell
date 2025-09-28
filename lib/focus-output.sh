@@ -307,7 +307,7 @@ format_section_header() {
 # Function to write current focus state to prompt cache files
 # Usage: write_prompt_cache <status> <project> <minutes>
 write_prompt_cache() {
-    local dir="${REFOCUS_STATE_DIR:-$HOME/.local/refocus}"
+    local dir="$(get_cfg DATA_DIR "$HOME/.local/refocus")"
     mkdir -p "$dir"
     printf "%s|%s|%s\n" "${1:-idle}" "${2:--}" "${3:--}" >"$dir/prompt.cache"
     date +%s >"$dir/prompt.ver"

@@ -39,11 +39,8 @@ focus() {
 
 # Function to update prompt from database
 focus-update-prompt() {
-    # Source config.sh to get table names
-    source "$HOME/.local/refocus/config.sh"
-    
-    local focus_db="$HOME/.local/refocus/refocus.db"
-    local state_dir="${REFOCUS_STATE_DIR:-$HOME/.local/refocus}"
+    local focus_db="$(get_cfg DB_PATH "$HOME/.local/refocus/refocus.db")"
+    local state_dir="$(get_cfg DATA_DIR "$HOME/.local/refocus")"
     
     if [[ -f "$focus_db" ]]; then
         # Get current state from database

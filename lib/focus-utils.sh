@@ -19,8 +19,8 @@
 VERBOSE="${VERBOSE:-false}"
 
 # Error logging configuration
-REFOCUS_LOG_DIR="${REFOCUS_LOG_DIR:-$HOME/.local/refocus}"
-REFOCUS_ERROR_LOG="${REFOCUS_ERROR_LOG:-$REFOCUS_LOG_DIR/error.log}"
+REFOCUS_LOG_DIR="$(get_cfg DATA_DIR "$HOME/.local/refocus")"
+REFOCUS_ERROR_LOG="$(get_cfg DATA_DIR "$HOME/.local/refocus")/error.log"
 
 # Function: log_error
 # Description: Logs error messages to the configured error log file with timestamp and context

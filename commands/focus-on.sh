@@ -61,7 +61,7 @@ function focus_on() {
         set_focus_prompt "$project"
         
         # Install cron job for nudging
-        install_focus_cron_job "$SCRIPT_DIR/../focus-nudge" "$REFOCUS_NUDGE_INTERVAL"
+        install_focus_cron_job "$SCRIPT_DIR/../focus-nudge" "$(get_cfg NUDGE_INTERVAL "10")"
         
         echo "Started focus on: $project"
     else
