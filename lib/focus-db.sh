@@ -218,19 +218,34 @@ db_list() {
 
 # Function: db_stats
 # Description: Get aggregated statistics for a date range
-# Usage: db_stats <range_spec>
+# Usage: db_stats [--detailed] <range_spec>
 # Parameters:
-#   $1 - range_spec: Date range specification
+#   $1 - Optional --detailed flag for detailed output
+#   $2 - range_spec: Date range specification
 # Returns: CSV with statistics
 # Format: total_sessions|total_duration|avg_duration|projects_count
+#         (or detailed format if --detailed flag is used)
 db_stats() {
-    local range_spec="$1"
+    local detailed=false
+    local range_spec
+    
+    # Check for --detailed flag
+    if [[ "$1" == "--detailed" ]]; then
+        detailed=true
+        range_spec="$2"
+    else
+        range_spec="$1"
+    fi
     
     if [[ -z "$range_spec" ]]; then
         range_spec="today"
     fi
     
-    _get_session_stats "$range_spec"
+    if [[ "$detailed" == true ]]; then
+        _db_stats_detailed "$range_spec"
+    else
+        _get_session_stats "$range_spec"
+    fi
 }
 
 # Function: _db_stats_detailed

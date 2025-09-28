@@ -165,14 +165,14 @@ function focus_generate_report() {
         raw_mode=true
     fi
     
-    # Convert ISO timestamps to date range for db_stats_detailed
+    # Convert ISO timestamps to date range for db_stats
     local start_date end_date
     start_date=$(date --date="$start_time" +"%Y-%m-%d" 2>/dev/null || echo "$start_time")
     end_date=$(date --date="$end_time" +"%Y-%m-%d" 2>/dev/null || echo "$end_time")
     
-    # Use _db_stats_detailed to get all the data we need
+    # Use db_stats --detailed to get all the data we need
     local stats_data
-    stats_data=$(_db_stats_detailed "$start_date,$end_date")
+    stats_data=$(db_stats --detailed "$start_date,$end_date")
     
     if [[ -z "$stats_data" ]]; then
         echo "No focus sessions found in the specified period."
