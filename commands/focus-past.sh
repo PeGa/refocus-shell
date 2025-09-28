@@ -11,62 +11,8 @@ source "$SCRIPT_DIR/../lib/focus-utils.sh"
 # Note: Using direct SQL queries and validation instead of centralized functions
 # to maintain compatibility with installed versions
 
-# Function to parse duration string to seconds
-parse_duration_to_seconds() {
-    local duration="$1"
-    local total_seconds=0
-    
-    # Handle formats like 1h30m, 2h, 45m, 1.5h, 0.5h
-    if [[ "$duration" =~ ^([0-9]+(\.[0-9]+)?)h([0-9]+)m?$ ]]; then
-        # Format: XhYm
-        local hours="${BASH_REMATCH[1]}"
-        local minutes="${BASH_REMATCH[3]}"
-        total_seconds=$(( (hours * 3600) + (minutes * 60) ))
-    elif [[ "$duration" =~ ^([0-9]+(\.[0-9]+)?)h$ ]]; then
-        # Format: Xh
-        local hours="${BASH_REMATCH[1]}"
-        total_seconds=$(( hours * 3600 ))
-    elif [[ "$duration" =~ ^([0-9]+)m$ ]]; then
-        # Format: Xm
-        local minutes="${BASH_REMATCH[1]}"
-        total_seconds=$(( minutes * 60 ))
-    else
-        return 1  # Invalid format
-    fi
-    
-    echo "$total_seconds"
-}
-
-# Function to parse date string to timestamp
-parse_date_to_timestamp() {
-    local date_str="$1"
-    local timestamp
-    
-    # Try different date formats
-    if [[ "$date_str" =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}-[0-9]{2}:[0-9]{2}$ ]]; then
-        # Format: YYYY/MM/DD-HH:MM
-        timestamp=$(date -d "${date_str/-/ }" +%Y-%m-%dT%H:%M:%S 2>/dev/null)
-    elif [[ "$date_str" =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}$ ]]; then
-        # Format: YYYY/MM/DD
-        timestamp=$(date -d "$date_str" +%Y-%m-%dT%H:%M:%S 2>/dev/null)
-    elif [[ "$date_str" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
-        # Format: YYYY-MM-DD
-        timestamp=$(date -d "$date_str" +%Y-%m-%dT%H:%M:%S 2>/dev/null)
-    elif [[ "$date_str" == "yesterday" ]]; then
-        timestamp=$(date -d "yesterday" +%Y-%m-%dT%H:%M:%S 2>/dev/null)
-    elif [[ "$date_str" =~ ^[0-9]+\ days?\ ago$ ]]; then
-        timestamp=$(date -d "$date_str" +%Y-%m-%dT%H:%M:%S 2>/dev/null)
-    else
-        # Try to parse as-is
-        timestamp=$(date -d "$date_str" +%Y-%m-%dT%H:%M:%S 2>/dev/null)
-    fi
-    
-    if [[ -n "$timestamp" ]]; then
-        echo "$timestamp"
-    else
-        return 1  # Invalid format
-    fi
-}
+# Note: parse_duration_to_seconds and parse_date_to_timestamp functions
+# have been moved to lib/focus-utils.sh as parse_duration and parse_time_spec
 
 function focus_past_add() {
     # Guard clauses
@@ -116,13 +62,6 @@ function focus_past_add() {
     local session_date=""
     local notes=""
     local duration_mode=false
-                elif [[ -z "$end_time" ]] && [[ "$duration_mode" == "false" ]]; then
-                    end_time="$1"
-                fi
-                shift
-                ;;
-        esac
-    done
     
     if [[ -z "$project" ]]; then
         echo "❌ Project name is required" >&2
@@ -173,7 +112,7 @@ function focus_past_add() {
         
         # Parse duration - convert to seconds
         local duration_seconds
-        duration_seconds=$(parse_duration_to_seconds "$duration")
+        duration_seconds=$(parse_duration "$duration")
         if [[ $? -ne 0 ]] || [[ -z "$duration_seconds" ]]; then
             echo "❌ Invalid duration format: $duration" >&2
             echo "Valid formats: 1h30m, 2h, 45m, 90m, 1.5h, 0.5h" >&2
@@ -182,7 +121,7 @@ function focus_past_add() {
         
         # Validate and convert session date
         local converted_date
-        converted_date=$(parse_date_to_timestamp "$session_date")
+        converted_date=$(get_timestamp_for_time "$session_date")
         if [[ $? -ne 0 ]] || [[ -z "$converted_date" ]]; then
             echo "❌ Invalid date format: $session_date" >&2
             echo "Valid formats: 2025/07/30, yesterday, 2 days ago, etc." >&2
@@ -238,7 +177,7 @@ function focus_past_add() {
         
         # Convert timestamps to ISO format
         local converted_start_time
-        converted_start_time=$(parse_date_to_timestamp "$start_time")
+        converted_start_time=$(get_timestamp_for_time "$start_time")
         if [[ $? -ne 0 ]] || [[ -z "$converted_start_time" ]]; then
             echo "❌ Invalid start time format: $start_time" >&2
             echo "Valid formats: YYYY/MM/DD-HH:MM, HH:MM, 'YYYY-MM-DD HH:MM', etc." >&2
@@ -246,7 +185,7 @@ function focus_past_add() {
         fi
         
         local converted_end_time
-        converted_end_time=$(parse_date_to_timestamp "$end_time")
+        converted_end_time=$(get_timestamp_for_time "$end_time")
         if [[ $? -ne 0 ]] || [[ -z "$converted_end_time" ]]; then
             echo "❌ Invalid end time format: $end_time" >&2
             echo "Valid formats: YYYY/MM/DD-HH:MM, HH:MM, 'YYYY-MM-DD HH:MM', etc." >&2
@@ -400,7 +339,7 @@ function focus_past_modify() {
     # Convert timestamps to ISO format if provided
     if [[ "$start_time" != "$current_start" ]]; then
         local converted_start_time
-        converted_start_time=$(parse_date_to_timestamp "$start_time")
+        converted_start_time=$(get_timestamp_for_time "$start_time")
         if [[ $? -ne 0 ]] || [[ -z "$converted_start_time" ]]; then
             echo "❌ Invalid start time format: $start_time" >&2
             exit 2  # Invalid arguments
@@ -410,7 +349,7 @@ function focus_past_modify() {
     
     if [[ "$end_time" != "$current_end" ]]; then
         local converted_end_time
-        converted_end_time=$(parse_date_to_timestamp "$end_time")
+        converted_end_time=$(get_timestamp_for_time "$end_time")
         if [[ $? -ne 0 ]] || [[ -z "$converted_end_time" ]]; then
             echo "❌ Invalid end time format: $end_time" >&2
             exit 2  # Invalid arguments
@@ -587,20 +526,8 @@ function focus_past_list() {
     while IFS='|' read -r id project start_time end_time duration notes; do
         session_count=$((session_count + 1))
         
-        # Format timestamps and duration using available functions
-        local start_date
-        start_date=$(date -d "$start_time" +"%Y-%m-%d %H:%M" 2>/dev/null || echo "$start_time")
-        local end_date
-        end_date=$(date -d "$end_time" +"%Y-%m-%d %H:%M" 2>/dev/null || echo "$end_time")
-        local duration_formatted
-        duration_formatted=$(refocus_format_duration "$duration")
-        
-        printf "%-4s %-20s %-19s %-19s %-8s %-6s\n" "$id" "$project" "$start_date" "$end_date" "$duration_formatted" "Live"
-        
-        # Show notes if available
-        if [[ -n "$notes" ]]; then
-            printf "     📝 %s\n" "$notes"
-        fi
+        # Use the new printer function for consistent formatting
+        print_past_row "$id" "$start_time" "$end_time" "$project" "" "$notes"
         
         # Add blank line after each entry except the last one
         if [[ $session_count -lt $total_sessions ]]; then

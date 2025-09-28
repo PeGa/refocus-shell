@@ -752,6 +752,113 @@ export -f validate_time_range
 export -f validate_file_path
 export -f validate_session_id
 
+# Function: parse_time_spec
+# Description: Parses time specification arguments and returns start/end epoch timestamps
+# Usage: parse_time_spec "$@"
+# Parameters:
+#   $@ - Time specification arguments (ISO timestamps, today|yesterday|week, range START END)
+# Returns:
+#   0 - Success: Prints "start_epoch end_epoch" to stdout
+#   2 - Error: Usage error, prints error message to stderr
+# Side Effects:
+#   - Prints start and end epoch timestamps to stdout on success
+#   - Prints error messages to stderr on failure
+# Dependencies:
+#   - date command with --date support
+# Examples:
+#   parse_time_spec "today" "yesterday"
+#   parse_time_spec "2025-01-15T10:00:00" "2025-01-15T11:30:00"
+#   parse_time_spec "range" "2025-01-15T10:00:00" "2025-01-15T11:30:00"
+# Notes:
+#   - Supports ISO timestamps, relative dates (today, yesterday, week)
+#   - Supports explicit range format: "range START END"
+#   - Returns epoch timestamps for easy calculation
+parse_time_spec() {
+    local args=("$@")
+    local start_spec=""
+    local end_spec=""
+    local start_epoch=""
+    local end_epoch=""
+    
+    # Handle different argument patterns
+    if [[ ${#args[@]} -eq 0 ]]; then
+        echo "❌ Time specification required" >&2
+        echo "Usage: parse_time_spec <start> <end> | <period> | range <start> <end>" >&2
+        echo "Examples:" >&2
+        echo "  parse_time_spec 'today' 'yesterday'" >&2
+        echo "  parse_time_spec '2025-01-15T10:00:00' '2025-01-15T11:30:00'" >&2
+        echo "  parse_time_spec 'range' '2025-01-15T10:00:00' '2025-01-15T11:30:00'" >&2
+        return 2
+    fi
+    
+    # Check for range format
+    if [[ "${args[0]}" == "range" ]]; then
+        if [[ ${#args[@]} -ne 3 ]]; then
+            echo "❌ Range format requires exactly 3 arguments: range <start> <end>" >&2
+            return 2
+        fi
+        start_spec="${args[1]}"
+        end_spec="${args[2]}"
+    elif [[ ${#args[@]} -eq 1 ]]; then
+        # Single argument - treat as period
+        case "${args[0]}" in
+            "today")
+                start_spec="today 00:00"
+                end_spec="today 23:59"
+                ;;
+            "yesterday")
+                start_spec="yesterday 00:00"
+                end_spec="yesterday 23:59"
+                ;;
+            "week")
+                start_spec="7 days ago 00:00"
+                end_spec="now"
+                ;;
+            *)
+                echo "❌ Unknown period: ${args[0]}" >&2
+                echo "Supported periods: today, yesterday, week" >&2
+                return 2
+                ;;
+        esac
+    elif [[ ${#args[@]} -eq 2 ]]; then
+        # Two arguments - treat as start and end
+        start_spec="${args[0]}"
+        end_spec="${args[1]}"
+    else
+        echo "❌ Too many arguments" >&2
+        echo "Usage: parse_time_spec <start> <end> | <period> | range <start> <end>" >&2
+        return 2
+    fi
+    
+    # Convert start time to epoch
+    if [[ -n "$start_spec" ]]; then
+        start_epoch=$(date --date="$start_spec" +%s 2>/dev/null)
+        if [[ $? -ne 0 ]] || [[ -z "$start_epoch" ]]; then
+            echo "❌ Invalid start time: $start_spec" >&2
+            return 2
+        fi
+    fi
+    
+    # Convert end time to epoch
+    if [[ -n "$end_spec" ]]; then
+        end_epoch=$(date --date="$end_spec" +%s 2>/dev/null)
+        if [[ $? -ne 0 ]] || [[ -z "$end_epoch" ]]; then
+            echo "❌ Invalid end time: $end_spec" >&2
+            return 2
+        fi
+    fi
+    
+    # Validate time range
+    if [[ -n "$start_epoch" ]] && [[ -n "$end_epoch" ]] && [[ "$start_epoch" -ge "$end_epoch" ]]; then
+        echo "❌ Start time must be before end time" >&2
+        return 2
+    fi
+    
+    # Output the epoch timestamps
+    echo "$start_epoch $end_epoch"
+    return 0
+}
+
 # Export logging and utility functions
 export -f log_debug
 export -f log_info
@@ -760,4 +867,5 @@ export -f log_err
 export -f die
 export -f usage
 export -f not_found
-export -f conflict 
+export -f conflict
+export -f parse_time_spec 

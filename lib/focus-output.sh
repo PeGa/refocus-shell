@@ -313,6 +313,132 @@ write_prompt_cache() {
     date +%s >"$dir/prompt.ver"
 }
 
+# Function: print_past_row
+# Description: Prints a formatted row for past session display (human-readable format)
+# Usage: print_past_row <id> <start_ts> <end_ts> <project> <desc> <note>
+# Parameters:
+#   $1 - id: Session ID
+#   $2 - start_ts: Start timestamp (epoch or ISO format)
+#   $3 - end_ts: End timestamp (epoch or ISO format)
+#   $4 - project: Project name
+#   $5 - desc: Description (optional)
+#   $6 - note: Session notes (optional)
+# Returns:
+#   0 - Success: Prints formatted row to stdout
+# Side Effects:
+#   - Prints formatted session information to stdout
+# Dependencies:
+#   - date command with --date support
+#   - format_duration function
+# Examples:
+#   print_past_row "1" "1642248000" "1642251600" "meeting" "team sync" "productive discussion"
+# Notes:
+#   - Formats timestamps as YYYY-MM-DD HH:MM
+#   - Shows duration in human-readable format
+#   - Displays notes if provided
+print_past_row() {
+    local id="$1"
+    local start_ts="$2"
+    local end_ts="$3"
+    local project="$4"
+    local desc="$5"
+    local note="$6"
+    
+    # Format timestamps
+    local start_date
+    local end_date
+    if [[ "$start_ts" =~ ^[0-9]+$ ]]; then
+        # Epoch timestamp
+        start_date=$(date --date="@$start_ts" +"%Y-%m-%d %H:%M" 2>/dev/null || echo "$start_ts")
+        end_date=$(date --date="@$end_ts" +"%Y-%m-%d %H:%M" 2>/dev/null || echo "$end_ts")
+    else
+        # ISO timestamp
+        start_date=$(date --date="$start_ts" +"%Y-%m-%d %H:%M" 2>/dev/null || echo "$start_ts")
+        end_date=$(date --date="$end_ts" +"%Y-%m-%d %H:%M" 2>/dev/null || echo "$end_ts")
+    fi
+    
+    # Calculate duration
+    local duration_seconds
+    if [[ "$start_ts" =~ ^[0-9]+$ ]] && [[ "$end_ts" =~ ^[0-9]+$ ]]; then
+        duration_seconds=$((end_ts - start_ts))
+    else
+        duration_seconds=$(calculate_duration "$start_ts" "$end_ts")
+    fi
+    
+    local duration_formatted
+    duration_formatted=$(format_duration "$duration_seconds" "true")
+    
+    # Format project with description
+    local project_display="$project"
+    if [[ -n "$desc" ]]; then
+        project_display="$project - $desc"
+    fi
+    
+    # Print formatted row
+    printf "%-4s %-20s %-19s %-19s %-8s %-6s\n" \
+        "$id" "$project_display" "$start_date" "$end_date" "$duration_formatted" "Live"
+    
+    # Show notes if available
+    if [[ -n "$note" ]]; then
+        printf "     📝 %s\n" "$note"
+    fi
+}
+
+# Function: print_past_row_raw
+# Description: Prints a raw row for past session display (CSV/epoch format for --raw flag)
+# Usage: print_past_row_raw <start_ts> <end_ts> <project> <desc> <note>
+# Parameters:
+#   $1 - start_ts: Start timestamp (epoch or ISO format)
+#   $2 - end_ts: End timestamp (epoch or ISO format)
+#   $3 - project: Project name
+#   $4 - desc: Description (optional)
+#   $5 - note: Session notes (optional)
+# Returns:
+#   0 - Success: Prints raw CSV row to stdout
+# Side Effects:
+#   - Prints raw session information to stdout
+# Dependencies:
+#   - date command with --date support
+# Examples:
+#   print_past_row_raw "1642248000" "1642251600" "meeting" "team sync" "productive discussion"
+# Notes:
+#   - Outputs CSV format: start_epoch,end_epoch,project,description,notes
+#   - Converts ISO timestamps to epoch if needed
+#   - Suitable for --raw flag output
+print_past_row_raw() {
+    local start_ts="$1"
+    local end_ts="$2"
+    local project="$3"
+    local desc="$4"
+    local note="$5"
+    
+    # Convert to epoch timestamps if needed
+    local start_epoch
+    local end_epoch
+    if [[ "$start_ts" =~ ^[0-9]+$ ]]; then
+        start_epoch="$start_ts"
+    else
+        start_epoch=$(date --date="$start_ts" +%s 2>/dev/null || echo "$start_ts")
+    fi
+    
+    if [[ "$end_ts" =~ ^[0-9]+$ ]]; then
+        end_epoch="$end_ts"
+    else
+        end_epoch=$(date --date="$end_ts" +%s 2>/dev/null || echo "$end_ts")
+    fi
+    
+    # Escape CSV fields
+    local project_escaped
+    local desc_escaped
+    local note_escaped
+    project_escaped=$(echo "$project" | sed 's/"/""/g')
+    desc_escaped=$(echo "${desc:-}" | sed 's/"/""/g')
+    note_escaped=$(echo "${note:-}" | sed 's/"/""/g')
+    
+    # Print CSV row
+    echo "\"$start_epoch\",\"$end_epoch\",\"$project_escaped\",\"$desc_escaped\",\"$note_escaped\""
+}
+
 # Export functions for use in other scripts
 export -f format_duration
 export -f format_duration_minutes
@@ -336,3 +462,5 @@ export -f format_config_display
 export -f format_usage
 export -f format_section_header
 export -f write_prompt_cache
+export -f print_past_row
+export -f print_past_row_raw
