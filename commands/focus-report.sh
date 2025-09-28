@@ -8,6 +8,8 @@ PROJECTS_TABLE="${PROJECTS_TABLE:-projects}"
 # Source required modules
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
+source "$SCRIPT_DIR/../lib/focus-db.sh"
+source "$SCRIPT_DIR/../lib/focus-output.sh"
 
 function focus_report_today() {
     local raw_mode=false
@@ -25,10 +27,10 @@ function focus_report_today() {
     period=$(get_today_period)
     IFS='|' read -r start_time end_time <<< "$period"
     
-    # Convert ISO timestamps to epoch for format_ts
-    local start_epoch end_epoch
-    start_epoch=$(date -d "$start_time" +%s)
-    end_epoch=$(date -d "$end_time" +%s)
+    # Convert ISO timestamps to date format
+    local start_date end_date
+    start_date=$(date --date="$start_time" +"%Y-%m-%d" 2>/dev/null || echo "$start_time")
+    end_date=$(date --date="$end_time" +"%Y-%m-%d" 2>/dev/null || echo "$end_time")
     
     if [[ "$raw_mode" == "true" ]]; then
         echo "start_time,end_time"
@@ -36,11 +38,7 @@ function focus_report_today() {
         echo
         focus_generate_report "$start_time" "$end_time" --raw
     else
-        echo "📊 Today's Focus Report"
-        echo "====================="
-        echo "Period: $(format_ts "$start_epoch" "%Y-%m-%d")"
-        echo
-        
+        print_report_header "Today's Focus Report" "$start_date" "$end_date"
         focus_generate_report "$start_time" "$end_time"
     fi
 }
@@ -61,10 +59,10 @@ function focus_report_week() {
     period=$(get_week_period)
     IFS='|' read -r start_time end_time <<< "$period"
     
-    # Convert ISO timestamps to epoch for format_ts
-    local start_epoch end_epoch
-    start_epoch=$(date -d "$start_time" +%s)
-    end_epoch=$(date -d "$end_time" +%s)
+    # Convert ISO timestamps to date format
+    local start_date end_date
+    start_date=$(date --date="$start_time" +"%Y-%m-%d" 2>/dev/null || echo "$start_time")
+    end_date=$(date --date="$end_time" +"%Y-%m-%d" 2>/dev/null || echo "$end_time")
     
     if [[ "$raw_mode" == "true" ]]; then
         echo "start_time,end_time"
@@ -72,11 +70,7 @@ function focus_report_week() {
         echo
         focus_generate_report "$start_time" "$end_time" --raw
     else
-        echo "📊 This Week's Focus Report"
-        echo "========================="
-        echo "Period: $(format_ts "$start_epoch" "%Y-%m-%d") to $(format_ts "$end_epoch" "%Y-%m-%d")"
-        echo
-        
+        print_report_header "This Week's Focus Report" "$start_date" "$end_date"
         focus_generate_report "$start_time" "$end_time"
     fi
 }
@@ -97,10 +91,10 @@ function focus_report_month() {
     period=$(get_month_period)
     IFS='|' read -r start_time end_time <<< "$period"
     
-    # Convert ISO timestamps to epoch for format_ts
-    local start_epoch end_epoch
-    start_epoch=$(date -d "$start_time" +%s)
-    end_epoch=$(date -d "$end_time" +%s)
+    # Convert ISO timestamps to date format
+    local start_date end_date
+    start_date=$(date --date="$start_time" +"%Y-%m-%d" 2>/dev/null || echo "$start_time")
+    end_date=$(date --date="$end_time" +"%Y-%m-%d" 2>/dev/null || echo "$end_time")
     
     if [[ "$raw_mode" == "true" ]]; then
         echo "start_time,end_time"
@@ -108,11 +102,7 @@ function focus_report_month() {
         echo
         focus_generate_report "$start_time" "$end_time" --raw
     else
-        echo "📊 This Month's Focus Report"
-        echo "=========================="
-        echo "Period: $(format_ts "$start_epoch" "%Y-%m-%d") to $(format_ts "$end_epoch" "%Y-%m-%d")"
-        echo
-        
+        print_report_header "This Month's Focus Report" "$start_date" "$end_date"
         focus_generate_report "$start_time" "$end_time"
     fi
 }
@@ -149,10 +139,10 @@ function focus_report_custom() {
     period=$(get_custom_period "$days_back")
     IFS='|' read -r start_time end_time <<< "$period"
     
-    # Convert ISO timestamps to epoch for format_ts
-    local start_epoch end_epoch
-    start_epoch=$(date -d "$start_time" +%s)
-    end_epoch=$(date -d "$end_time" +%s)
+    # Convert ISO timestamps to date format
+    local start_date end_date
+    start_date=$(date --date="$start_time" +"%Y-%m-%d" 2>/dev/null || echo "$start_time")
+    end_date=$(date --date="$end_time" +"%Y-%m-%d" 2>/dev/null || echo "$end_time")
     
     if [[ "$raw_mode" == "true" ]]; then
         echo "start_time,end_time"
@@ -160,11 +150,7 @@ function focus_report_custom() {
         echo
         focus_generate_report "$start_time" "$end_time" --raw
     else
-        echo "📊 Custom Focus Report (Last $days_back days)"
-        echo "==========================================="
-        echo "Period: $(format_ts "$start_epoch" "%Y-%m-%d") to $(format_ts "$end_epoch" "%Y-%m-%d")"
-        echo
-        
+        print_report_header "Custom Focus Report (Last $days_back days)" "$start_date" "$end_date"
         focus_generate_report "$start_time" "$end_time"
     fi
 }
@@ -179,72 +165,39 @@ function focus_generate_report() {
         raw_mode=true
     fi
     
-    # Get sessions in the specified period (including duration-only sessions)
-    local sessions
-    # Escape timestamps for SQL
-    local escaped_start_time
-    local escaped_end_time
-    escaped_start_time=$(_sql_escape "$start_time")
-    escaped_end_time=$(_sql_escape "$end_time")
+    # Convert ISO timestamps to date range for db_stats_detailed
+    local start_date end_date
+    start_date=$(date --date="$start_time" +"%Y-%m-%d" 2>/dev/null || echo "$start_time")
+    end_date=$(date --date="$end_time" +"%Y-%m-%d" 2>/dev/null || echo "$end_time")
     
-    sessions=$(execute_sqlite "SELECT project, start_time, end_time, duration_seconds, notes, duration_only, session_date FROM ${REFOCUS_SESSIONS_TABLE:-sessions} WHERE project != '[idle]' AND (end_time >= '$escaped_start_time' AND end_time <= '$escaped_end_time') OR (duration_only = 1 AND session_date >= '$escaped_start_time' AND session_date <= '$escaped_end_time') ORDER BY COALESCE(end_time, session_date) DESC;" "focus_generate_report")
+    # Use db_stats_detailed to get all the data we need
+    local stats_data
+    stats_data=$(db_stats_detailed "$start_date,$end_date")
     
-    if [[ -z "$sessions" ]]; then
+    if [[ -z "$stats_data" ]]; then
         echo "No focus sessions found in the specified period."
         return 0
     fi
     
-    # Calculate totals
-    local total_duration=0
-    local project_totals=()
-    local project_sessions=()
-    local project_durations=()
-    local project_date_ranges=()
-    local session_count=0
+    # Parse the stats data
+    local summary_line
+    local projects_section
+    local sessions_section
     
-    while IFS='|' read -r project session_start session_end duration notes duration_only session_date; do
-        if [[ "$project" != "[idle]" ]]; then
-            total_duration=$((total_duration + duration))
-            session_count=$((session_count + 1))
-            
-            # Track project totals
-            local found=0
-            for i in "${!project_totals[@]}"; do
-                if [[ "${project_totals[$i]}" == "$project" ]]; then
-                    project_sessions[$i]=$((${project_sessions[$i]} + 1))
-                    project_durations[$i]=$((${project_durations[$i]} + duration))
-                    found=1
-                    break
-                fi
-            done
-            
-            if [[ $found -eq 0 ]]; then
-                project_totals+=("$project")
-                project_sessions+=(1)
-                project_durations+=($duration)
-                if [[ "$duration_only" == "1" ]]; then
-                    project_date_ranges+=("$session_date|$session_date")
-                else
-                    project_date_ranges+=("$session_start|$session_end")
-                fi
-            fi
-        fi
-    done <<< "$sessions"
+    summary_line=$(echo "$stats_data" | grep "^SUMMARY:" | cut -d: -f2)
+    projects_section=$(echo "$stats_data" | grep "^PROJECTS:" | cut -d: -f2-)
+    sessions_section=$(echo "$stats_data" | grep "^SESSIONS:" | cut -d: -f2-)
+    
+    # Parse summary
+    IFS='|' read -r total_sessions total_duration avg_duration projects_count <<< "$summary_line"
     
     # Display summary
-    local total_hours=$((total_duration / 3600))
-    local total_minutes=$(((total_duration % 3600) / 60))
-    
     if [[ "$raw_mode" == "true" ]]; then
         echo "total_duration_seconds,total_sessions,active_projects"
-        echo "$total_duration,$session_count,${#project_totals[@]}"
+        echo "$total_duration,$total_sessions,$projects_count"
         echo
     else
-        echo "📈 Summary:"
-        echo "   Total focus time: ${total_hours}h ${total_minutes}m"
-        echo "   Total sessions: $session_count"
-        echo "   Active projects: ${#project_totals[@]}"
-        echo
+        print_report_summary "$total_sessions" "$total_duration" "$projects_count"
     fi
     
     # Generate markdown report file
@@ -253,61 +206,49 @@ function focus_generate_report() {
     end_epoch_for_filename=$(date -d "$end_time" +%s)
     report_filename="focus-report-$(format_ts "$end_epoch_for_filename" "%Y-%m-%d").md"
     
-    # Pre-calculate epoch timestamps for markdown report
-    local start_epoch_for_report end_epoch_for_report
-    start_epoch_for_report=$(date -d "$start_time" +%s)
-    end_epoch_for_report=$(date -d "$end_time" +%s)
-    
     # Create markdown report
     {
-        echo "# Focus Report - $(format_ts "$start_epoch_for_report" "%Y-%m-%d") to $(format_ts "$end_epoch_for_report" "%Y-%m-%d")"
+        echo "# Focus Report - $start_date to $end_date"
         echo ""
         echo "## Summary"
-        echo "- **Total focus time**: ${total_hours}h ${total_minutes}m"
-        echo "- **Total sessions**: $session_count"
-        echo "- **Active projects**: ${#project_totals[@]}"
+        echo "- **Total focus time**: $((total_duration / 3600))h $(((total_duration % 3600) / 60))m"
+        echo "- **Total sessions**: $total_sessions"
+        echo "- **Active projects**: $projects_count"
         echo ""
         
-        if [[ ${#project_totals[@]} -gt 0 ]]; then
+        if [[ -n "$projects_section" ]]; then
             echo "## Project Breakdown"
             echo "| Project | Sessions | Total Time | Date Range |"
             echo "|---------|----------|------------|------------|"
             
-            for i in "${!project_totals[@]}"; do
-                local project="${project_totals[$i]}"
-                local sessions_count="${project_sessions[$i]}"
-                local project_duration="${project_durations[$i]}"
-                local date_range="${project_date_ranges[$i]}"
+            while IFS='|' read -r project sessions duration earliest_start latest_end; do
+                local proj_hours=$((duration / 3600))
+                local proj_minutes=$(((duration % 3600) / 60))
                 
-                local proj_hours=$((project_duration / 3600))
-                local proj_minutes=$(((project_duration % 3600) / 60))
-                
-                # Parse date range
-                IFS='|' read -r earliest_start latest_end <<< "$date_range"
                 local start_date end_date
-                start_date=$(format_ts "$(date -d "$earliest_start" +%s)" "%Y-%m-%d")
-                end_date=$(format_ts "$(date -d "$latest_end" +%s)" "%Y-%m-%d")
+                start_date=$(date --date="$earliest_start" +"%Y-%m-%d" 2>/dev/null || echo "$earliest_start")
+                end_date=$(date --date="$latest_end" +"%Y-%m-%d" 2>/dev/null || echo "$latest_end")
                 
+                local date_display
                 if [[ "$start_date" == "$end_date" ]]; then
-                    local date_display="$start_date"
+                    date_display="$start_date"
                 else
-                    local date_display="$start_date to $end_date"
+                    date_display="$start_date to $end_date"
                 fi
                 
-                echo "| $project | $sessions_count | ${proj_hours}h ${proj_minutes}m | $date_display |"
-            done
+                echo "| $project | $sessions | ${proj_hours}h ${proj_minutes}m | $date_display |"
+            done <<< "$projects_section"
             echo ""
         fi
         
         echo "## Session Details"
         echo ""
         
-        if [[ -n "$sessions" ]]; then
+        if [[ -n "$sessions_section" ]]; then
             local session_num=1
             while IFS='|' read -r project start end duration notes duration_only session_date; do
                 if [[ "$project" != "[idle]" ]]; then
-                    local duration_min
-                    duration_min=$((duration / 60))
+                    local duration_min=$((duration / 60))
                     local duration_hours=$((duration / 3600))
                     local duration_remaining_min=$(((duration % 3600) / 60))
                     
@@ -351,7 +292,7 @@ function focus_generate_report() {
                     
                     session_num=$((session_num + 1))
                 fi
-            done <<< "$sessions"
+            done <<< "$sessions_section"
         else
             echo "No sessions found"
         fi
@@ -359,15 +300,15 @@ function focus_generate_report() {
     
     if [[ "$raw_mode" == "true" ]]; then
         echo "project,start_time,end_time,duration_seconds,notes,duration_only,session_date"
-        if [[ -n "$sessions" ]]; then
+        if [[ -n "$sessions_section" ]]; then
             while IFS='|' read -r project start end duration notes duration_only session_date; do
                 if [[ "$project" != "[idle]" ]]; then
-                    echo "$project,$start,$end,$duration,$notes,$duration_only,$session_date"
+                    print_report_row_raw "$project" "$start" "$end" "$duration" "$notes" "$duration_only" "$session_date"
                 fi
-            done <<< "$sessions"
+            done <<< "$sessions_section"
         fi
     else
-        echo "📄 Detailed report saved to: $report_filename"
+        print_report_footer "$report_filename"
     fi
 }
 

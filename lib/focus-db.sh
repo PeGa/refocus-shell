@@ -233,6 +233,40 @@ db_stats() {
     _get_session_stats "$range_spec"
 }
 
+# Function: db_stats_detailed
+# Description: Get detailed statistics including project breakdowns for a date range
+# Usage: db_stats_detailed <range_spec>
+# Parameters:
+#   $1 - range_spec: Date range specification
+# Returns: Multiple CSV sections:
+#   - Summary: total_sessions|total_duration|avg_duration|projects_count
+#   - Project breakdown: project|sessions|duration|earliest_start|latest_end
+#   - Session details: project|start_time|end_time|duration_seconds|notes|duration_only|session_date
+db_stats_detailed() {
+    local range_spec="$1"
+    
+    if [[ -z "$range_spec" ]]; then
+        range_spec="today"
+    fi
+    
+    # Get basic stats
+    local basic_stats
+    basic_stats=$(_get_session_stats "$range_spec")
+    
+    # Get detailed project breakdown
+    local project_stats
+    project_stats=$(_get_project_stats "$range_spec")
+    
+    # Get session details
+    local session_details
+    session_details=$(_get_sessions_in_range_detailed "$range_spec")
+    
+    # Output all sections
+    echo "SUMMARY:$basic_stats"
+    echo "PROJECTS:$project_stats"
+    echo "SESSIONS:$session_details"
+}
+
 # =============================================================================
 # PRIVATE HELPER FUNCTIONS (all functions below are internal)
 # =============================================================================
@@ -719,6 +753,102 @@ _get_session_stats() {
     echo "$total_sessions|$total_duration|$avg_duration|${#projects[@]}"
 }
 
+# Function to get project statistics
+_get_project_stats() {
+    local range_spec="$1"
+    local sessions
+    sessions=$(_get_sessions_in_range_detailed "$range_spec")
+    
+    if [[ -z "$sessions" ]]; then
+        return
+    fi
+    
+    # Track project statistics
+    declare -A project_sessions
+    declare -A project_durations
+    declare -A project_earliest
+    declare -A project_latest
+    
+    while IFS='|' read -r project start_time end_time duration_seconds notes duration_only session_date; do
+        if [[ -n "$project" ]] && [[ "$project" != "[idle]" ]]; then
+            # Initialize if not exists
+            if [[ -z "${project_sessions[$project]}" ]]; then
+                project_sessions[$project]=0
+                project_durations[$project]=0
+                project_earliest[$project]=""
+                project_latest[$project]=""
+            fi
+            
+            # Update counts
+            project_sessions[$project]=$((${project_sessions[$project]} + 1))
+            project_durations[$project]=$((${project_durations[$project]} + duration_seconds))
+            
+            # Update date ranges
+            if [[ "$duration_only" == "1" ]]; then
+                # Duration-only session
+                if [[ -z "${project_earliest[$project]}" ]] || [[ "$session_date" < "${project_earliest[$project]}" ]]; then
+                    project_earliest[$project]="$session_date"
+                fi
+                if [[ -z "${project_latest[$project]}" ]] || [[ "$session_date" > "${project_latest[$project]}" ]]; then
+                    project_latest[$project]="$session_date"
+                fi
+            else
+                # Regular session
+                if [[ -z "${project_earliest[$project]}" ]] || [[ "$start_time" < "${project_earliest[$project]}" ]]; then
+                    project_earliest[$project]="$start_time"
+                fi
+                if [[ -z "${project_latest[$project]}" ]] || [[ "$end_time" > "${project_latest[$project]}" ]]; then
+                    project_latest[$project]="$end_time"
+                fi
+            fi
+        fi
+    done <<< "$sessions"
+    
+    # Output project statistics
+    for project in "${!project_sessions[@]}"; do
+        echo "$project|${project_sessions[$project]}|${project_durations[$project]}|${project_earliest[$project]}|${project_latest[$project]}"
+    done
+}
+
+# Function to get sessions in range with detailed information
+_get_sessions_in_range_detailed() {
+    local range_spec="$1"
+    local start_date end_date
+    
+    # Parse range specification
+    case "$range_spec" in
+        "today")
+            start_date=$(date +%Y-%m-%d)
+            end_date="$start_date"
+            ;;
+        "yesterday")
+            start_date=$(date -d "yesterday" +%Y-%m-%d)
+            end_date="$start_date"
+            ;;
+        "7d"|"week")
+            start_date=$(date -d "7 days ago" +%Y-%m-%d)
+            end_date=$(date +%Y-%m-%d)
+            ;;
+        "30d"|"month")
+            start_date=$(date -d "30 days ago" +%Y-%m-%d)
+            end_date=$(date +%Y-%m-%d)
+            ;;
+        *)
+            # Assume it's a date range like "2025-01-01,2025-01-31"
+            if [[ "$range_spec" == *","* ]]; then
+                start_date="${range_spec%%,*}"
+                end_date="${range_spec##*,}"
+            else
+                start_date="$range_spec"
+                end_date="$range_spec"
+            fi
+            ;;
+    esac
+    
+    # Get sessions including duration-only sessions
+    sqlite3 "$DB" "SELECT project, start_time, end_time, duration_seconds, notes, duration_only, session_date FROM $SESSIONS_TABLE WHERE project != '[idle]' AND ((end_time >= '$start_date' AND end_time <= '$end_date') OR (duration_only = 1 AND session_date >= '$start_date' AND session_date <= '$end_date')) ORDER BY COALESCE(end_time, session_date) DESC;" 2>/dev/null
+}
+
 # Function to ensure database directory exists
 _ensure_database_directory() {
     local db_dir
@@ -844,3 +974,4 @@ export -f db_resume
 export -f db_get_active
 export -f db_list
 export -f db_stats
+export -f db_stats_detailed
