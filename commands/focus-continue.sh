@@ -89,7 +89,7 @@ function focus_continue() {
         fi
         
         # Install cron job for real-time nudging
-        if _install_focus_cron_job_public "$resumed_project" "$new_start_time"; then
+        if cron_install_nudger "$SCRIPT_DIR/../focus-nudge" "$(get_cfg NUDGE_INTERVAL "10")"; then
             verbose_echo "Real-time nudging resumed"
         else
             echo "Warning: Failed to install nudging cron job" >&2

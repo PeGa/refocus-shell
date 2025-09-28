@@ -418,6 +418,24 @@ parse_time_spec() {
 # =============================================================================
 
 
+# Function: cron_install_nudger
+# Description: Install cron job for nudging
+# Usage: cron_install_nudger <script_path> [interval]
+# Parameters:
+#   $1 - script_path: Path to the nudge script
+#   $2 - interval: Interval in minutes (default: 5)
+# Returns: 0 on success, 1 on failure
+cron_install_nudger() {
+    local script_path="$1"
+    local interval="${2:-5}"
+    
+    # Remove existing cron job
+    crontab -l 2>/dev/null | grep -v "focus-nudge" | crontab -
+    
+    # Add new cron job
+    (crontab -l 2>/dev/null; echo "*/$interval * * * * $script_path") | crontab -
+}
+
 # Export only essential functions
 export -f validate_timestamp
 export -f validate_time_range
@@ -432,3 +450,4 @@ export -f die
 export -f usage
 export -f not_found
 export -f conflict
+export -f cron_install_nudger

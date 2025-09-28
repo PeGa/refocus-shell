@@ -949,20 +949,12 @@ _migrate_database() {
 }
 
 # Additional private API functions (internal use only)
-_get_focus_state_public() {
-    _get_focus_state
-}
-
 _get_focus_disabled_public() {
     _get_focus_disabled
 }
 
 _update_prompt_content_public() {
     _update_prompt_content "$@"
-}
-
-_install_focus_cron_job_public() {
-    _install_focus_cron_job "$@"
 }
 
 # =============================================================================
@@ -1036,6 +1028,15 @@ sql_escape() {
     _sql_escape "$1"
 }
 
+# Function: db_get_state
+# Description: Get the current focus state as CSV
+# Usage: db_get_state
+# Returns: CSV row with state info
+# Format: active|project|start_time|paused|pause_notes|pause_start_time|previous_elapsed
+db_get_state() {
+    _get_focus_state
+}
+
 # Export only the public DB API functions
 export -f db_init
 export -f db_start_session
@@ -1053,3 +1054,4 @@ export -f check_database_integrity
 export -f create_database_backup
 export -f attempt_database_recovery
 export -f sql_escape
+export -f db_get_state
