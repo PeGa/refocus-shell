@@ -22,11 +22,11 @@ function focus_on() {
         usage "Invalid project name"
     fi
     
-    if is_focus_disabled; then
+    if _is_focus_disabled_public; then
         die "Refocus shell is disabled. Run 'focus enable' to enable it."
     fi
     
-    if is_focus_active; then
+    if _is_focus_active; then
         conflict "Already focusing on a project. Run 'focus off' first."
     fi
     

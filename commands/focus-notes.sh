@@ -29,7 +29,7 @@ function focus_notes_add() {
     
     # Get the most recent session for this project
     local session_info
-    session_info=$(execute_sqlite "SELECT rowid, start_time, end_time, duration_seconds, notes FROM ${REFOCUS_SESSIONS_TABLE:-sessions} WHERE project = '$(sql_escape "$project")' ORDER BY end_time DESC LIMIT 1;" "focus_notes_add")
+    session_info=$(execute_sqlite "SELECT rowid, start_time, end_time, duration_seconds, notes FROM ${REFOCUS_SESSIONS_TABLE:-sessions} WHERE project = '$(_sql_escape_public "$project")' ORDER BY end_time DESC LIMIT 1;" "focus_notes_add")
     
     if [[ -z "$session_info" ]]; then
         echo "❌ No sessions found for project: $project"
@@ -53,7 +53,7 @@ function focus_notes_add() {
     if [[ -n "$session_notes" ]]; then
         # Update the session with new notes
         local escaped_notes
-        escaped_notes=$(sql_escape "$session_notes")
+        escaped_notes=$(_sql_escape_public "$session_notes")
         # Validate session_id is numeric to prevent injection
     if ! [[ "$session_id" =~ ^[0-9]+$ ]]; then
         echo "❌ Invalid session ID: $session_id"

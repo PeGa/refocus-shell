@@ -42,7 +42,7 @@ focus_diagnose_system() {
     
     # Check disk space
     echo "💾 Disk Space Check:"
-    if check_disk_space; then
+    if _check_disk_space_public; then
         echo "   ✅ Sufficient disk space available"
     else
         echo "   ❌ Insufficient disk space"
@@ -51,7 +51,7 @@ focus_diagnose_system() {
     
     # Check permissions
     echo "🔒 Permission Check:"
-    if check_database_permissions; then
+    if _check_database_permissions_public; then
         echo "   ✅ Database permissions are correct"
     else
         echo "   ❌ Database permission issues detected"
@@ -60,7 +60,7 @@ focus_diagnose_system() {
     
     # Check database integrity
     echo "🗃️  Database Integrity Check:"
-    if check_database_integrity; then
+    if _check_database_integrity_public; then
         echo "   ✅ Database integrity is good"
     else
         echo "   ❌ Database integrity issues detected"
@@ -167,7 +167,7 @@ focus_diagnose_repair() {
         echo "🔧 Checking database integrity"
         if ! check_database_integrity; then
             echo "   🔧 Attempting database recovery"
-            if attempt_database_recovery; then
+            if _attempt_database_recovery_public; then
                 echo "   ✅ Database recovery successful"
             else
                 echo "   ❌ Database recovery failed"
@@ -208,7 +208,7 @@ focus_diagnose_backup() {
         return 1
     fi
     
-    if create_database_backup; then
+    if _create_database_backup_public; then
         echo "✅ Emergency backup created successfully"
         return 0
     else
@@ -255,7 +255,7 @@ focus_diagnose_restore() {
         
         # Verify restored database
         echo "🔍 Verifying restored database"
-        if check_database_integrity; then
+        if _check_database_integrity_public; then
             echo "   ✅ Restored database integrity verified"
             return 0
         else

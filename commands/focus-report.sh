@@ -170,9 +170,9 @@ function focus_generate_report() {
     start_date=$(date --date="$start_time" +"%Y-%m-%d" 2>/dev/null || echo "$start_time")
     end_date=$(date --date="$end_time" +"%Y-%m-%d" 2>/dev/null || echo "$end_time")
     
-    # Use db_stats_detailed to get all the data we need
+    # Use _db_stats_detailed to get all the data we need
     local stats_data
-    stats_data=$(db_stats_detailed "$start_date,$end_date")
+    stats_data=$(_db_stats_detailed "$start_date,$end_date")
     
     if [[ -z "$stats_data" ]]; then
         echo "No focus sessions found in the specified period."

@@ -11,13 +11,13 @@ source "$SCRIPT_DIR/../lib/focus-db.sh"
 
 function focus_pause() {
     # Check if refocus shell is disabled
-    if is_focus_disabled; then
+    if _is_focus_disabled_public; then
         echo "❌ Refocus shell is disabled. Run 'focus enable' first."
         return 1
     fi
     
     # Check if there's an active focus session
-    if ! is_focus_active; then
+    if ! _is_focus_active; then
         echo "❌ No active focus session to pause."
         echo "   Start a session first with 'focus on <project>'"
         return 1

@@ -10,7 +10,7 @@ source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
 
 function focus_disable() {
     # Stop any active session first
-    if is_focus_active; then
+    if _is_focus_active; then
         echo "Stopping active session..."
         # Call focus-off command directly
         local focus_script

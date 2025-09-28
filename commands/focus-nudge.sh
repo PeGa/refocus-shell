@@ -11,7 +11,7 @@ source "$SCRIPT_DIR/../lib/focus-db.sh"
 
 function focus_nudge_enable() {
     # Check if refocus shell is disabled
-    if is_focus_disabled; then
+    if _is_focus_disabled_public; then
         echo "❌ Refocus shell is disabled. Run 'focus enable' first."
         return 1
     fi
@@ -35,21 +35,21 @@ function focus_nudge_disable() {
 
 function focus_nudge_status() {
     # Check if refocus shell is disabled
-    if is_focus_disabled; then
+    if _is_focus_disabled_public; then
         echo "❌ Refocus shell is disabled"
         return 1
     fi
     
     # Get nudging status
     local nudging_enabled
-    nudging_enabled=$(get_nudging_enabled)
+    nudging_enabled=$(_get_nudging_enabled_public)
     
     if [[ "$nudging_enabled" -eq 1 ]]; then
         echo "✅ Nudging is enabled"
         echo "Focus reminders: Active (every 10 minutes)"
         
         # Check if there's an active session
-        if is_focus_active; then
+        if _is_focus_active; then
             local state
             state=$(db_get_state)
             IFS='|' read -r active project start_time <<< "$state"
@@ -76,14 +76,14 @@ function focus_nudge_status() {
 
 function focus_nudge_test() {
     # Check if refocus shell is disabled
-    if is_focus_disabled; then
+    if _is_focus_disabled_public; then
         echo "❌ Refocus shell is disabled. Run 'focus enable' first."
         return 1
     fi
     
     # Check if nudging is enabled
     local nudging_enabled
-    nudging_enabled=$(get_nudging_enabled)
+    nudging_enabled=$(_get_nudging_enabled_public)
     
     if [[ "$nudging_enabled" -eq 0 ]]; then
         echo "❌ Nudging is disabled. Run 'focus nudge enable' first."

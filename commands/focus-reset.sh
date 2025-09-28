@@ -16,7 +16,7 @@ function focus_reset() {
     
     if [[ "$response" =~ ^[Yy]$ ]]; then
         # Stop any active session first
-        if is_focus_active; then
+        if _is_focus_active; then
             echo "Stopping active session..."
             focus_off
         fi

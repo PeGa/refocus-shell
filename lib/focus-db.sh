@@ -233,16 +233,16 @@ db_stats() {
     _get_session_stats "$range_spec"
 }
 
-# Function: db_stats_detailed
-# Description: Get detailed statistics including project breakdowns for a date range
-# Usage: db_stats_detailed <range_spec>
+# Function: _db_stats_detailed
+# Description: Get detailed statistics including project breakdowns for a date range (PRIVATE)
+# Usage: _db_stats_detailed <range_spec>
 # Parameters:
 #   $1 - range_spec: Date range specification
 # Returns: Multiple CSV sections:
 #   - Summary: total_sessions|total_duration|avg_duration|projects_count
 #   - Project breakdown: project|sessions|duration|earliest_start|latest_end
 #   - Session details: project|start_time|end_time|duration_seconds|notes|duration_only|session_date
-db_stats_detailed() {
+_db_stats_detailed() {
     local range_spec="$1"
     
     if [[ -z "$range_spec" ]]; then
@@ -961,11 +961,11 @@ _update_prompt_content_public() {
 # PUBLIC FAÇADE FUNCTIONS (for diagnose/import commands)
 # =============================================================================
 
-# Function: is_focus_active
-# Description: Check if there's an active focus session
-# Usage: is_focus_active
+# Function: _is_focus_active
+# Description: Check if there's an active focus session (PRIVATE)
+# Usage: _is_focus_active
 # Returns: 0 if active, 1 if not active
-is_focus_active() {
+_is_focus_active() {
     local state
     state=$(_get_focus_state)
     if [[ -z "$state" ]]; then
@@ -980,59 +980,59 @@ is_focus_active() {
     fi
 }
 
-# Function: check_disk_space
-# Description: Check if there's sufficient disk space
-# Usage: check_disk_space
+# Function: _check_disk_space_public
+# Description: Check if there's sufficient disk space (PRIVATE)
+# Usage: _check_disk_space_public
 # Returns: 0 if sufficient, 1 if insufficient
-check_disk_space() {
+_check_disk_space_public() {
     _check_disk_space
 }
 
-# Function: check_database_permissions
-# Description: Check database file and directory permissions
-# Usage: check_database_permissions
+# Function: _check_database_permissions_public
+# Description: Check database file and directory permissions (PRIVATE)
+# Usage: _check_database_permissions_public
 # Returns: 0 if permissions are correct, 1 if not
-check_database_permissions() {
+_check_database_permissions_public() {
     _check_database_permissions
 }
 
-# Function: check_database_integrity
-# Description: Check database integrity
-# Usage: check_database_integrity
+# Function: _check_database_integrity_public
+# Description: Check database integrity (PRIVATE)
+# Usage: _check_database_integrity_public
 # Returns: 0 if integrity is good, 1 if not
-check_database_integrity() {
+_check_database_integrity_public() {
     _check_database_integrity
 }
 
-# Function: create_database_backup
-# Description: Create a database backup
-# Usage: create_database_backup
+# Function: _create_database_backup_public
+# Description: Create a database backup (PRIVATE)
+# Usage: _create_database_backup_public
 # Returns: 0 on success, 1 on failure
-create_database_backup() {
+_create_database_backup_public() {
     _create_database_backup
 }
 
-# Function: attempt_database_recovery
-# Description: Attempt to recover a corrupted database
-# Usage: attempt_database_recovery
+# Function: _attempt_database_recovery_public
+# Description: Attempt to recover a corrupted database (PRIVATE)
+# Usage: _attempt_database_recovery_public
 # Returns: 0 on success, 1 on failure
-attempt_database_recovery() {
+_attempt_database_recovery_public() {
     _attempt_database_recovery
 }
 
-# Function: sql_escape
-# Description: Escape SQL strings safely
-# Usage: sql_escape <string>
+# Function: _sql_escape_public
+# Description: Escape SQL strings safely (PRIVATE)
+# Usage: _sql_escape_public <string>
 # Returns: escaped string
-sql_escape() {
+_sql_escape_public() {
     _sql_escape "$1"
 }
 
-# Function: is_focus_disabled
-# Description: Check if focus is disabled
-# Usage: is_focus_disabled
+# Function: _is_focus_disabled_public
+# Description: Check if focus is disabled (PRIVATE)
+# Usage: _is_focus_disabled_public
 # Returns: 0 if disabled, 1 if enabled
-is_focus_disabled() {
+_is_focus_disabled_public() {
     local disabled
     disabled=$(_get_focus_disabled)
     if [[ "$disabled" -eq 1 ]]; then
@@ -1042,11 +1042,11 @@ is_focus_disabled() {
     fi
 }
 
-# Function: get_nudging_enabled
-# Description: Get nudging enabled status
-# Usage: get_nudging_enabled
+# Function: _get_nudging_enabled_public
+# Description: Get nudging enabled status (PRIVATE)
+# Usage: _get_nudging_enabled_public
 # Returns: 1 if enabled, 0 if disabled
-get_nudging_enabled() {
+_get_nudging_enabled_public() {
     _get_nudging_enabled
 }
 
@@ -1060,22 +1060,4 @@ db_get_state() {
 }
 
 # Export only the public DB API functions
-export -f db_init
-export -f db_start_session
-export -f db_end_session
-export -f db_pause
-export -f db_resume
-export -f db_get_active
-export -f db_list
-export -f db_stats
-export -f db_stats_detailed
-export -f is_focus_active
-export -f check_disk_space
-export -f check_database_permissions
-export -f check_database_integrity
-export -f create_database_backup
-export -f attempt_database_recovery
-export -f sql_escape
-export -f db_get_state
-export -f is_focus_disabled
-export -f get_nudging_enabled
+export -f db_init db_start_session db_end_session db_pause db_resume db_get_active db_get_state db_list db_stats

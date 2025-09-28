@@ -102,13 +102,13 @@ import_from_json() {
         [[ "$focus_disabled" == "true" ]] && focus_disabled=1 || focus_disabled=0
         
         # Escape SQL strings and handle null values properly
-        project=$(sql_escape "$project")
-        start_time=$(sql_escape "$start_time")
-        prompt_content=$(sql_escape "$prompt_content")
-        prompt_type=$(sql_escape "$prompt_type")
-        last_focus_off_time=$(sql_escape "$last_focus_off_time")
-        pause_notes=$(sql_escape "$pause_notes")
-        pause_start_time=$(sql_escape "$pause_start_time")
+        project=$(_sql_escape_public "$project")
+        start_time=$(_sql_escape_public "$start_time")
+        prompt_content=$(_sql_escape_public "$prompt_content")
+        prompt_type=$(_sql_escape_public "$prompt_type")
+        last_focus_off_time=$(_sql_escape_public "$last_focus_off_time")
+        pause_notes=$(_sql_escape_public "$pause_notes")
+        pause_start_time=$(_sql_escape_public "$pause_start_time")
         
         # Convert null strings to actual NULL for SQL, otherwise keep quoted
         if [[ "$project" == "null" ]]; then
@@ -189,11 +189,11 @@ import_from_json() {
             [[ "$duration_only" == "true" ]] && duration_only=1 || duration_only=0
             
             # Escape SQL strings and handle null values properly
-            project=$(sql_escape "$project")
-            start_time=$(sql_escape "$start_time")
-            end_time=$(sql_escape "$end_time")
-            notes=$(sql_escape "$notes")
-            session_date=$(sql_escape "$session_date")
+            project=$(_sql_escape_public "$project")
+            start_time=$(_sql_escape_public "$start_time")
+            end_time=$(_sql_escape_public "$end_time")
+            notes=$(_sql_escape_public "$notes")
+            session_date=$(_sql_escape_public "$session_date")
             
             # Convert null strings to actual NULL for SQL, otherwise keep quoted
             if [[ "$start_time" == "null" ]]; then
@@ -244,10 +244,10 @@ import_from_json() {
             updated_at=$(jq -r '.updated_at // ""' <<< "$project")
             
             # Escape SQL strings
-            project_name=$(sql_escape "$project_name")
-            description=$(sql_escape "$description")
-            created_at=$(sql_escape "$created_at")
-            updated_at=$(sql_escape "$updated_at")
+            project_name=$(_sql_escape_public "$project_name")
+            description=$(_sql_escape_public "$description")
+            created_at=$(_sql_escape_public "$created_at")
+            updated_at=$(_sql_escape_public "$updated_at")
             
             execute_sqlite "INSERT OR REPLACE INTO ${REFOCUS_PROJECTS_TABLE:-projects} (project, description, created_at, updated_at) 
                 VALUES ('$project_name', '$description', '$created_at', '$updated_at');" "import_from_json" >/dev/null
@@ -361,7 +361,7 @@ function focus_import() {
     fi
     
     # Stop any active session first
-    if is_focus_active; then
+    if _is_focus_active; then
         echo "Stopping active session..."
         focus_off
     fi

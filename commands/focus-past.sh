@@ -316,7 +316,7 @@ function focus_past_modify() {
         local duration="$current_duration"
         
         # Update only the project name for duration-only sessions
-        execute_sqlite "UPDATE ${REFOCUS_SESSIONS_TABLE:-sessions} SET project = '$(sql_escape "$project")' WHERE rowid = $session_id;" "focus_past_modify" >/dev/null
+        execute_sqlite "UPDATE ${REFOCUS_SESSIONS_TABLE:-sessions} SET project = '$(_sql_escape_public "$project")' WHERE rowid = $session_id;" "focus_past_modify" >/dev/null
         
         echo "✅ Modified session $session_id: $project"
         echo "   Type: Duration-only session"
@@ -390,10 +390,10 @@ function focus_past_modify() {
         # Escape timestamps for SQL
         local escaped_start_time
         local escaped_end_time
-        escaped_start_time=$(sql_escape "$final_start_time")
-        escaped_end_time=$(sql_escape "$final_end_time")
+        escaped_start_time=$(_sql_escape_public "$final_start_time")
+        escaped_end_time=$(_sql_escape_public "$final_end_time")
         
-        execute_sqlite "UPDATE ${REFOCUS_SESSIONS_TABLE:-sessions} SET project = '$(sql_escape "$project")', start_time = '$escaped_start_time', end_time = '$escaped_end_time', duration_seconds = $duration_seconds WHERE rowid = $session_id;" "focus_past_modify" >/dev/null
+        execute_sqlite "UPDATE ${REFOCUS_SESSIONS_TABLE:-sessions} SET project = '$(_sql_escape_public "$project")', start_time = '$escaped_start_time', end_time = '$escaped_end_time', duration_seconds = $duration_seconds WHERE rowid = $session_id;" "focus_past_modify" >/dev/null
     
     echo "✅ Modified session $session_id: $project"
     echo "   Start: $final_start_time"

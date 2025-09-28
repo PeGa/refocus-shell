@@ -11,7 +11,7 @@ source "$SCRIPT_DIR/../lib/focus-db.sh"
 
 function focus_continue() {
     # Check if refocus shell is disabled
-    if is_focus_disabled; then
+    if _is_focus_disabled_public; then
         echo "❌ Refocus shell is disabled. Run 'focus enable' first."
         return 1
     fi

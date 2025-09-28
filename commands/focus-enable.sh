@@ -10,7 +10,7 @@ source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
 
 function focus_enable() {
     # Check if refocus shell is disabled
-    if is_focus_disabled; then
+    if _is_focus_disabled_public; then
         echo "✅ Re-enabling refocus shell..."
         update_focus_disabled 0
         echo "✅ Refocus shell enabled"
