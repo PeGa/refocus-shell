@@ -331,47 +331,9 @@ format_duration_hours_minutes() {
     echo "${hours}h ${minutes}m"
 }
 
-# Function to validate numeric input
-validate_numeric_input() {
-    local input="$1"
-    local description="$2"
-    
-    if ! [[ "$input" =~ ^[0-9]+$ ]]; then
-        echo "❌ $description must be a positive integer."
-        return 1
-    fi
-    return 0
-}
+# Note: Validation functions have been removed - each command now has its own guard clauses
 
-# Function to validate project name
-validate_project_name() {
-    local project="$1"
-    
-    if [[ -z "$project" ]]; then
-        echo "❌ Project name cannot be empty."
-        return 1
-    fi
-    
-    # Check for maximum length (reasonable limit)
-    if [[ ${#project} -gt 100 ]]; then
-        echo "❌ Project name is too long (max 100 characters)."
-        return 1
-    fi
-    
-    # Check for dangerous characters that could cause SQL issues
-    if [[ "$project" =~ [\"\\] ]]; then
-        echo "❌ Project name contains invalid characters (quotes or backslashes)."
-        return 1
-    fi
-    
-    # Check for control characters
-    if [[ "$project" =~ [[:cntrl:]] ]]; then
-        echo "❌ Project name contains control characters."
-        return 1
-    fi
-    
-    return 0
-}
+# Note: All validation functions have been removed - each command now has its own guard clauses
 
 # Function to validate and convert timestamp format
 validate_timestamp() {

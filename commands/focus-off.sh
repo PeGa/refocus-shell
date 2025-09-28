@@ -7,22 +7,19 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
 
-# Source centralized validation functions
-# Note: Using direct validation instead of centralized functions
-
 function focus_off() {
-    local now
-    now=$(get_current_timestamp)
-
+    # Guard clauses
     local state
     state=$(get_focus_state)
     IFS='|' read -r active current_project start_time paused pause_notes pause_start_time previous_elapsed <<< "$state"
 
     if [[ "$active" -ne 1 ]] && [[ "$paused" -ne 1 ]]; then
         echo "❌ No active focus session to stop" >&2
-        echo "Run 'focus on <project>' to start a focus session first." >&2
-        exit 1  # No active session
+        exit 4
     fi
+    
+    local now
+    now=$(get_current_timestamp)
 
     local duration
     local total_duration

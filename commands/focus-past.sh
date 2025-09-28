@@ -90,35 +90,59 @@ validate_time_range() {
 }
 
 function focus_past_add() {
-    local project=""
-    local start_time=""
-    local end_time=""
+    # Guard clauses
+    if [[ $# -lt 3 ]]; then
+        echo "❌ Usage: focus past add <project> <start> <end>" >&2
+        exit 2
+    fi
+    
+    local project="$1"
+    local start_time="$2"
+    local end_time="$3"
+    
+    if [[ -z "$project" ]] || [[ "$project" =~ [[:cntrl:]] ]] || [[ ${#project} -gt 100 ]]; then
+        echo "❌ Invalid project name" >&2
+        exit 2
+    fi
+    
+    if [[ -z "$start_time" ]] || [[ -z "$end_time" ]]; then
+        echo "❌ Start and end times are required" >&2
+        exit 2
+    fi
+    
+    # Parse and validate timestamps
+    local converted_start_time
+    converted_start_time=$(parse_date_to_timestamp "$start_time")
+    if [[ $? -ne 0 ]]; then
+        echo "❌ Invalid start time format" >&2
+        exit 2
+    fi
+    
+    local converted_end_time
+    converted_end_time=$(parse_date_to_timestamp "$end_time")
+    if [[ $? -ne 0 ]]; then
+        echo "❌ Invalid end time format" >&2
+        exit 2
+    fi
+    
+    # Check if start time is before end time
+    local start_ts
+    start_ts=$(date -d "$converted_start_time" +%s 2>/dev/null)
+    local end_ts
+    end_ts=$(date -d "$converted_end_time" +%s 2>/dev/null)
+    
+    if [[ -n "$start_ts" ]] && [[ -n "$end_ts" ]] && [[ "$start_ts" -ge "$end_ts" ]]; then
+        echo "❌ Start time must be before end time" >&2
+        exit 2
+    fi
+    
+    # Sanitize project name
+    project=$(echo "$project" | tr -d '\r\n\t' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    
     local duration=""
     local session_date=""
     local notes=""
     local duration_mode=false
-    
-    # Parse all arguments
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --duration)
-                duration="$2"
-                duration_mode=true
-                shift 2
-                ;;
-            --date)
-                session_date="$2"
-                shift 2
-                ;;
-            --notes)
-                notes="$2"
-                shift 2
-                ;;
-            *)
-                if [[ -z "$project" ]]; then
-                    project="$1"
-                elif [[ -z "$start_time" ]] && [[ "$duration_mode" == "false" ]]; then
-                    start_time="$1"
                 elif [[ -z "$end_time" ]] && [[ "$duration_mode" == "false" ]]; then
                     end_time="$1"
                 fi

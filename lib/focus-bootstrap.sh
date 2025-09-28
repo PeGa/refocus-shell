@@ -23,12 +23,10 @@ refocus_bootstrap() {
     if [[ -f "$HOME/.local/refocus/lib/focus-db.sh" ]]; then
         source "$HOME/.local/refocus/lib/focus-db.sh"
         source "$HOME/.local/refocus/lib/focus-utils.sh"
-        source "$HOME/.local/refocus/lib/focus-validation.sh"
         source "$HOME/.local/refocus/lib/focus-output.sh"
     else
         source "$script_dir/focus-db.sh"
         source "$script_dir/focus-utils.sh"
-        source "$script_dir/focus-validation.sh"
         source "$script_dir/focus-output.sh"
     fi
     
@@ -124,25 +122,7 @@ refocus_format_duration() {
     fi
 }
 
-# Function to validate file path
-# Usage: refocus_validate_file_path <file_path> <description>
-refocus_validate_file_path() {
-    local file_path="$1"
-    local description="${2:-File}"
-    
-    if [[ -z "$file_path" ]]; then
-        echo "❌ $description path is required"
-        return 1
-    fi
-    
-    # Check for path traversal attempts
-    if [[ "$file_path" == *".."* ]]; then
-        echo "❌ $description path contains invalid characters"
-        return 1
-    fi
-    
-    return 0
-}
+# Note: Validation functions have been removed - each command now has its own guard clauses
 
 # Function to create backup of database
 # Usage: refocus_backup_database [backup_suffix]
@@ -186,7 +166,6 @@ export -f refocus_script_main
 export -f refocus_validate_dependencies
 export -f refocus_confirm
 export -f refocus_format_duration
-export -f refocus_validate_file_path
 export -f refocus_backup_database
 export -f refocus_timestamp
 export -f refocus_log_command
