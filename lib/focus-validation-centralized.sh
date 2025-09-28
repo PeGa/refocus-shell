@@ -7,11 +7,6 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/focus-bootstrap.sh"
 
-# Table name variables
-STATE_TABLE="${STATE_TABLE:-state}"
-SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
-PROJECTS_TABLE="${PROJECTS_TABLE:-projects}"
-
 # =============================================================================
 # CENTRALIZED VALIDATION FUNCTIONS
 # =============================================================================

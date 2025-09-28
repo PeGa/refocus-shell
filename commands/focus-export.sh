@@ -3,11 +3,6 @@
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 
-# Table name variables
-STATE_TABLE="${STATE_TABLE:-state}"
-SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
-PROJECTS_TABLE="${PROJECTS_TABLE:-projects}"
-
 # Source bootstrap module
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
@@ -29,7 +24,7 @@ generate_json_export() {
     
     # Export state data
     local state_data
-    state_data=$(execute_sqlite "SELECT active, project, start_time, prompt_content, prompt_type, nudging_enabled, focus_disabled, last_focus_off_time, paused, pause_notes, pause_start_time, previous_elapsed FROM $STATE_TABLE WHERE id = 1;" "generate_json_export")
+    state_data=$(execute_sqlite "SELECT active, project, start_time, prompt_content, prompt_type, nudging_enabled, focus_disabled, last_focus_off_time, paused, pause_notes, pause_start_time, previous_elapsed FROM ${REFOCUS_STATE_TABLE:-state} WHERE id = 1;" "generate_json_export")
     
     if [[ -n "$state_data" ]]; then
         IFS='|' read -r active project start_time prompt_content prompt_type nudging_enabled focus_disabled last_focus_off_time paused pause_notes pause_start_time previous_elapsed <<< "$state_data"
@@ -81,7 +76,7 @@ generate_json_export() {
 '
     
     local sessions_data
-    sessions_data=$(execute_sqlite "SELECT id, project, start_time, end_time, duration_seconds, notes, duration_only, session_date FROM $SESSIONS_TABLE ORDER BY id;" "generate_json_export")
+    sessions_data=$(execute_sqlite "SELECT id, project, start_time, end_time, duration_seconds, notes, duration_only, session_date FROM ${REFOCUS_SESSIONS_TABLE:-sessions} ORDER BY id;" "generate_json_export")
     
     local session_count=0
     if [[ -n "$sessions_data" ]]; then
@@ -131,7 +126,7 @@ generate_json_export() {
 '
     
     local projects_data
-    projects_data=$(execute_sqlite "SELECT project, description, created_at, updated_at FROM $PROJECTS_TABLE ORDER BY project;" "generate_json_export")
+    projects_data=$(execute_sqlite "SELECT project, description, created_at, updated_at FROM ${REFOCUS_PROJECTS_TABLE:-projects} ORDER BY project;" "generate_json_export")
     
     local project_count=0
     if [[ -n "$projects_data" ]]; then

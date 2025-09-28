@@ -3,9 +3,6 @@
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 
-# Table name variables
-STATE_TABLE="${STATE_TABLE:-state}"
-SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
 PROJECTS_TABLE="${PROJECTS_TABLE:-projects}"
 
 # Source bootstrap module
@@ -25,9 +22,9 @@ function focus_config_show() {
     echo "Error Log: $REFOCUS_ERROR_LOG"
     echo
     echo "Table Names:"
-    echo "  State: $STATE_TABLE"
-    echo "  Sessions: $SESSIONS_TABLE"
-    echo "  Projects: $PROJECTS_TABLE"
+    echo "  State: ${REFOCUS_STATE_TABLE:-state}"
+    echo "  Sessions: ${REFOCUS_SESSIONS_TABLE:-sessions}"
+    echo "  Projects: ${REFOCUS_PROJECTS_TABLE:-projects}"
     echo
     echo "Environment Variables:"
     echo "  REFOCUS_DATA_PATH: ${REFOCUS_DATA_PATH:-not set}"

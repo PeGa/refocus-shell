@@ -6,6 +6,10 @@
 # This module provides common initialization patterns for all refocus commands
 # to eliminate code duplication and ensure consistent behavior.
 
+# Source configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../config.sh"
+
 # Function to initialize refocus environment
 # Usage: refocus_bootstrap [command_name]
 refocus_bootstrap() {
@@ -27,11 +31,6 @@ refocus_bootstrap() {
         source "$script_dir/focus-validation.sh"
         source "$script_dir/focus-output.sh"
     fi
-    
-    # Set table names
-    STATE_TABLE="${STATE_TABLE:-state}"
-    SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
-    PROJECTS_TABLE="${PROJECTS_TABLE:-projects}"
     
     # Run database migration if needed
     if [[ -f "$DB" ]]; then

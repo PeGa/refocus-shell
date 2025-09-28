@@ -7,6 +7,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
 
+
 function focus_notes_add() {
     local project="$1"
     
@@ -28,7 +29,7 @@ function focus_notes_add() {
     
     # Get the most recent session for this project
     local session_info
-    session_info=$(execute_sqlite "SELECT rowid, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE WHERE project = '$(sql_escape "$project")' ORDER BY end_time DESC LIMIT 1;" "focus_notes_add")
+    session_info=$(execute_sqlite "SELECT rowid, start_time, end_time, duration_seconds, notes FROM ${REFOCUS_SESSIONS_TABLE:-sessions} WHERE project = '$(sql_escape "$project")' ORDER BY end_time DESC LIMIT 1;" "focus_notes_add")
     
     if [[ -z "$session_info" ]]; then
         echo "❌ No sessions found for project: $project"
@@ -59,7 +60,7 @@ function focus_notes_add() {
         show_error_info
         exit 1
     fi
-    execute_sqlite "UPDATE $SESSIONS_TABLE SET notes = '$escaped_notes' WHERE rowid = $session_id;" "focus_notes_add" >/dev/null
+    execute_sqlite "UPDATE ${REFOCUS_SESSIONS_TABLE:-sessions} SET notes = '$escaped_notes' WHERE rowid = $session_id;" "focus_notes_add" >/dev/null
         echo "✅ Notes added to session $session_id"
     else
         echo "No notes added."

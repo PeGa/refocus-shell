@@ -19,7 +19,9 @@ function focus_off() {
     IFS='|' read -r active current_project start_time paused pause_notes pause_start_time previous_elapsed <<< "$state"
 
     if [[ "$active" -ne 1 ]] && [[ "$paused" -ne 1 ]]; then
-        handle_state_error "no_active_session"
+        echo "❌ No active focus session to stop" >&2
+        echo "Run 'focus on <project>' to start a focus session first." >&2
+        exit 1  # No active session
     fi
 
     local duration

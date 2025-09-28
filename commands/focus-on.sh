@@ -17,22 +17,27 @@ function focus_on() {
     
     # Validate project name if provided
     if [[ -n "$project" ]]; then
-        project=$(validate_project_name_standardized "$project" "Project")
-        if [[ $? -ne 0 ]]; then
+        # Basic project name validation
+        if [[ -z "$project" ]] || [[ "$project" =~ [[:cntrl:]] ]]; then
+            echo "❌ Invalid project name: $project" >&2
             exit 2  # Invalid arguments
         fi
+        # Sanitize project name
+        project=$(echo "$project" | tr -d '\r\n\t' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     else
-        handle_argument_error "missing_project" \
-            "focus on <project>" \
-            "focus on coding
-  focus on 'my-project'
-  focus on meeting" \
-            "Project name is required to start a focus session"
+        echo "❌ Project name is required" >&2
+        echo "Usage: focus on <project>" >&2
+        echo "Examples:" >&2
+        echo "  focus on coding" >&2
+        echo "  focus on 'my-project'" >&2
+        echo "  focus on meeting" >&2
+        exit 2  # Invalid arguments
     fi
 
     # Check if refocus shell is disabled
     if is_focus_disabled; then
-        handle_state_error "disabled"
+        echo "❌ Refocus shell is disabled. Run 'focus enable' to enable it." >&2
+        exit 1  # Disabled state
     fi
 
     # Check if already active
@@ -41,12 +46,16 @@ function focus_on() {
     if [[ -n "$state" ]]; then
         IFS='|' read -r active current_project existing_start_time paused pause_notes pause_start_time previous_elapsed <<< "$state"
         if [[ "$active" -eq 1 ]]; then
-            handle_state_error "already_active"
+            echo "❌ Already focusing on: $current_project" >&2
+            echo "Run 'focus off' to stop the current session first." >&2
+            exit 1  # Already active
         fi
         
         # Check if there's a paused session
         if [[ "$paused" -eq 1 ]]; then
-            handle_state_error "session_paused" "$current_project"
+            echo "❌ Session is paused for: $current_project" >&2
+            echo "Run 'focus continue' to resume the paused session." >&2
+            exit 1  # Session paused
         fi
     fi
 

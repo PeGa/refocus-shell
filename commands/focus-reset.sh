@@ -7,6 +7,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
 
+
 function focus_reset() {
     echo "This will delete all focus data and reset the database."
     echo "Are you sure you want to continue? (y/N)"

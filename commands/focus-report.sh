@@ -3,9 +3,6 @@
 # Copyright (c) 2025 PeGa
 # Licensed under the GNU General Public License v3
 
-# Table name variables
-STATE_TABLE="${STATE_TABLE:-state}"
-SESSIONS_TABLE="${SESSIONS_TABLE:-sessions}"
 PROJECTS_TABLE="${PROJECTS_TABLE:-projects}"
 
 # Source bootstrap module
@@ -89,7 +86,7 @@ function focus_generate_report() {
     escaped_start_time=$(sql_escape "$start_time")
     escaped_end_time=$(sql_escape "$end_time")
     
-    sessions=$(execute_sqlite "SELECT project, start_time, end_time, duration_seconds, notes, duration_only, session_date FROM $SESSIONS_TABLE WHERE project != '[idle]' AND (end_time >= '$escaped_start_time' AND end_time <= '$escaped_end_time') OR (duration_only = 1 AND session_date >= '$escaped_start_time' AND session_date <= '$escaped_end_time') ORDER BY COALESCE(end_time, session_date) DESC;" "focus_generate_report")
+    sessions=$(execute_sqlite "SELECT project, start_time, end_time, duration_seconds, notes, duration_only, session_date FROM ${REFOCUS_SESSIONS_TABLE:-sessions} WHERE project != '[idle]' AND (end_time >= '$escaped_start_time' AND end_time <= '$escaped_end_time') OR (duration_only = 1 AND session_date >= '$escaped_start_time' AND session_date <= '$escaped_end_time') ORDER BY COALESCE(end_time, session_date) DESC;" "focus_generate_report")
     
     if [[ -z "$sessions" ]]; then
         echo "No focus sessions found in the specified period."

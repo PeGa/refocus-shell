@@ -147,7 +147,7 @@ import_from_json() {
             pause_start_time="'$pause_start_time'"
         fi
         
-        execute_sqlite "UPDATE $STATE_TABLE SET 
+        execute_sqlite "UPDATE ${REFOCUS_STATE_TABLE:-state} SET 
             active = $active,
             project = $project,
             start_time = $start_time,
@@ -220,7 +220,7 @@ import_from_json() {
                 session_date="'$session_date'"
             fi
             
-            execute_sqlite "INSERT INTO $SESSIONS_TABLE (id, project, start_time, end_time, duration_seconds, notes, duration_only, session_date) 
+            execute_sqlite "INSERT INTO ${REFOCUS_SESSIONS_TABLE:-sessions} (id, project, start_time, end_time, duration_seconds, notes, duration_only, session_date) 
                 VALUES ($id, '$project', $start_time, $end_time, $duration_seconds, $notes, $duration_only, $session_date);" "import_from_json" >/dev/null
         done
     fi
@@ -249,12 +249,42 @@ import_from_json() {
             created_at=$(sql_escape "$created_at")
             updated_at=$(sql_escape "$updated_at")
             
-            execute_sqlite "INSERT OR REPLACE INTO $PROJECTS_TABLE (project, description, created_at, updated_at) 
+            execute_sqlite "INSERT OR REPLACE INTO ${REFOCUS_PROJECTS_TABLE:-projects} (project, description, created_at, updated_at) 
                 VALUES ('$project_name', '$description', '$created_at', '$updated_at');" "import_from_json" >/dev/null
         done
     fi
     
     return 0
+}
+
+import_from_sql() {
+    local input_file="$1"
+    
+    # Validate SQLite availability
+    if ! command -v sqlite3 >/dev/null 2>&1; then
+        echo "❌ sqlite3 is required for SQL import but not installed."
+        echo "Please install sqlite3: sudo apt-get install sqlite3"
+        return 1
+    fi
+    
+    # Validate SQL file by checking for SQLite dump markers
+    if ! head -5 "$input_file" | grep -q "PRAGMA\|BEGIN\|CREATE\|INSERT"; then
+        echo "❌ Invalid SQL file: $input_file"
+        echo "Expected SQLite dump format with PRAGMA, CREATE, or INSERT statements"
+        return 1
+    fi
+    
+    # Remove existing database
+    rm -f "$DB"
+    
+    # Import SQL dump directly into new database
+    if sqlite3 "$DB" < "$input_file"; then
+        echo "✅ SQL import completed successfully"
+        return 0
+    else
+        echo "❌ Failed to import SQL file: $input_file"
+        return 1
+    fi
 }
 
 function focus_import() {

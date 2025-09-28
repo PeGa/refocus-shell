@@ -523,6 +523,15 @@ install_libraries() {
     
     print_verbose "Installing libraries to: $lib_dir"
     
+    # Copy config.sh first (needed by other files)
+    if [[ -f "./config.sh" ]]; then
+        cp "./config.sh" "$REFOCUS_DATA_PATH/"
+        chmod +x "$REFOCUS_DATA_PATH/config.sh"
+    elif [[ -f "$(dirname "$0")/config.sh" ]]; then
+        cp "$(dirname "$0")/config.sh" "$REFOCUS_DATA_PATH/"
+        chmod +x "$REFOCUS_DATA_PATH/config.sh"
+    fi
+    
     # Copy all .sh files from lib directory
     if [[ -f "$source_lib_dir/focus-db.sh" ]]; then
         cp "$source_lib_dir/focus-db.sh" "$lib_dir/"
@@ -792,7 +801,7 @@ function update-prompt(){
     # Check if database exists and get current prompt content
     if [[ -f "$REFOCUS_DB" ]]; then
         # Get the prompt content from database with better error handling
-        PROMPT_CONTENT=$(sqlite3 "$REFOCUS_DB" "SELECT prompt_content FROM $REFOCUS_STATE_TABLE WHERE id = 1;" 2>/dev/null)
+        PROMPT_CONTENT=$(sqlite3 "$REFOCUS_DB" "SELECT prompt_content FROM ${REFOCUS_STATE_TABLE:-state} WHERE id = 1;" 2>/dev/null)
         
         if [[ -n "$PROMPT_CONTENT" ]]; then
             # Set PS1 directly from database content
@@ -809,7 +818,7 @@ function update-prompt(){
 # Auto-update prompt on shell startup if focus is active
 if [[ -f "$HOME/.local/refocus/refocus.db" ]]; then
     # Check if focus is currently active
-    ACTIVE_STATE=$(sqlite3 "$HOME/.local/refocus/refocus.db" "SELECT active FROM $REFOCUS_STATE_TABLE WHERE id = 1;" 2>/dev/null)
+    ACTIVE_STATE=$(sqlite3 "$HOME/.local/refocus/refocus.db" "SELECT active FROM ${REFOCUS_STATE_TABLE:-state} WHERE id = 1;" 2>/dev/null)
     if [[ "$ACTIVE_STATE" == "1" ]]; then
         update-prompt
     fi
@@ -1041,7 +1050,7 @@ function update-prompt(){
     # Check if database exists and get current prompt file
     if [[ -f "$REFOCUS_DB" ]]; then
         # Get the prompt file from database
-        PROMPT_FILE=$(sqlite3 "$REFOCUS_DB" "SELECT prompt_file FROM $REFOCUS_STATE_TABLE WHERE id = 1;" 2>/dev/null)
+        PROMPT_FILE=$(sqlite3 "$REFOCUS_DB" "SELECT prompt_file FROM ${REFOCUS_STATE_TABLE:-state} WHERE id = 1;" 2>/dev/null)
         
         if [[ -n "$PROMPT_FILE" ]] && [[ -f "$PROMPT_FILE" ]]; then
             # Source the prompt file to set PS1

@@ -13,9 +13,10 @@ REFOCUS_DB_DEFAULT="$HOME/.local/refocus/refocus.db"
 # Database path (can be overridden by environment variable)
 REFOCUS_DB_PATH="${REFOCUS_DB_PATH:-$REFOCUS_DB_DEFAULT}"
 
-# Database table names
+# Database table names (namespaced to avoid shell pollution)
 REFOCUS_STATE_TABLE="${REFOCUS_STATE_TABLE:-state}"
 REFOCUS_SESSIONS_TABLE="${REFOCUS_SESSIONS_TABLE:-sessions}"
+REFOCUS_PROJECTS_TABLE="${REFOCUS_PROJECTS_TABLE:-projects}"
 
 # =============================================================================
 # INSTALLATION PATHS
@@ -176,8 +177,6 @@ save_config() {
 
 # Database Configuration
 REFOCUS_DB_PATH="$REFOCUS_DB_PATH"
-REFOCUS_STATE_TABLE="$REFOCUS_STATE_TABLE"
-REFOCUS_SESSIONS_TABLE="$REFOCUS_SESSIONS_TABLE"
 
 # Installation Paths
 REFOCUS_INSTALL_DIR="$REFOCUS_INSTALL_DIR"
@@ -263,7 +262,7 @@ show_config() {
     echo
     echo "Database:"
     echo "  DB Path: $REFOCUS_DB_PATH"
-    echo "  State Table: $REFOCUS_STATE_TABLE"
+    echo "  State Table: ${REFOCUS_STATE_TABLE:-state}"
     echo "  Sessions Table: $REFOCUS_SESSIONS_TABLE"
     echo
     echo "Installation:"

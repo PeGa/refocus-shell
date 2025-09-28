@@ -10,6 +10,85 @@ source "$SCRIPT_DIR/../lib/focus-bootstrap.sh"
 # Note: Using direct SQL queries and validation instead of centralized functions
 # to maintain compatibility with installed versions
 
+# Function to parse duration string to seconds
+parse_duration_to_seconds() {
+    local duration="$1"
+    local total_seconds=0
+    
+    # Handle formats like 1h30m, 2h, 45m, 1.5h, 0.5h
+    if [[ "$duration" =~ ^([0-9]+(\.[0-9]+)?)h([0-9]+)m?$ ]]; then
+        # Format: XhYm
+        local hours="${BASH_REMATCH[1]}"
+        local minutes="${BASH_REMATCH[3]}"
+        total_seconds=$(( (hours * 3600) + (minutes * 60) ))
+    elif [[ "$duration" =~ ^([0-9]+(\.[0-9]+)?)h$ ]]; then
+        # Format: Xh
+        local hours="${BASH_REMATCH[1]}"
+        total_seconds=$(( hours * 3600 ))
+    elif [[ "$duration" =~ ^([0-9]+)m$ ]]; then
+        # Format: Xm
+        local minutes="${BASH_REMATCH[1]}"
+        total_seconds=$(( minutes * 60 ))
+    else
+        return 1  # Invalid format
+    fi
+    
+    echo "$total_seconds"
+}
+
+# Function to parse date string to timestamp
+parse_date_to_timestamp() {
+    local date_str="$1"
+    local timestamp
+    
+    # Try different date formats
+    if [[ "$date_str" =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}-[0-9]{2}:[0-9]{2}$ ]]; then
+        # Format: YYYY/MM/DD-HH:MM
+        timestamp=$(date -d "${date_str/-/ }" +%Y-%m-%dT%H:%M:%S 2>/dev/null)
+    elif [[ "$date_str" =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}$ ]]; then
+        # Format: YYYY/MM/DD
+        timestamp=$(date -d "$date_str" +%Y-%m-%dT%H:%M:%S 2>/dev/null)
+    elif [[ "$date_str" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+        # Format: YYYY-MM-DD
+        timestamp=$(date -d "$date_str" +%Y-%m-%dT%H:%M:%S 2>/dev/null)
+    elif [[ "$date_str" == "yesterday" ]]; then
+        timestamp=$(date -d "yesterday" +%Y-%m-%dT%H:%M:%S 2>/dev/null)
+    elif [[ "$date_str" =~ ^[0-9]+\ days?\ ago$ ]]; then
+        timestamp=$(date -d "$date_str" +%Y-%m-%dT%H:%M:%S 2>/dev/null)
+    else
+        # Try to parse as-is
+        timestamp=$(date -d "$date_str" +%Y-%m-%dT%H:%M:%S 2>/dev/null)
+    fi
+    
+    if [[ -n "$timestamp" ]]; then
+        echo "$timestamp"
+    else
+        return 1  # Invalid format
+    fi
+}
+
+# Function to validate time range
+validate_time_range() {
+    local start_time="$1"
+    local end_time="$2"
+    
+    # Convert to seconds for comparison
+    local start_seconds=$(date -d "$start_time" +%s 2>/dev/null)
+    local end_seconds=$(date -d "$end_time" +%s 2>/dev/null)
+    
+    if [[ -z "$start_seconds" ]] || [[ -z "$end_seconds" ]]; then
+        echo "❌ Invalid time format" >&2
+        return 1
+    fi
+    
+    if [[ $start_seconds -ge $end_seconds ]]; then
+        echo "❌ Start time must be before end time" >&2
+        return 1
+    fi
+    
+    return 0
+}
+
 function focus_past_add() {
     local project=""
     local start_time=""
@@ -49,55 +128,67 @@ function focus_past_add() {
     done
     
     if [[ -z "$project" ]]; then
-        handle_argument_error "missing_project" \
-            "focus past add <project> <start_time> <end_time>" \
-            "focus past add meeting 2025/07/30-14:15 2025/07/30-15:30  # Specific date
-  focus past add meeting 14:15 15:30                          # Today's date
-  focus past add coding 'yesterday 09:00' 'yesterday 17:00'   # Relative dates
-  focus past add coding '7 hours ago' 'now'                   # Relative times
-  focus past add coding --duration 2h30m --date 2025/07/30    # Duration-only
-  focus past add coding --duration 90m --date yesterday --notes 'retrospective'" \
-            "Time formats: YYYY/MM/DD-HH:MM, HH:MM, 'YYYY-MM-DD HH:MM', etc.
-Duration formats: 1h30m, 2h, 45m, 90m, 1.5h, 0.5h
-Note: Times should be absolute timestamps, not durations."
+        echo "❌ Project name is required" >&2
+        echo "Usage: focus past add <project> <start_time> <end_time>" >&2
+        echo "Examples:" >&2
+        echo "  focus past add meeting 2025/07/30-14:15 2025/07/30-15:30  # Specific date" >&2
+        echo "  focus past add meeting 14:15 15:30                          # Today's date" >&2
+        echo "  focus past add coding 'yesterday 09:00' 'yesterday 17:00'   # Relative dates" >&2
+        echo "  focus past add coding '7 hours ago' 'now'                   # Relative times" >&2
+        echo "  focus past add coding --duration 2h30m --date 2025/07/30    # Duration-only" >&2
+        echo "  focus past add coding --duration 90m --date yesterday --notes 'retrospective'" >&2
+        echo "Time formats: YYYY/MM/DD-HH:MM, HH:MM, 'YYYY-MM-DD HH:MM', etc." >&2
+        echo "Duration formats: 1h30m, 2h, 45m, 90m, 1.5h, 0.5h" >&2
+        echo "Note: Times should be absolute timestamps, not durations." >&2
+        exit 2  # Invalid arguments
     fi
     
     # Validate project name using centralized function
-    project=$(validate_project_name_standardized "$project" "Project")
-    if [[ $? -ne 0 ]]; then
+    # Basic project name validation
+    if [[ -z "$project" ]] || [[ "$project" =~ [[:cntrl:]] ]]; then
+        echo "❌ Invalid project name: $project" >&2
         exit 2  # Invalid arguments
     fi
+    # Sanitize project name
+    project=$(echo "$project" | tr -d '\r\n\t' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     
     if [[ "$duration_mode" == "true" ]]; then
         # Duration-only mode
         if [[ -z "$duration" ]]; then
-            handle_argument_error "missing_duration" \
-                "focus past add <project> --duration <time> --date <date> [--notes <notes>]" \
-                "focus past add coding --duration 2h30m --date 2025/07/30
-  focus past add coding --duration 90m --date yesterday --notes 'retrospective'" \
-                "Duration formats: 1h30m, 2h, 45m, 90m, 1.5h, 0.5h"
-        fi
-        
-        if [[ -z "$session_date" ]]; then
-            handle_argument_error "missing_date" \
-                "focus past add <project> --duration <time> --date <date> [--notes <notes>]" \
-                "focus past add coding --duration 2h30m --date 2025/07/30
-  focus past add coding --duration 90m --date yesterday --notes 'retrospective'" \
-                "Date formats: 2025/07/30, yesterday, 2 days ago, etc."
-        fi
-        
-        # Parse duration using centralized function
-        local duration_seconds
-        duration_seconds=$(validate_duration_standardized "$duration" "Duration")
-        if [[ $? -ne 0 ]]; then
+            echo "❌ Duration is required for duration-only mode" >&2
+            echo "Usage: focus past add <project> --duration <time> --date <date> [--notes <notes>]" >&2
+            echo "Examples:" >&2
+            echo "  focus past add coding --duration 2h30m --date 2025/07/30" >&2
+            echo "  focus past add coding --duration 90m --date yesterday --notes 'retrospective'" >&2
+            echo "Duration formats: 1h30m, 2h, 45m, 90m, 1.5h, 0.5h" >&2
             exit 2  # Invalid arguments
         fi
         
-        # Validate and convert session date using centralized function
+        if [[ -z "$session_date" ]]; then
+            echo "❌ Date is required for duration-only mode" >&2
+            echo "Usage: focus past add <project> --duration <time> --date <date> [--notes <notes>]" >&2
+            echo "Examples:" >&2
+            echo "  focus past add coding --duration 2h30m --date 2025/07/30" >&2
+            echo "  focus past add coding --duration 90m --date yesterday --notes 'retrospective'" >&2
+            echo "Date formats: 2025/07/30, yesterday, 2 days ago, etc." >&2
+            exit 2  # Invalid arguments
+        fi
+        
+        # Parse duration - convert to seconds
+        local duration_seconds
+        duration_seconds=$(parse_duration_to_seconds "$duration")
+        if [[ $? -ne 0 ]] || [[ -z "$duration_seconds" ]]; then
+            echo "❌ Invalid duration format: $duration" >&2
+            echo "Valid formats: 1h30m, 2h, 45m, 90m, 1.5h, 0.5h" >&2
+            exit 2  # Invalid arguments
+        fi
+        
+        # Validate and convert session date
         local converted_date
-        converted_date=$(validate_timestamp_standardized "$session_date" "Session date")
-        if [[ $? -ne 0 ]]; then
-            echo "$converted_date"
+        converted_date=$(parse_date_to_timestamp "$session_date")
+        if [[ $? -ne 0 ]] || [[ -z "$converted_date" ]]; then
+            echo "❌ Invalid date format: $session_date" >&2
+            echo "Valid formats: 2025/07/30, yesterday, 2 days ago, etc." >&2
             exit 2  # Invalid arguments
         fi
         
@@ -115,47 +206,53 @@ Note: Times should be absolute timestamps, not durations."
         # Insert duration-only session
         insert_duration_only_session "$project" "$duration_seconds" "$date_only" "$notes"
         
-        format_success_message "Added duration-only session: $project" \
-            "Date: $session_date → $date_only
-Duration: $duration → $(format_duration "$duration_seconds")
-Notes: ${notes:-'none'}"
+        echo "✅ Added duration-only session: $project" >&2
+        echo "Date: $session_date → $date_only" >&2
+        echo "Duration: $duration → $(refocus_format_duration "$duration_seconds")" >&2
+        echo "Notes: ${notes:-'none'}" >&2
         
     else
         # Traditional mode (start_time and end_time)
         if [[ -z "$start_time" ]]; then
-            handle_argument_error "missing_start_time" \
-                "focus past add <project> <start_time> <end_time>" \
-                "focus past add meeting 2025/07/30-14:15 2025/07/30-15:30  # Specific date
-  focus past add meeting 14:15 15:30                          # Today's date
-  focus past add coding 'yesterday 09:00' 'yesterday 17:00'   # Relative dates
-  focus past add coding '7 hours ago' 'now'                   # Relative times" \
-                "Tip: Use YYYY/MM/DD-HH:MM format for easy dates!
-Note: Times should be absolute timestamps, not durations."
+            echo "❌ Start time is required" >&2
+            echo "Usage: focus past add <project> <start_time> <end_time>" >&2
+            echo "Examples:" >&2
+            echo "  focus past add meeting 2025/07/30-14:15 2025/07/30-15:30  # Specific date" >&2
+            echo "  focus past add meeting 14:15 15:30                          # Today's date" >&2
+            echo "  focus past add coding 'yesterday 09:00' 'yesterday 17:00'   # Relative dates" >&2
+            echo "  focus past add coding '7 hours ago' 'now'                   # Relative times" >&2
+            echo "Tip: Use YYYY/MM/DD-HH:MM format for easy dates!" >&2
+            echo "Note: Times should be absolute timestamps, not durations." >&2
+            exit 2  # Invalid arguments
         fi
         
         if [[ -z "$end_time" ]]; then
-            handle_argument_error "missing_end_time" \
-                "focus past add <project> <start_time> <end_time>" \
-                "focus past add meeting 2025/07/30-14:15 2025/07/30-15:30  # Specific date
-  focus past add meeting 14:15 15:30                          # Today's date
-  focus past add coding 'yesterday 09:00' 'yesterday 17:00'   # Relative dates
-  focus past add coding '7 hours ago' 'now'                   # Relative times" \
-                "Tip: Use YYYY/MM/DD-HH:MM format for easy dates!
-Note: Times should be absolute timestamps, not durations."
+            echo "❌ End time is required" >&2
+            echo "Usage: focus past add <project> <start_time> <end_time>" >&2
+            echo "Examples:" >&2
+            echo "  focus past add meeting 2025/07/30-14:15 2025/07/30-15:30  # Specific date" >&2
+            echo "  focus past add meeting 14:15 15:30                          # Today's date" >&2
+            echo "  focus past add coding 'yesterday 09:00' 'yesterday 17:00'   # Relative dates" >&2
+            echo "  focus past add coding '7 hours ago' 'now'                   # Relative times" >&2
+            echo "Tip: Use YYYY/MM/DD-HH:MM format for easy dates!" >&2
+            echo "Note: Times should be absolute timestamps, not durations." >&2
+            exit 2  # Invalid arguments
         fi
         
-        # Convert timestamps to ISO format using centralized functions
+        # Convert timestamps to ISO format
         local converted_start_time
-        converted_start_time=$(validate_timestamp_standardized "$start_time" "Start time")
-        if [[ $? -ne 0 ]]; then
-            echo "$converted_start_time"
+        converted_start_time=$(parse_date_to_timestamp "$start_time")
+        if [[ $? -ne 0 ]] || [[ -z "$converted_start_time" ]]; then
+            echo "❌ Invalid start time format: $start_time" >&2
+            echo "Valid formats: YYYY/MM/DD-HH:MM, HH:MM, 'YYYY-MM-DD HH:MM', etc." >&2
             exit 2  # Invalid arguments
         fi
         
         local converted_end_time
-        converted_end_time=$(validate_timestamp_standardized "$end_time" "End time")
-        if [[ $? -ne 0 ]]; then
-            echo "$converted_end_time"
+        converted_end_time=$(parse_date_to_timestamp "$end_time")
+        if [[ $? -ne 0 ]] || [[ -z "$converted_end_time" ]]; then
+            echo "❌ Invalid end time format: $end_time" >&2
+            echo "Valid formats: YYYY/MM/DD-HH:MM, HH:MM, 'YYYY-MM-DD HH:MM', etc." >&2
             exit 2  # Invalid arguments
         fi
         
@@ -181,11 +278,10 @@ Note: Times should be absolute timestamps, not durations."
         local duration_seconds
         duration_seconds=$(calculate_duration "$converted_start_time" "$converted_end_time")
         
-        format_success_message "Added past session: $project" \
-            "Start: $start_time → $(format_timestamp "$converted_start_time")
-End: $end_time → $(format_timestamp "$converted_end_time")
-Duration: $(format_duration "$duration_seconds")
-Notes: ${notes:-'none'}"
+        echo "✅ Added past session: $project" >&2
+        echo "Start: $start_time → $(date -d "$converted_start_time" +"%Y-%m-%d %H:%M" 2>/dev/null)" >&2
+        echo "End: $end_time → $(date -d "$converted_end_time" +"%Y-%m-%d %H:%M" 2>/dev/null)" >&2
+        echo "Duration: $(refocus_format_duration "$duration_seconds")" >&2
     fi
 }
 
@@ -196,28 +292,33 @@ function focus_past_modify() {
     local end_time="$4"
     
     if [[ -z "$session_id" ]]; then
-        handle_argument_error "missing_session_id" \
-            "focus past modify <session_id> [project] [start_time] [end_time]" \
-            "focus past modify 1 'new-project'
-  focus past modify 1 'new-project' '2025/07/30-14:00' '2025/07/30-16:00'
-  focus past modify 1 '' '14:30' '15:30'  # Change only times" \
-            "Use 'focus past list' to see session IDs"
-    fi
-    
-    # Validate session ID using centralized function
-    if ! validate_numeric_input_standardized "$session_id" "Session ID"; then
+        echo "❌ Session ID is required" >&2
+        echo "Usage: focus past modify <session_id> [project] [start_time] [end_time]" >&2
+        echo "Examples:" >&2
+        echo "  focus past modify 1 'new-project'" >&2
+        echo "  focus past modify 1 'new-project' '2025/07/30-14:00' '2025/07/30-16:00'" >&2
+        echo "  focus past modify 1 '' '14:30' '15:30'  # Change only times" >&2
+        echo "Use 'focus past list' to see session IDs" >&2
         exit 2  # Invalid arguments
     fi
     
-    # Get current session data using centralized function
-    local current_data
-    current_data=$(get_session_by_id "$session_id")
-    if [[ $? -ne 0 ]]; then
-        handle_database_error "session_not_found"
-        return 1
+    # Validate session ID
+    if ! [[ "$session_id" =~ ^[0-9]+$ ]]; then
+        echo "❌ Invalid session ID: $session_id" >&2
+        echo "Session ID must be a number. Use 'focus past list' to see available IDs." >&2
+        exit 2  # Invalid arguments
     fi
     
-    IFS='|' read -r current_project current_start current_end current_duration current_duration_only <<< "$current_data"
+    # Get current session data using direct SQL query
+    local current_data
+    current_data=$(execute_sqlite "SELECT project, start_time, end_time, duration_seconds, notes FROM ${REFOCUS_SESSIONS_TABLE:-sessions} WHERE rowid = $session_id;" "focus_past_modify")
+    if [[ -z "$current_data" ]]; then
+        echo "❌ Session ID $session_id not found" >&2
+        echo "Use 'focus past list' to see available session IDs." >&2
+        exit 2  # Invalid arguments
+    fi
+    
+    IFS='|' read -r current_project current_start current_end current_duration current_notes <<< "$current_data"
     
     # Check if any changes are actually being made
     local project_changed=false
@@ -240,7 +341,7 @@ function focus_past_modify() {
     if [[ "$project_changed" == false ]] && [[ "$start_time_changed" == false ]] && [[ "$end_time_changed" == false ]]; then
         echo "📋 Session $session_id details:"
         echo "   Project: $current_project"
-        if [[ "$current_duration_only" == "1" ]]; then
+        if [[ -z "$current_start" ]] || [[ -z "$current_end" ]]; then
             echo "   Type: Duration-only session"
             echo "   Duration: $((current_duration / 60)) minutes"
         else
@@ -263,7 +364,7 @@ function focus_past_modify() {
     fi
     
     # For duration-only sessions, only allow project name changes
-    if [[ "$current_duration_only" == "1" ]]; then
+    if [[ -z "$current_start" ]] || [[ -z "$current_end" ]]; then
         if [[ -n "$start_time" ]] && [[ "$start_time" != "$current_start" ]]; then
             echo "❌ Cannot modify start time for duration-only sessions."
             echo "Duration-only sessions only support project name changes."
@@ -279,7 +380,7 @@ function focus_past_modify() {
         local duration="$current_duration"
         
         # Update only the project name for duration-only sessions
-        execute_sqlite "UPDATE $SESSIONS_TABLE SET project = '$(sql_escape "$project")' WHERE rowid = $session_id;" "focus_past_modify" >/dev/null
+        execute_sqlite "UPDATE ${REFOCUS_SESSIONS_TABLE:-sessions} SET project = '$(sql_escape "$project")' WHERE rowid = $session_id;" "focus_past_modify" >/dev/null
         
         echo "✅ Modified session $session_id: $project"
         echo "   Type: Duration-only session"
@@ -290,17 +391,21 @@ function focus_past_modify() {
     # Sanitize and validate project name if provided
     if [[ "$project" != "$current_project" ]]; then
         project=$(sanitize_project_name "$project")
-        if ! validate_project_name "$project"; then
+        # Basic project name validation
+        if [[ -z "$project" ]] || [[ "$project" =~ [[:cntrl:]] ]]; then
+            echo "❌ Invalid project name: $project" >&2
             exit 2  # Invalid arguments
         fi
+        # Sanitize project name
+        project=$(echo "$project" | tr -d '\r\n\t' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     fi
     
     # Convert timestamps to ISO format if provided
     if [[ "$start_time" != "$current_start" ]]; then
         local converted_start_time
-        converted_start_time=$(validate_timestamp "$start_time" "Start time")
-        if [[ $? -ne 0 ]]; then
-            echo "$converted_start_time"
+        converted_start_time=$(parse_date_to_timestamp "$start_time")
+        if [[ $? -ne 0 ]] || [[ -z "$converted_start_time" ]]; then
+            echo "❌ Invalid start time format: $start_time" >&2
             exit 2  # Invalid arguments
         fi
         start_time="$converted_start_time"
@@ -308,9 +413,9 @@ function focus_past_modify() {
     
     if [[ "$end_time" != "$current_end" ]]; then
         local converted_end_time
-        converted_end_time=$(validate_timestamp "$end_time" "End time")
-        if [[ $? -ne 0 ]]; then
-            echo "$converted_end_time"
+        converted_end_time=$(parse_date_to_timestamp "$end_time")
+        if [[ $? -ne 0 ]] || [[ -z "$converted_end_time" ]]; then
+            echo "❌ Invalid end time format: $end_time" >&2
             exit 2  # Invalid arguments
         fi
         end_time="$converted_end_time"
@@ -323,28 +428,41 @@ function focus_past_modify() {
         fi
     fi
     
+    # Use current values if not changed
+    local final_start_time="$current_start"
+    local final_end_time="$current_end"
+    
+    if [[ "$start_time_changed" == true ]]; then
+        final_start_time="$start_time"
+    fi
+    
+    if [[ "$end_time_changed" == true ]]; then
+        final_end_time="$end_time"
+    fi
+    
     # Calculate new duration only if times were actually changed
-    local duration="$current_duration"
-    if [[ "$start_time" != "$current_start" ]] || [[ "$end_time" != "$current_end" ]]; then
+    local duration_seconds="$current_duration"
+    if [[ "$start_time_changed" == true ]] || [[ "$end_time_changed" == true ]]; then
         # Only recalculate duration if we have valid timestamps
-        if [[ -n "$start_time" ]] && [[ -n "$end_time" ]]; then
-            duration=$(calculate_duration "$start_time" "$end_time")
+        if [[ -n "$final_start_time" ]] && [[ -n "$final_end_time" ]]; then
+            duration_seconds=$(calculate_duration "$final_start_time" "$final_end_time")
         fi
     fi
     
     # Update session (preserve existing notes)
+        
         # Escape timestamps for SQL
         local escaped_start_time
         local escaped_end_time
-        escaped_start_time=$(sql_escape "$start_time")
-        escaped_end_time=$(sql_escape "$end_time")
+        escaped_start_time=$(sql_escape "$final_start_time")
+        escaped_end_time=$(sql_escape "$final_end_time")
         
-        execute_sqlite "UPDATE $SESSIONS_TABLE SET project = '$(sql_escape "$project")', start_time = '$escaped_start_time', end_time = '$escaped_end_time', duration_seconds = $duration WHERE rowid = $session_id;" "focus_past_modify" >/dev/null
+        execute_sqlite "UPDATE ${REFOCUS_SESSIONS_TABLE:-sessions} SET project = '$(sql_escape "$project")', start_time = '$escaped_start_time', end_time = '$escaped_end_time', duration_seconds = $duration_seconds WHERE rowid = $session_id;" "focus_past_modify" >/dev/null
     
     echo "✅ Modified session $session_id: $project"
-    echo "   Start: $start_time"
-    echo "   End: $end_time"
-    echo "   Duration: $((duration / 60)) minutes"
+    echo "   Start: $final_start_time"
+    echo "   End: $final_end_time"
+    echo "   Duration: $((duration_seconds / 60)) minutes"
 }
 
 function focus_past_delete() {
@@ -358,7 +476,9 @@ function focus_past_delete() {
     fi
     
     # Validate session ID exists
-    if ! validate_session_id "$session_id"; then
+    # Validate session ID
+    if ! [[ "$session_id" =~ ^[0-9]+$ ]]; then
+        echo "❌ Invalid session ID: $session_id" >&2
         exit 2  # Invalid arguments
     fi
     
@@ -370,7 +490,7 @@ function focus_past_delete() {
         show_error_info
         exit 2  # Invalid arguments
     fi
-    session_info=$(execute_sqlite "SELECT project, start_time, end_time, duration_seconds FROM $SESSIONS_TABLE WHERE rowid = $session_id;" "focus_past_delete")
+    session_info=$(execute_sqlite "SELECT project, start_time, end_time, duration_seconds FROM ${REFOCUS_SESSIONS_TABLE:-sessions} WHERE rowid = $session_id;" "focus_past_delete")
     
     if [[ -z "$session_info" ]]; then
         echo "❌ Session not found with ID: $session_id"
@@ -394,7 +514,7 @@ function focus_past_delete() {
         show_error_info
         exit 2  # Invalid arguments
     fi
-    execute_sqlite "DELETE FROM $SESSIONS_TABLE WHERE rowid = $session_id;" "focus_past_delete" >/dev/null
+    execute_sqlite "DELETE FROM ${REFOCUS_SESSIONS_TABLE:-sessions} WHERE rowid = $session_id;" "focus_past_delete" >/dev/null
         echo "✅ Session deleted"
     else
         echo "Deletion cancelled."
@@ -451,7 +571,7 @@ function focus_past_list() {
     
     # Get recent sessions using direct SQL query
     local sessions
-    sessions=$(execute_sqlite "SELECT rowid, project, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE WHERE project != '[idle]' ORDER BY rowid DESC LIMIT $limit;" "focus_past_list")
+    sessions=$(execute_sqlite "SELECT rowid, project, start_time, end_time, duration_seconds, notes FROM ${REFOCUS_SESSIONS_TABLE:-sessions} WHERE project != '[idle]' ORDER BY rowid DESC LIMIT $limit;" "focus_past_list")
     
     if [[ -z "$sessions" ]]; then
         echo "No focus sessions found."
@@ -459,7 +579,8 @@ function focus_past_list() {
     fi
     
     # Format table header using centralized function
-    format_table_header "ID" "Project" "Start" "End" "Duration" "Type"
+    printf "%-4s %-20s %-19s %-19s %-8s %-6s\n" "ID" "Project" "Start" "End" "Duration" "Type"
+    echo "---- -------------------- ------------------- ------------------- -------- ------"
     
     # Process sessions and add blank lines between entries
     local session_count=0
@@ -469,13 +590,13 @@ function focus_past_list() {
     while IFS='|' read -r id project start_time end_time duration notes; do
         session_count=$((session_count + 1))
         
-        # Format timestamps and duration using centralized functions
+        # Format timestamps and duration using available functions
         local start_date
-        start_date=$(format_timestamp "$start_time")
+        start_date=$(date -d "$start_time" +"%Y-%m-%d %H:%M" 2>/dev/null || echo "$start_time")
         local end_date
-        end_date=$(format_timestamp "$end_time")
+        end_date=$(date -d "$end_time" +"%Y-%m-%d %H:%M" 2>/dev/null || echo "$end_time")
         local duration_formatted
-        duration_formatted=$(format_duration "$duration" "minutes_only")
+        duration_formatted=$(refocus_format_duration "$duration")
         
         printf "%-4s %-20s %-19s %-19s %-8s %-6s\n" "$id" "$project" "$start_date" "$end_date" "$duration_formatted" "Live"
         
