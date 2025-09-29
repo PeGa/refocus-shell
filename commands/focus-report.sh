@@ -206,7 +206,7 @@ function focus_generate_report() {
     end_epoch_for_filename=$(date -d "$end_time" +%s)
     report_filename="focus-report-$(format_ts "$end_epoch_for_filename" "%Y-%m-%d").md"
     
-    # Create markdown report
+    # Create markdown report using centralized functions
     {
         echo "# Focus Report - $start_date to $end_date"
         echo ""
@@ -222,21 +222,7 @@ function focus_generate_report() {
             echo "|---------|----------|------------|------------|"
             
             while IFS='|' read -r project sessions duration earliest_start latest_end; do
-                local proj_hours=$((duration / 3600))
-                local proj_minutes=$(((duration % 3600) / 60))
-                
-                local start_date end_date
-                start_date=$(date --date="$earliest_start" +"%Y-%m-%d" 2>/dev/null || echo "$earliest_start")
-                end_date=$(date --date="$latest_end" +"%Y-%m-%d" 2>/dev/null || echo "$latest_end")
-                
-                local date_display
-                if [[ "$start_date" == "$end_date" ]]; then
-                    date_display="$start_date"
-                else
-                    date_display="$start_date to $end_date"
-                fi
-                
-                echo "| $project | $sessions | ${proj_hours}h ${proj_minutes}m | $date_display |"
+                print_report_project_row "$project" "$sessions" "$duration" "$earliest_start" "$latest_end"
             done <<< "$projects_section"
             echo ""
         fi
@@ -247,51 +233,8 @@ function focus_generate_report() {
         if [[ -n "$sessions_section" ]]; then
             local session_num=1
             while IFS='|' read -r project start end duration notes duration_only session_date; do
-                if [[ "$project" != "[idle]" ]]; then
-                    local duration_min=$((duration / 60))
-                    local duration_hours=$((duration / 3600))
-                    local duration_remaining_min=$(((duration % 3600) / 60))
-                    
-                    local duration_display
-                    if [[ $duration_hours -gt 0 ]]; then
-                        duration_display="${duration_hours}h ${duration_remaining_min}m"
-                    else
-                        duration_display="${duration_min}m"
-                    fi
-                    
-                    if [[ "$duration_only" == "1" ]]; then
-                        # Duration-only session
-                        local session_date_display
-                        local session_epoch
-                        session_epoch=$(date -d "$session_date" +%s)
-                        session_date_display=$(format_ts "$session_epoch" "%Y-%m-%d")
-                        echo "$session_num. **$project** (Manual entry: $session_date_display, $duration_display)"
-                    else
-                        # Regular session
-                        local start_date end_date
-                        local start_epoch end_epoch
-                        start_epoch=$(date -d "$start" +%s)
-                        end_epoch=$(date -d "$end" +%s)
-                        start_date=$(format_ts "$start_epoch" "%Y-%m-%d %H:%M")
-                        end_date=$(format_ts "$end_epoch" "%H:%M")
-                        echo "$session_num. **$project** ($start_date - $end_date, $duration_display)"
-                    fi
-                    
-                    # Show notes with proper line breaks
-                    if [[ -n "$notes" ]]; then
-                        echo "   - $notes"
-                    else
-                        # If no session notes, try to show project description
-                        local project_desc
-                        project_desc=$(get_project_description "$project")
-                        if [[ -n "$project_desc" ]]; then
-                            echo "   - $project_desc"
-                        fi
-                    fi
-                    echo ""
-                    
-                    session_num=$((session_num + 1))
-                fi
+                print_report_table_row "$session_num" "$project" "$start" "$end" "$duration" "$notes" "$duration_only" "$session_date"
+                session_num=$((session_num + 1))
             done <<< "$sessions_section"
         else
             echo "No sessions found"
@@ -299,7 +242,7 @@ function focus_generate_report() {
     } > "$report_filename"
     
     if [[ "$raw_mode" == "true" ]]; then
-        echo "project,start_time,end_time,duration_seconds,notes,duration_only,session_date"
+        print_report_table_header
         if [[ -n "$sessions_section" ]]; then
             while IFS='|' read -r project start end duration notes duration_only session_date; do
                 if [[ "$project" != "[idle]" ]]; then

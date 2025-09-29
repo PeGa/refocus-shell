@@ -271,6 +271,81 @@ print_report_row_raw() {
     echo "$project_escaped,$start_time,$end_time,$duration,$notes_escaped,$duration_only,$session_date"
 }
 
+# Function: print_report_table_header
+# Description: Print header for report table (human format)
+# Usage: print_report_table_header
+print_report_table_header() {
+    echo "project,start_time,end_time,duration_seconds,notes,duration_only,session_date"
+}
+
+# Function: print_report_table_row
+# Description: Print human-readable row for report sessions
+# Usage: print_report_table_row <session_num> <project> <start> <end> <duration> <notes> <duration_only> <session_date>
+print_report_table_row() {
+    local session_num="$1"
+    local project="$2"
+    local start="$3"
+    local end="$4"
+    local duration="$5"
+    local notes="$6"
+    local duration_only="$7"
+    local session_date="$8"
+    
+    if [[ "$project" == "[idle]" ]]; then
+        return 0
+    fi
+    
+    local duration_min=$((duration / 60))
+    local duration_hours=$((duration / 3600))
+    local duration_remaining_min=$(((duration % 3600) / 60))
+    
+    local duration_display
+    if [[ $duration_hours -gt 0 ]]; then
+        duration_display="${duration_hours}h ${duration_remaining_min}m"
+    else
+        duration_display="${duration_min}m"
+    fi
+    
+    if [[ "$duration_only" == "1" ]]; then
+        # Duration-only session
+        local session_date_display
+        local session_epoch
+        session_epoch=$(date -d "$session_date" +%s)
+        session_date_display=$(format_ts "$session_epoch" "%Y-%m-%d")
+        echo "$session_num. **$project** (Manual entry: $session_date_display, $duration_display)"
+    else
+        # Regular session
+        local start_date end_date
+        local start_epoch end_epoch
+        start_epoch=$(date -d "$start" +%s)
+        end_epoch=$(date -d "$end" +%s)
+        start_date=$(format_ts "$start_epoch" "%Y-%m-%d %H:%M")
+        end_date=$(format_ts "$end_epoch" "%H:%M")
+        echo "$session_num. **$project** ($start_date - $end_date, $duration_display)"
+    fi
+    
+    # Show notes with proper line breaks
+    if [[ -n "$notes" ]]; then
+        echo "   - $notes"
+    else
+        # If no session notes, try to show project description
+        local project_desc
+        project_desc=$(get_project_description "$project")
+        if [[ -n "$project_desc" ]]; then
+            echo "   - $project_desc"
+        fi
+    fi
+    echo ""
+}
+
+# Function: print_report_table_footer
+# Description: Print footer for report table (human format)
+# Usage: print_report_table_footer
+print_report_table_footer() {
+    # Empty footer for now, can be extended if needed
+    :
+}
+
 # Function to write current focus state to prompt cache files
 # Usage: write_prompt_cache <status> <project> <minutes>
 write_prompt_cache() {
@@ -326,3 +401,6 @@ export -f write_prompt_cache
 export -f print_past_table_header
 export -f print_past_table_footer
 export -f print_past_table_row_raw
+export -f print_report_table_header
+export -f print_report_table_row
+export -f print_report_table_footer
