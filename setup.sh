@@ -18,7 +18,11 @@
 set -e
 
 # Source the centralized output formatting functions
-if [[ -f "${REFOCUS_LIB_DIR:-$HOME/.local/refocus/lib}/focus-output.sh" ]]; then
+if [[ -f "./lib/focus-output.sh" ]]; then
+    source "./lib/focus-output.sh"
+elif [[ -f "$(dirname "$0")/lib/focus-output.sh" ]]; then
+    source "$(dirname "$0")/lib/focus-output.sh"
+elif [[ -f "${REFOCUS_LIB_DIR:-$HOME/.local/refocus/lib}/focus-output.sh" ]]; then
     source "${REFOCUS_LIB_DIR:-$HOME/.local/refocus/lib}/focus-output.sh"
 fi
 
