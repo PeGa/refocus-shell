@@ -33,262 +33,117 @@ MIN_DISK_SPACE_MB=10
 # PRIVATE SQL EXECUTION HELPERS
 # =============================================================================
 
-# Function: _db_q
-# Description: Execute read-only SQL query (PRIVATE)
-# Usage: _db_q <sql_query>
-# Parameters:
-#   $1 - SQL query string
-# Returns: Query results in CSV format
-_db_q() {
-    sqlite3 -noheader -csv "$DB" "$1" 2>/dev/null
-}
-
-# Function: _db_exec
-# Description: Execute SQL query with consistent flags (PRIVATE)
-# Usage: _db_exec <sql_query>
-# Parameters:
-#   $1 - SQL query string
-# Returns: Query results in CSV format
-_db_exec() {
-    sqlite3 -noheader -csv "$DB" "$1" 2>/dev/null
-}
-
-# Function: _db_query_sessions
-# Description: Query sessions table with flexible parameters (PRIVATE)
-# Usage: _db_query_sessions <columns> [where] [order] [limit]
-# Parameters:
-#   $1 - columns: SELECT columns
-#   $2 - where: WHERE clause (optional)
-#   $3 - order: ORDER BY clause (optional)
-#   $4 - limit: LIMIT clause (optional)
-# Returns: Query results in CSV format
+# Private SQL helpers
+_db_q() { sqlite3 -noheader -csv "$DB" "$1" 2>/dev/null; }
+_db_exec() { sqlite3 -noheader -csv "$DB" "$1" 2>/dev/null; }
 _db_query_sessions() {
-    local columns="$1"
-    local where="$2"
-    local order="$3"
-    local limit="$4"
-    
+    local columns="$1" where="$2" order="$3" limit="$4"
     local sql="SELECT $columns FROM $SESSIONS_TABLE"
     [[ -n "$where" ]] && sql="$sql WHERE $where"
     [[ -n "$order" ]] && sql="$sql ORDER BY $order"
     [[ -n "$limit" ]] && sql="$sql LIMIT $limit"
-    sql="$sql;"
-    
-    _db_q "$sql"
+    _db_q "$sql;"
 }
 
 # =============================================================================
 # PUBLIC DATABASE API (6-7 functions only)
 # =============================================================================
 
-# Function: db_init
-# Description: Initialize database and ensure all tables exist
-# Usage: db_init
-# Returns: 0 on success, 1 on failure
-db_init() {
-    _ensure_database_directory
-    _migrate_database
-    return $?
-}
-
-# Function: db_start_session
-# Description: Start a new focus session
-# Usage: db_start_session <project> <description> <start_ts> [tags...]
-# Parameters:
-#   $1 - project: Project name
-#   $2 - description: Session description (can be empty)
-#   $3 - start_ts: Start timestamp in ISO format
-#   $4+ - tags: Optional tags (not currently used)
-# Returns: 0 on success, 1 on failure
+db_init() { _ensure_database_directory; _migrate_database; }
 db_start_session() {
-    local project="$1"
-    local description="$2"
-    local start_ts="$3"
-    shift 3
-    local tags="$*"
-    
+    local project="$1" description="$2" start_ts="$3"
     _pre_database_operation_check || return 1
-    
-    # Update focus state to active
     _update_focus_state 1 "$project" "$start_ts" 0 "" "" 0
-    
-    return 0
 }
-
-# Function: db_end_session
-# Description: End the current focus session
-# Usage: db_end_session <end_ts> <note>
-# Parameters:
-#   $1 - end_ts: End timestamp in ISO format
-#   $2 - note: Session note (can be empty)
-# Returns: 0 on success, 1 on failure
 db_end_session() {
-    local end_ts="$1"
-    local note="$2"
-    
+    local end_ts="$1" note="$2"
     _pre_database_operation_check || return 1
-    
-    # Get current session info
     local state
     state=$(_get_focus_state)
     if [[ -z "$state" ]]; then
         echo "❌ No active session to end" >&2
         return 1
     fi
-    
     IFS='|' read -r active project start_time paused pause_notes pause_start_time previous_elapsed <<< "$state"
-    
     if [[ "$active" -ne 1 ]]; then
         echo "❌ No active session to end" >&2
         return 1
     fi
-    
     # Calculate duration
-    local duration_seconds
-    duration_seconds=$(_calculate_duration "$start_time" "$end_ts")
-    
-    # Insert session record
+    local duration_seconds start_ts end_ts_parsed
+    start_ts=$(date -d "$start_time" +%s 2>/dev/null)
+    end_ts_parsed=$(date -d "$end_ts" +%s 2>/dev/null)
+    if [[ -n "$start_ts" ]] && [[ -n "$end_ts_parsed" ]]; then
+        duration_seconds=$((end_ts_parsed - start_ts))
+    else
+        duration_seconds=0
+    fi
     _insert_session "$project" "$start_time" "$end_ts" "$duration_seconds" "$note"
-    
-    # Update focus state to inactive
     _update_focus_state 0 "" "" 0 "" "" 0
-    
-    # Update last focus off time
     _update_state_record "last_focus_off_time" "$end_ts"
-    
-    return 0
 }
 
-# Function: db_pause
-# Description: Pause the current focus session
-# Usage: db_pause <now_ts> <reason>
-# Parameters:
-#   $1 - now_ts: Current timestamp in ISO format
-#   $2 - reason: Pause reason (can be empty)
-# Returns: 0 on success, 1 on failure
 db_pause() {
-    local now_ts="$1"
-    local reason="$2"
-    
+    local now_ts="$1" reason="$2"
     _pre_database_operation_check || return 1
-    
-    # Get current session info
     local state
     state=$(_get_focus_state)
     if [[ -z "$state" ]]; then
         echo "❌ No active session to pause" >&2
         return 1
     fi
-    
     IFS='|' read -r active project start_time paused pause_notes pause_start_time previous_elapsed <<< "$state"
-    
     if [[ "$active" -ne 1 ]]; then
         echo "❌ No active session to pause" >&2
         return 1
     fi
-    
     if [[ "$paused" -eq 1 ]]; then
         echo "❌ Session is already paused" >&2
         return 1
     fi
-    
     # Calculate elapsed time so far
-    local elapsed
-    elapsed=$(_calculate_duration "$start_time" "$now_ts")
-    
-    # Update focus state to paused
+    local elapsed start_ts now_ts_parsed
+    start_ts=$(date -d "$start_time" +%s 2>/dev/null)
+    now_ts_parsed=$(date -d "$now_ts" +%s 2>/dev/null)
+    if [[ -n "$start_ts" ]] && [[ -n "$now_ts_parsed" ]]; then
+        elapsed=$((now_ts_parsed - start_ts))
+    else
+        elapsed=0
+    fi
     _update_focus_state 1 "$project" "$start_time" 1 "$reason" "$now_ts" "$elapsed"
-    
-    return 0
 }
-
-# Function: db_resume
-# Description: Resume a paused focus session
-# Usage: db_resume <now_ts>
-# Parameters:
-#   $1 - now_ts: Current timestamp in ISO format
-# Returns: 0 on success, 1 on failure
 db_resume() {
     local now_ts="$1"
-    
     _pre_database_operation_check || return 1
-    
-    # Get current session info
     local state
     state=$(_get_focus_state)
     if [[ -z "$state" ]]; then
         echo "❌ No session to resume" >&2
         return 1
     fi
-    
     IFS='|' read -r active project start_time paused pause_notes pause_start_time previous_elapsed <<< "$state"
-    
     if [[ "$paused" -ne 1 ]]; then
         echo "❌ No paused session to resume" >&2
         return 1
     fi
-    
-    # Calculate new start time accounting for previous elapsed time
     local new_start_time
     new_start_time=$(date -d "$now_ts - $previous_elapsed seconds" +%Y-%m-%dT%H:%M:%S)
-    
-    # Update focus state to active (unpaused)
     _update_focus_state 1 "$project" "$new_start_time" 0 "" "" 0
-    
-    return 0
 }
-
-# Function: db_get_active
-# Description: Get the currently active session
-# Usage: db_get_active
-# Returns: CSV row with session info or empty if no active session
-# Format: active|project|start_time|paused|pause_notes|pause_start_time|previous_elapsed
-db_get_active() {
-    _get_focus_state
-}
-
-# Function: db_list
-# Description: List sessions in a date range
-# Usage: db_list <range_spec>
-# Parameters:
-#   $1 - range_spec: Date range specification (e.g., "today", "yesterday", "7d", "2025-01-01,2025-01-31")
-# Returns: CSV rows with session data
-# Format: id|project|start_time|end_time|duration_seconds|notes
+db_get_active() { _get_focus_state; }
 db_list() {
-    local range_spec="$1"
-    
-    if [[ -z "$range_spec" ]]; then
-        range_spec="today"
-    fi
-    
+    local range_spec="${1:-today}"
     _get_sessions_in_range "$range_spec"
 }
-
-# Function: db_stats
-# Description: Get aggregated statistics for a date range
-# Usage: db_stats [--detailed] <range_spec>
-# Parameters:
-#   $1 - Optional --detailed flag for detailed output
-#   $2 - range_spec: Date range specification
-# Returns: CSV with statistics
-# Format: total_sessions|total_duration|avg_duration|projects_count
-#         (or detailed format if --detailed flag is used)
 db_stats() {
-    local detailed=false
-    local range_spec
-    
-    # Check for --detailed flag
+    local detailed=false range_spec
     if [[ "$1" == "--detailed" ]]; then
         detailed=true
         range_spec="$2"
     else
         range_spec="$1"
     fi
-    
-    if [[ -z "$range_spec" ]]; then
-        range_spec="today"
-    fi
-    
+    range_spec="${range_spec:-today}"
     if [[ "$detailed" == true ]]; then
         _db_stats_detailed "$range_spec"
     else
@@ -296,195 +151,65 @@ db_stats() {
     fi
 }
 
-# Function: _db_stats_detailed
-# Description: Get detailed statistics including project breakdowns for a date range (PRIVATE)
-# Usage: _db_stats_detailed <range_spec>
-# Parameters:
-#   $1 - range_spec: Date range specification
-# Returns: Multiple CSV sections:
-#   - Summary: total_sessions|total_duration|avg_duration|projects_count
-#   - Project breakdown: project|sessions|duration|earliest_start|latest_end
-#   - Session details: project|start_time|end_time|duration_seconds|notes|duration_only|session_date
 _db_stats_detailed() {
-    local range_spec="$1"
-    local start_date end_date
-    
-    if [[ -z "$range_spec" ]]; then
-        range_spec="today"
-    fi
-    
-    # Parse range specification
+    local range_spec="${1:-today}" start_date end_date
     case "$range_spec" in
-        "today")
-            start_date=$(date +%Y-%m-%d)
-            end_date="$start_date"
-            ;;
-        "yesterday")
-            start_date=$(date -d "yesterday" +%Y-%m-%d)
-            end_date="$start_date"
-            ;;
-        "7d"|"week")
-            start_date=$(date -d "7 days ago" +%Y-%m-%d)
-            end_date=$(date +%Y-%m-%d)
-            ;;
-        "30d"|"month")
-            start_date=$(date -d "30 days ago" +%Y-%m-%d)
-            end_date=$(date +%Y-%m-%d)
-            ;;
-        *)
-            # Assume it's a date range like "2025-01-01,2025-01-31"
-            if [[ "$range_spec" == *","* ]]; then
-                start_date="${range_spec%%,*}"
-                end_date="${range_spec##*,}"
-            else
-                start_date="$range_spec"
-                end_date="$range_spec"
-            fi
-            ;;
+        "today") start_date=$(date +%Y-%m-%d); end_date="$start_date" ;;
+        "yesterday") start_date=$(date -d "yesterday" +%Y-%m-%d); end_date="$start_date" ;;
+        "7d"|"week") start_date=$(date -d "7 days ago" +%Y-%m-%d); end_date=$(date +%Y-%m-%d) ;;
+        "30d"|"month") start_date=$(date -d "30 days ago" +%Y-%m-%d); end_date=$(date +%Y-%m-%d) ;;
+        *) if [[ "$range_spec" == *","* ]]; then
+               start_date="${range_spec%%,*}"; end_date="${range_spec##*,}"
+           else
+               start_date="$range_spec"; end_date="$range_spec"
+           fi ;;
     esac
-    
-    # Get all data in one query with multiple result sets
     local results
     results=$(_db_q "
-        -- Summary stats
-        WITH R AS (
-            SELECT project, duration_seconds
-            FROM $SESSIONS_TABLE
-            WHERE DATE(start_time) >= '$start_date' AND DATE(start_time) <= '$end_date'
-        )
-        SELECT
-            COUNT(*) AS total_sessions,
-            IFNULL(SUM(duration_seconds), 0) AS total_duration,
-            IFNULL(SUM(duration_seconds) / COUNT(*), 0) AS avg_duration,
-            COUNT(DISTINCT CASE WHEN project != '[idle]' THEN project END) AS projects_count
-        FROM R
-        
+        WITH R AS (SELECT project, duration_seconds FROM $SESSIONS_TABLE WHERE DATE(start_time) >= '$start_date' AND DATE(start_time) <= '$end_date')
+        SELECT COUNT(*), IFNULL(SUM(duration_seconds), 0), IFNULL(SUM(duration_seconds) / COUNT(*), 0), COUNT(DISTINCT CASE WHEN project != '[idle]' THEN project END) FROM R
         UNION ALL
-        
-        -- Project breakdown
-        SELECT
-            project,
-            COUNT(*) AS sessions,
-            SUM(duration_seconds) AS duration,
-            MIN(start_time) AS earliest_start,
-            MAX(end_time) AS latest_end
-        FROM $SESSIONS_TABLE
-        WHERE project != '[idle]' 
-          AND DATE(start_time) >= '$start_date' 
-          AND DATE(start_time) <= '$end_date'
-        GROUP BY project
-        
+        SELECT project, COUNT(*), SUM(duration_seconds), MIN(start_time), MAX(end_time) FROM $SESSIONS_TABLE WHERE project != '[idle]' AND DATE(start_time) >= '$start_date' AND DATE(start_time) <= '$end_date' GROUP BY project
         UNION ALL
-        
-        -- Session details
-        SELECT
-            project,
-            start_time,
-            end_time,
-            duration_seconds,
-            notes,
-            duration_only,
-            session_date
-        FROM $SESSIONS_TABLE
-        WHERE project != '[idle]' 
-          AND ((end_time >= '$start_date' AND end_time <= '$end_date') 
-               OR (duration_only = 1 AND session_date >= '$start_date' AND session_date <= '$end_date'))
-        ORDER BY COALESCE(end_time, session_date) DESC;
+        SELECT project, start_time, end_time, duration_seconds, notes, duration_only, session_date FROM $SESSIONS_TABLE WHERE project != '[idle]' AND ((end_time >= '$start_date' AND end_time <= '$end_date') OR (duration_only = 1 AND session_date >= '$start_date' AND session_date <= '$end_date')) ORDER BY COALESCE(end_time, session_date) DESC;
     ")
-    
-    # Parse results and output in expected format
-    local summary_line
+    local summary_line project_lines session_lines
     summary_line=$(echo "$results" | head -n1)
-    local project_lines
     project_lines=$(echo "$results" | sed -n '2,$p' | grep -v '^[0-9]*,[0-9]*,[0-9]*,[0-9]*$' | head -n -1)
-    local session_lines
     session_lines=$(echo "$results" | tail -n +2 | grep -v '^[0-9]*,[0-9]*,[0-9]*,[0-9]*$' | tail -n +$(($(echo "$project_lines" | wc -l) + 1)))
-    
     echo "SUMMARY:$summary_line"
     echo "PROJECTS:$project_lines"
     echo "SESSIONS:$session_lines"
 }
 
-# =============================================================================
-# PRIVATE HELPER FUNCTIONS (all functions below are internal)
-# =============================================================================
+# Private helper functions
+_sql_escape() { echo "$1" | sed "s/'/''/g"; }
 
-# Function to safely escape SQL strings
-_sql_escape() {
-    local input="$1"
-    # Replace single quotes with double single quotes (SQL escaping)
-    echo "$input" | sed "s/'/''/g"
-}
-
-# Function to check available disk space
 _check_disk_space() {
-    local db_dir
-    db_dir=$(dirname "$DB")
-    
-    # Ensure directory exists
-    if [[ ! -d "$db_dir" ]]; then
-        echo "❌ Database directory does not exist: $db_dir" >&2
-        return 1
-    fi
-    
-    # Get available space in MB
+    local db_dir=$(dirname "$DB")
+    [[ ! -d "$db_dir" ]] && { echo "❌ Database directory does not exist: $db_dir" >&2; return 1; }
     local available_mb
     if command -v df >/dev/null 2>&1; then
         available_mb=$(df "$db_dir" | awk 'NR==2 {print int($4/1024)}')
     else
-        # Fallback if df is not available
         available_mb=1000
     fi
-    
     if [[ "$available_mb" -lt "$MIN_DISK_SPACE_MB" ]]; then
         echo "❌ Insufficient disk space: ${available_mb}MB available, ${MIN_DISK_SPACE_MB}MB required" >&2
         return 1
     fi
-    
-    return 0
 }
-
-# Function to check database permissions
 _check_database_permissions() {
-    local db_dir
-    db_dir=$(dirname "$DB")
-    
-    # Check if we can write to the database directory
-    if [[ ! -w "$db_dir" ]]; then
-        echo "❌ No write permission to database directory: $db_dir" >&2
-        return 1
-    fi
-    
-    # Check if database file exists and is writable
-    if [[ -f "$DB" ]] && [[ ! -w "$DB" ]]; then
-        echo "❌ No write permission to database file: $DB" >&2
-        return 1
-    fi
-    
-    return 0
+    local db_dir=$(dirname "$DB")
+    [[ ! -w "$db_dir" ]] && { echo "❌ No write permission to database directory: $db_dir" >&2; return 1; }
+    [[ -f "$DB" && ! -w "$DB" ]] && { echo "❌ No write permission to database file: $DB" >&2; return 1; }
 }
-
-# Function to check database integrity
 _check_database_integrity() {
-    if [[ ! -f "$DB" ]]; then
-        return 0  # Database doesn't exist yet, that's fine
-    fi
-    
-    # Check if database is readable
-    if ! sqlite3 "$DB" "SELECT 1;" >/dev/null 2>&1; then
-        echo "❌ Database file is corrupted or unreadable: $DB" >&2
-        return 1
-    fi
-    
-    return 0
+    [[ ! -f "$DB" ]] && return 0
+    sqlite3 "$DB" "SELECT 1;" >/dev/null 2>&1 || { echo "❌ Database file is corrupted or unreadable: $DB" >&2; return 1; }
 }
-
-# Function to perform pre-database operation checks
 _pre_database_operation_check() {
-    _check_disk_space || return 1
-    _check_database_permissions || return 1
-    _check_database_integrity || return 1
-    return 0
+    _check_disk_space && _check_database_permissions && _check_database_integrity
 }
 
 # Function to create database backup
@@ -583,32 +308,8 @@ _get_focus_state() {
     fi
 }
 
-# Function to get focus disabled status
-_get_focus_disabled() {
-    local state_data
-    state_data=$(_get_all_state_data)
-    if [[ -n "$state_data" ]]; then
-        echo "$state_data" | cut -d',' -f8
-    fi
-}
 
-# Function to get nudging enabled status
-_get_nudging_enabled() {
-    local state_data
-    state_data=$(_get_all_state_data)
-    if [[ -n "$state_data" ]]; then
-        echo "$state_data" | cut -d',' -f9
-    fi
-}
 
-# Function to get last focus off time
-_get_last_focus_off_time() {
-    local state_data
-    state_data=$(_get_all_state_data)
-    if [[ -n "$state_data" ]]; then
-        echo "$state_data" | cut -d',' -f10
-    fi
-}
 
 
 # Function to update focus state
@@ -732,23 +433,6 @@ _ensure_projects_table() {
     fi
 }
 
-# Function to calculate duration between timestamps
-_calculate_duration() {
-    local start_time="$1"
-    local end_time="$2"
-    
-    local start_ts
-    start_ts=$(date -d "$start_time" +%s 2>/dev/null)
-    
-    local end_ts
-    end_ts=$(date -d "$end_time" +%s 2>/dev/null)
-    
-    if [[ -n "$start_ts" ]] && [[ -n "$end_ts" ]]; then
-        echo $((end_ts - start_ts))
-    else
-        echo 0
-    fi
-}
 
 # Function to get session statistics
 _get_session_stats() {
@@ -911,7 +595,11 @@ _migrate_database() {
 
 # Additional private API functions (internal use only)
 _get_focus_disabled_public() {
-    _get_focus_disabled
+    local state_data
+    state_data=$(_get_all_state_data)
+    if [[ -n "$state_data" ]]; then
+        echo "$state_data" | cut -d',' -f8
+    fi
 }
 
 _update_prompt_content_public() {
@@ -995,9 +683,15 @@ _sql_escape_public() {
 # Returns: 0 if disabled, 1 if enabled
 _is_focus_disabled_public() {
     local disabled
-    disabled=$(_get_focus_disabled)
-    if [[ "$disabled" -eq 1 ]]; then
-        return 0
+    local state_data
+    state_data=$(_get_all_state_data)
+    if [[ -n "$state_data" ]]; then
+        disabled=$(echo "$state_data" | cut -d',' -f8)
+        if [[ "$disabled" -eq 1 ]]; then
+            return 0
+        else
+            return 1
+        fi
     else
         return 1
     fi
@@ -1008,7 +702,11 @@ _is_focus_disabled_public() {
 # Usage: _get_nudging_enabled_public
 # Returns: 1 if enabled, 0 if disabled
 _get_nudging_enabled_public() {
-    _get_nudging_enabled
+    local state_data
+    state_data=$(_get_all_state_data)
+    if [[ -n "$state_data" ]]; then
+        echo "$state_data" | cut -d',' -f9
+    fi
 }
 
 # Function: db_get_state
