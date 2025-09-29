@@ -109,9 +109,13 @@ lint() {
     print_status "$GREEN" "Lint completed"
 }
 
-# Function to run CI (lint + smoke)
+# Function to run CI (audit + lint + smoke)
 ci() {
     print_status "$YELLOW" "Running CI pipeline..."
+    
+    # Run façade audit
+    print_status "$YELLOW" "Running façade audit..."
+    ./tools/audit/facade.sh
     
     lint
     smoke
