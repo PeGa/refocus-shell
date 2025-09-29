@@ -12,145 +12,59 @@ source "$SCRIPT_DIR/../lib/focus-db.sh"
 source "$SCRIPT_DIR/../lib/focus-output.sh"
 
 function focus_report_today() {
-    local raw_mode=false
-    local args=("$@")
-    
-    # Check for --raw flag
-    for arg in "${args[@]}"; do
-        if [[ "$arg" == "--raw" ]]; then
-            raw_mode=true
-            break
-        fi
-    done
-    
-    local period
-    period=$(get_today_period)
-    IFS='|' read -r start_time end_time <<< "$period"
-    
-    # Convert ISO timestamps to date format
+    local start_time end_time
+    start_time=$(date +"%Y-%m-%d 00:00:00")
+    end_time=$(date +"%Y-%m-%d 23:59:59")
     local start_date end_date
-    start_date=$(date --date="$start_time" +"%Y-%m-%d" 2>/dev/null || echo "$start_time")
-    end_date=$(date --date="$end_time" +"%Y-%m-%d" 2>/dev/null || echo "$end_time")
-    
-    if [[ "$raw_mode" == "true" ]]; then
-        echo "start_time,end_time"
-        echo "$start_time,$end_time"
-        echo
-        focus_generate_report "$start_time" "$end_time" --raw
-    else
-        print_report_header "Today's Focus Report" "$start_date" "$end_date"
-        focus_generate_report "$start_time" "$end_time"
-    fi
+    start_date=$(date +"%Y-%m-%d")
+    end_date="$start_date"
+    _focus_report_period "Today's Focus Report" "$start_time" "$end_time" "$start_date" "$end_date" "$@"
 }
 
 function focus_report_week() {
-    local raw_mode=false
-    local args=("$@")
-    
-    # Check for --raw flag
-    for arg in "${args[@]}"; do
-        if [[ "$arg" == "--raw" ]]; then
-            raw_mode=true
-            break
-        fi
-    done
-    
-    local period
-    period=$(get_week_period)
-    IFS='|' read -r start_time end_time <<< "$period"
-    
-    # Convert ISO timestamps to date format
+    local start_time end_time
+    start_time=$(date -d "monday" +"%Y-%m-%d 00:00:00")
+    end_time=$(date -d "sunday" +"%Y-%m-%d 23:59:59")
     local start_date end_date
-    start_date=$(date --date="$start_time" +"%Y-%m-%d" 2>/dev/null || echo "$start_time")
-    end_date=$(date --date="$end_time" +"%Y-%m-%d" 2>/dev/null || echo "$end_time")
-    
-    if [[ "$raw_mode" == "true" ]]; then
-        echo "start_time,end_time"
-        echo "$start_time,$end_time"
-        echo
-        focus_generate_report "$start_time" "$end_time" --raw
-    else
-        print_report_header "This Week's Focus Report" "$start_date" "$end_date"
-        focus_generate_report "$start_time" "$end_time"
-    fi
+    start_date=$(date -d "monday" +"%Y-%m-%d")
+    end_date=$(date -d "sunday" +"%Y-%m-%d")
+    _focus_report_period "This Week's Focus Report" "$start_time" "$end_time" "$start_date" "$end_date" "$@"
 }
 
 function focus_report_month() {
-    local raw_mode=false
-    local args=("$@")
-    
-    # Check for --raw flag
-    for arg in "${args[@]}"; do
-        if [[ "$arg" == "--raw" ]]; then
-            raw_mode=true
-            break
-        fi
-    done
-    
-    local period
-    period=$(get_month_period)
-    IFS='|' read -r start_time end_time <<< "$period"
-    
-    # Convert ISO timestamps to date format
+    local start_time end_time
+    start_time=$(date -d "$(date +%Y-%m-01)" +"%Y-%m-%d 00:00:00")
+    end_time=$(date -d "$(date +%Y-%m-01) +1 month -1 day" +"%Y-%m-%d 23:59:59")
     local start_date end_date
-    start_date=$(date --date="$start_time" +"%Y-%m-%d" 2>/dev/null || echo "$start_time")
-    end_date=$(date --date="$end_time" +"%Y-%m-%d" 2>/dev/null || echo "$end_time")
-    
-    if [[ "$raw_mode" == "true" ]]; then
-        echo "start_time,end_time"
-        echo "$start_time,$end_time"
-        echo
-        focus_generate_report "$start_time" "$end_time" --raw
-    else
-        print_report_header "This Month's Focus Report" "$start_date" "$end_date"
-        focus_generate_report "$start_time" "$end_time"
-    fi
+    start_date=$(date -d "$(date +%Y-%m-01)" +"%Y-%m-%d")
+    end_date=$(date -d "$(date +%Y-%m-01) +1 month -1 day" +"%Y-%m-%d")
+    _focus_report_period "This Month's Focus Report" "$start_time" "$end_time" "$start_date" "$end_date" "$@"
 }
 
 function focus_report_custom() {
-    local days_back="$1"
-    shift
-    local raw_mode=false
-    local args=("$@")
-    
-    # Check for --raw flag
-    for arg in "${args[@]}"; do
-        if [[ "$arg" == "--raw" ]]; then
-            raw_mode=true
-            break
-        fi
-    done
-    
-    if [[ -z "$days_back" ]]; then
-        echo "❌ Number of days is required."
-        echo "Usage: focus report custom <days> [--raw]"
-        echo "Example: focus report custom 7"
-        echo "Example: focus report custom 7 --raw"
-        exit 1
-    fi
-    
-    # Basic validation - check if it's a number
-    if ! [[ "$days_back" =~ ^[0-9]+$ ]]; then
-        echo "❌ Days must be a positive number."
-        exit 1
-    fi
-    
-    local period
-    period=$(get_custom_period "$days_back")
-    IFS='|' read -r start_time end_time <<< "$period"
-    
-    # Convert ISO timestamps to date format
+    local days_back="$1"; shift
+    [[ -z "$days_back" ]] && { echo "❌ Number of days is required."; echo "Usage: focus report custom <days> [--raw]"; exit 1; }
+    [[ ! "$days_back" =~ ^[0-9]+$ ]] && { echo "❌ Days must be a positive number."; exit 1; }
+    local start_time end_time
+    start_time=$(date -d "$days_back days ago" +"%Y-%m-%d 00:00:00")
+    end_time=$(date +"%Y-%m-%d 23:59:59")
     local start_date end_date
-    start_date=$(date --date="$start_time" +"%Y-%m-%d" 2>/dev/null || echo "$start_time")
-    end_date=$(date --date="$end_time" +"%Y-%m-%d" 2>/dev/null || echo "$end_time")
-    
+    start_date=$(date -d "$days_back days ago" +"%Y-%m-%d")
+    end_date=$(date +"%Y-%m-%d")
+    _focus_report_period "Custom Focus Report (Last $days_back days)" "$start_time" "$end_time" "$start_date" "$end_date" "$@"
+}
+
+function _focus_report_period() {
+    local title="$1" start_time="$2" end_time="$3" start_date="$4" end_date="$5"; shift 5
+    local raw_mode=false
+    for arg in "$@"; do [[ "$arg" == "--raw" ]] && { raw_mode=true; break; }; done
     if [[ "$raw_mode" == "true" ]]; then
         echo "start_time,end_time"
         echo "$start_time,$end_time"
         echo
         focus_generate_report "$start_time" "$end_time" --raw
     else
-        print_report_header "Custom Focus Report (Last $days_back days)" "$start_date" "$end_date"
+        print_report_header "$title" "$start_date" "$end_date"
         focus_generate_report "$start_time" "$end_time"
     fi
 }
