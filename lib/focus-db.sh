@@ -30,8 +30,18 @@ PROMPT_TABLE="${REFOCUS_PROMPT_TABLE:-prompts}"
 MIN_DISK_SPACE_MB=10
 
 # =============================================================================
-# PRIVATE SQL EXECUTION HELPER
+# PRIVATE SQL EXECUTION HELPERS
 # =============================================================================
+
+# Function: _db_q
+# Description: Execute read-only SQL query (PRIVATE)
+# Usage: _db_q <sql_query>
+# Parameters:
+#   $1 - SQL query string
+# Returns: Query results in CSV format
+_db_q() {
+    sqlite3 -noheader -csv "$DB" "$1" 2>/dev/null
+}
 
 # Function: _db_exec
 # Description: Execute SQL query with consistent flags (PRIVATE)
@@ -41,6 +51,30 @@ MIN_DISK_SPACE_MB=10
 # Returns: Query results in CSV format
 _db_exec() {
     sqlite3 -noheader -csv "$DB" "$1" 2>/dev/null
+}
+
+# Function: _db_query_sessions
+# Description: Query sessions table with flexible parameters (PRIVATE)
+# Usage: _db_query_sessions <columns> [where] [order] [limit]
+# Parameters:
+#   $1 - columns: SELECT columns
+#   $2 - where: WHERE clause (optional)
+#   $3 - order: ORDER BY clause (optional)
+#   $4 - limit: LIMIT clause (optional)
+# Returns: Query results in CSV format
+_db_query_sessions() {
+    local columns="$1"
+    local where="$2"
+    local order="$3"
+    local limit="$4"
+    
+    local sql="SELECT $columns FROM $SESSIONS_TABLE"
+    [[ -n "$where" ]] && sql="$sql WHERE $where"
+    [[ -n "$order" ]] && sql="$sql ORDER BY $order"
+    [[ -n "$limit" ]] && sql="$sql LIMIT $limit"
+    sql="$sql;"
+    
+    _db_q "$sql"
 }
 
 # =============================================================================
@@ -421,33 +455,6 @@ _attempt_database_recovery() {
     return 1
 }
 
-# Function to get last project
-_get_last_project() {
-    _db_exec "SELECT project FROM $SESSIONS_TABLE WHERE project != '[idle]' ORDER BY rowid DESC LIMIT 1;"
-}
-
-# Function to get last session
-_get_last_session() {
-    _db_exec "SELECT project, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE ORDER BY rowid DESC LIMIT 1;"
-}
-
-# Function to get total project time
-_get_total_project_time() {
-    local project="$1"
-    local escaped_project
-    escaped_project=$(_sql_escape "$project")
-    
-    _db_exec "SELECT COALESCE(SUM(duration_seconds), 0) FROM $SESSIONS_TABLE WHERE project = '$escaped_project' AND project != '[idle]';"
-}
-
-# Function to count sessions for project
-_count_sessions_for_project() {
-    local project="$1"
-    local escaped_project
-    escaped_project=$(_sql_escape "$project")
-    
-    _db_exec "SELECT COUNT(*) FROM $SESSIONS_TABLE WHERE project = '$escaped_project' AND project != '[idle]';"
-}
 
 # Function to get sessions in range
 _get_sessions_in_range() {
@@ -484,7 +491,7 @@ _get_sessions_in_range() {
             ;;
     esac
     
-    _db_exec "SELECT rowid, project, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE WHERE DATE(start_time) >= '$start_date' AND DATE(start_time) <= '$end_date' ORDER BY start_time DESC;"
+    _db_query_sessions "rowid, project, start_time, end_time, duration_seconds, notes" "DATE(start_time) >= '$start_date' AND DATE(start_time) <= '$end_date'" "start_time DESC"
 }
 
 # Function to get all state data in one query
@@ -528,16 +535,6 @@ _get_last_focus_off_time() {
     fi
 }
 
-# Function to get prompt content
-_get_prompt_content() {
-    _db_exec "SELECT content FROM $PROMPT_TABLE ORDER BY rowid DESC LIMIT 1;"
-}
-
-# Function to get prompt content by type
-_get_prompt_content_by_type() {
-    local type="$1"
-    _db_exec "SELECT content FROM $PROMPT_TABLE WHERE type = '$type' ORDER BY rowid DESC LIMIT 1;"
-}
 
 # Function to update focus state
 _update_focus_state() {
@@ -586,54 +583,9 @@ _insert_session() {
     _db_exec "INSERT INTO $SESSIONS_TABLE (project, start_time, end_time, duration_seconds, notes) VALUES ('$escaped_project', '$start_time', '$end_time', $duration_seconds, '$escaped_notes');"
 }
 
-# Function to insert duration-only session
-_insert_duration_only_session() {
-    local project="$1"
-    local duration_seconds="$2"
-    local session_date="$3"
-    local notes="$4"
-    
-    local escaped_project
-    escaped_project=$(_sql_escape "$project")
-    
-    local escaped_notes
-    escaped_notes=$(_sql_escape "$notes")
-    
-    _db_exec "INSERT INTO $SESSIONS_TABLE (project, start_time, end_time, duration_seconds, notes, duration_only, session_date) VALUES ('$escaped_project', '', '', $duration_seconds, '$escaped_notes', 1, '$session_date');"
-}
 
-# Function to update session
-_update_session() {
-    local session_id="$1"
-    local project="$2"
-    local start_time="$3"
-    local end_time="$4"
-    local duration_seconds="$5"
-    local notes="$6"
-    
-    local escaped_project
-    escaped_project=$(_sql_escape "$project")
-    
-    local escaped_notes
-    escaped_notes=$(_sql_escape "$notes")
-    
-    _db_exec "UPDATE $SESSIONS_TABLE SET project = '$escaped_project', start_time = '$start_time', end_time = '$end_time', duration_seconds = $duration_seconds, notes = '$escaped_notes' WHERE rowid = $session_id;"
-}
 
-# Function to delete sessions for project
-_delete_sessions_for_project() {
-    local project="$1"
-    local escaped_project
-    escaped_project=$(_sql_escape "$project")
-    
-    _db_exec "DELETE FROM $SESSIONS_TABLE WHERE project = '$escaped_project';"
-}
 
-# Function to get session info
-_get_session_info() {
-    local session_id="$1"
-    _db_exec "SELECT project, start_time, end_time, duration_seconds, notes FROM $SESSIONS_TABLE WHERE rowid = $session_id;"
-}
 
 # Function to update focus disabled status
 _update_focus_disabled() {
@@ -647,22 +599,6 @@ _update_nudging_enabled() {
     _db_exec "UPDATE $STATE_TABLE SET nudging_enabled = $enabled;"
 }
 
-# Function to install focus cron job
-_install_focus_cron_job() {
-    local script_path="$1"
-    local interval="${2:-5}"
-    
-    # Remove existing cron job
-    _remove_focus_cron_job
-    
-    # Add new cron job
-    (crontab -l 2>/dev/null; echo "*/$interval * * * * $script_path") | crontab -
-}
-
-# Function to remove focus cron job
-_remove_focus_cron_job() {
-    crontab -l 2>/dev/null | grep -v "focus-nudge" | crontab -
-}
 
 # Function to update state record
 _update_state_record() {
@@ -675,16 +611,6 @@ _update_state_record() {
     _db_exec "UPDATE $STATE_TABLE SET $key = '$escaped_value';"
 }
 
-# Function to clear all sessions
-_clear_all_sessions() {
-    _db_exec "DELETE FROM $SESSIONS_TABLE;"
-}
-
-# Function to clear additional state
-_clear_additional_state() {
-    _db_exec "DELETE FROM $PROMPT_TABLE;"
-    _db_exec "DELETE FROM $PROJECTS_TABLE;"
-}
 
 # Function to get project description
 _get_project_description() {
@@ -712,19 +638,7 @@ _set_project_description() {
     _db_exec "INSERT OR REPLACE INTO $PROJECTS_TABLE (project, description, created_at, updated_at) VALUES ('$escaped_project', '$escaped_description', '$now', '$now');"
 }
 
-# Function to remove project description
-_remove_project_description() {
-    local project="$1"
-    local escaped_project
-    escaped_project=$(_sql_escape "$project")
-    
-    _db_exec "DELETE FROM $PROJECTS_TABLE WHERE project = '$escaped_project';"
-}
 
-# Function to get projects with descriptions
-_get_projects_with_descriptions() {
-    _db_exec "SELECT project, description FROM $PROJECTS_TABLE ORDER BY project;"
-}
 
 # Function to check if projects table exists
 _projects_table_exists() {
@@ -764,43 +678,59 @@ _calculate_duration() {
 # Function to get session statistics
 _get_session_stats() {
     local range_spec="$1"
-    local sessions
-    sessions=$(_get_sessions_in_range "$range_spec")
+    local start_date end_date
     
-    if [[ -z "$sessions" ]]; then
-        echo "0|0|0|0"
-        return
-    fi
-    
-    local total_sessions=0
-    local total_duration=0
-    local projects=()
-    
-    while IFS='|' read -r id project start_time end_time duration_seconds notes; do
-        ((total_sessions++))
-        ((total_duration += duration_seconds))
-        
-        # Track unique projects
-        if [[ -n "$project" ]] && [[ "$project" != "[idle]" ]]; then
-            local found=false
-            for p in "${projects[@]}"; do
-                if [[ "$p" == "$project" ]]; then
-                    found=true
-                    break
-                fi
-            done
-            if [[ "$found" == false ]]; then
-                projects+=("$project")
+    # Parse range specification
+    case "$range_spec" in
+        "today")
+            start_date=$(date +%Y-%m-%d)
+            end_date="$start_date"
+            ;;
+        "yesterday")
+            start_date=$(date -d "yesterday" +%Y-%m-%d)
+            end_date="$start_date"
+            ;;
+        "7d"|"week")
+            start_date=$(date -d "7 days ago" +%Y-%m-%d)
+            end_date=$(date +%Y-%m-%d)
+            ;;
+        "30d"|"month")
+            start_date=$(date -d "30 days ago" +%Y-%m-%d)
+            end_date=$(date +%Y-%m-%d)
+            ;;
+        *)
+            # Assume it's a date range like "2025-01-01,2025-01-31"
+            if [[ "$range_spec" == *","* ]]; then
+                start_date="${range_spec%%,*}"
+                end_date="${range_spec##*,}"
+            else
+                start_date="$range_spec"
+                end_date="$range_spec"
             fi
-        fi
-    done <<< "$sessions"
+            ;;
+    esac
     
-    local avg_duration=0
-    if [[ $total_sessions -gt 0 ]]; then
-        avg_duration=$((total_duration / total_sessions))
+    # Batch all statistics into one query
+    local stats
+    stats=$(_db_q "
+        WITH R AS (
+            SELECT project, duration_seconds
+            FROM $SESSIONS_TABLE
+            WHERE DATE(start_time) >= '$start_date' AND DATE(start_time) <= '$end_date'
+        )
+        SELECT
+            COUNT(*) AS total_sessions,
+            IFNULL(SUM(duration_seconds), 0) AS total_duration,
+            IFNULL(SUM(duration_seconds) / COUNT(*), 0) AS avg_duration,
+            COUNT(DISTINCT CASE WHEN project != '[idle]' THEN project END) AS projects_count
+        FROM R;
+    ")
+    
+    if [[ -z "$stats" ]]; then
+        echo "0|0|0|0"
+    else
+        echo "$stats"
     fi
-    
-    echo "$total_sessions|$total_duration|$avg_duration|${#projects[@]}"
 }
 
 # Function to get project statistics
@@ -896,7 +826,7 @@ _get_sessions_in_range_detailed() {
     esac
     
     # Get sessions including duration-only sessions
-    _db_exec "SELECT project, start_time, end_time, duration_seconds, notes, duration_only, session_date FROM $SESSIONS_TABLE WHERE project != '[idle]' AND ((end_time >= '$start_date' AND end_time <= '$end_date') OR (duration_only = 1 AND session_date >= '$start_date' AND session_date <= '$end_date')) ORDER BY COALESCE(end_time, session_date) DESC;"
+    _db_query_sessions "project, start_time, end_time, duration_seconds, notes, duration_only, session_date" "project != '[idle]' AND ((end_time >= '$start_date' AND end_time <= '$end_date') OR (duration_only = 1 AND session_date >= '$start_date' AND session_date <= '$end_date'))" "COALESCE(end_time, session_date) DESC"
 }
 
 # Function to ensure database directory exists
