@@ -19,8 +19,8 @@
 VERBOSE="${VERBOSE:-false}"
 
 # Error logging configuration
-REFOCUS_LOG_DIR="$(get_cfg DATA_DIR "$HOME/.local/refocus")"
-REFOCUS_ERROR_LOG="$(get_cfg DATA_DIR "$HOME/.local/refocus")/error.log"
+REFOCUS_LOG_DIR="${REFOCUS_STATE_DIR:-$HOME/.local/refocus}"
+REFOCUS_ERROR_LOG="${REFOCUS_STATE_DIR:-$HOME/.local/refocus}/error.log"
 
 # Global quiet mode flag (set by -q/--quiet)
 REFOCUS_QUIET="${REFOCUS_QUIET:-false}"

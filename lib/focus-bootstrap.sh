@@ -85,6 +85,9 @@ get_cfg() {
     echo "$default"
 }
 
+# Export get_cfg immediately so it's available to load_configuration
+export -f get_cfg
+
 # Function to load configuration with precedence handling
 load_configuration() {
     local config_file="${XDG_CONFIG_HOME:-$HOME/.config}/refocus/refocus.conf"
@@ -289,7 +292,6 @@ refocus_script_main() {
 }
 
 # Export functions for use in other scripts
-export -f get_cfg
 export -f load_configuration
 export -f ensure_data_dirs
 export -f parse_global_flags

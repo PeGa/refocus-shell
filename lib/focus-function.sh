@@ -6,6 +6,17 @@
 # This function can be sourced directly into the shell environment
 # Usage: source ~/.local/refocus/lib/focus-function.sh
 
+# Private function to resolve refocus state directory
+_refocus_state_dir() {
+    if [[ -n "${REFOCUS_STATE_DIR:-}" ]]; then
+        printf '%s\n' "$REFOCUS_STATE_DIR"
+    elif [[ -n "${XDG_STATE_HOME:-}" ]]; then
+        printf '%s\n' "$XDG_STATE_HOME/refocus"
+    else
+        printf '%s\n' "$HOME/.local/refocus"
+    fi
+}
+
 # Focus function - main entry point
 focus() {
     # Handle global flags first
@@ -69,8 +80,10 @@ focus() {
 
 # Function to update prompt from database
 focus-update-prompt() {
-    local focus_db="$(get_cfg DB_PATH "$HOME/.local/refocus/refocus.db")"
-    local state_dir="$(get_cfg DATA_DIR "$HOME/.local/refocus")"
+    local focus_db="$HOME/.local/refocus/refocus.db"
+    local state_dir="$(_refocus_state_dir)"
+    [[ -n "$state_dir" ]] || return 0
+    mkdir -p "$state_dir" 2>/dev/null || true
     
     if [[ -f "$focus_db" ]]; then
         # Get current state from database

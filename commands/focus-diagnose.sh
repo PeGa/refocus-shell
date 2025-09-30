@@ -137,7 +137,7 @@ focus_diagnose_repair() {
     fi
     
     # Check and create log directory
-    local log_dir="$(get_cfg DATA_DIR "$HOME/.local/refocus")"
+    local log_dir="${REFOCUS_STATE_DIR:-$HOME/.local/refocus}"
     if [[ ! -d "$log_dir" ]]; then
         echo "🔧 Creating log directory: $log_dir"
         if mkdir -p "$log_dir"; then
