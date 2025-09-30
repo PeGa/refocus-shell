@@ -1,0 +1,2 @@
+# Focus off command help
+# Stop focus session usage and examples

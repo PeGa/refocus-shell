@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Refocus Shell - Façade Audit Tool
-# Copyright (c) 2025 PeGa
+# Copyright (C) 2025 PeGa
+# Website: https://www.pega.sh
+# Email: dev@pega.sh
 # Licensed under the GNU General Public License v3
 
 set -euo pipefail
