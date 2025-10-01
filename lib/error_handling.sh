@@ -22,6 +22,10 @@ source "$LIB_PATH/logger.sh"
 
 
 _error_invalid_invocation() {
+<<DOC
+    Handles direct execution of library scripts.
+    Displays error message and logs violation before exiting with code 7.
+DOC
     echo "Error: This script is a library and should not be executed directly." >&2
     logger_error "Attempted direct execution of error_handling.sh."
     exit 7
@@ -34,10 +38,12 @@ fi
 
 
 _error_invalid_argument() {
-    # This function expects three arguments:
-    # '$1': Expected number of arguments(integer)"
-    # '$2': Number of arguments received(integer)"
-    # '$3': Total arguments received(string)"
+<<DOC
+    This function expects three arguments:
+    '$1': Expected number of arguments(integer)
+    '$2': Number of arguments received(integer)"
+    '$3': Total arguments received(string)"
+DOC
 
     echo "[Error] Received:" "$3"
     echo "        Invalid number of arguments."

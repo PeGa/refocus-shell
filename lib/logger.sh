@@ -14,17 +14,33 @@ fi
 
 
 logger_error() {
+<<DOC
+Logs error messages to system logger.
+Takes single message argument and outputs to user.err facility.
+DOC
     logger -t refocus -p user.err "[$$] Error: $1"
 }
 
 logger_warning() {
+<<DOC
+Logs warning messages to system logger.
+Takes single message argument and outputs to user.warning facility.
+DOC
     logger -t refocus -p user.warning "[$$] Warning: $1"
 }
 
 logger_info() {
+<<DOC
+Logs informational messages to system logger.
+Takes single message argument and outputs to user.info facility.
+DOC
     logger -t refocus -p user.info "[$$] Info: $1"
 }
 
 logger_debug() {
+<<DOC
+Logs debug messages to system logger.
+Takes single message argument and outputs to user.debug facility.
+DOC
     logger -t refocus -p user.debug "[$$] Debug: $1"
 }
