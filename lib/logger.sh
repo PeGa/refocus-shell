@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
-# Refocus Shell - Error Handling Utilities
+# Refocus Shell - Logger Utilities
 # Copyright (C) 2025 PeGa
 # Website: https://www.pega.sh
 # Email: dev@pega.sh
 # Licensed under the GNU General Public License v3
+
+# Prevent direct execution of this file.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    echo "Error: This script is a library and should not be executed directly." >&2
+    logger -t refocus -p user.err "[$$] Error: Attempted direct execution of logger.sh."
+    exit 7
+fi
 
 
 logger_error() {

@@ -7,9 +7,19 @@
 
 # Main entry point for refocus shell
 # Command dispatcher and argument parser
+
+LIB_PATH="$(dirname "${BASH_SOURCE[0]}")/lib"
+source "$LIB_PATH/error_handling.sh"
+
 case "$1" in
     on)
-        exec "$(dirname "$0")/lib/on.sh" "$2"
+        shift
+        [ "$#" -ne 1 ] && _error_invalid_argument 1 $# "$*"
+        exec "$LIB_PATH/on.sh" "$@"
+        ;;
+    off)
+        [ "$#" -ne 0 ] && _error_invalid_argument 0 $# "$*"
+        exec "$LIB_PATH/off.sh"
         ;;
     *)
         echo "Unknown command: $1"
