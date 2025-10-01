@@ -7,3 +7,12 @@
 
 # Main entry point for refocus shell
 # Command dispatcher and argument parser
+case "$1" in
+    on)
+        exec "$(dirname "$0")/lib/on.sh" "$2"
+        ;;
+    *)
+        echo "Unknown command: $1"
+        exit 1
+        ;;
+esac

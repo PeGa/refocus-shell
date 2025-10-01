@@ -7,3 +7,12 @@
 
 # Start focus session command
 # Project validation and session creation
+LIB_PATH="$(dirname "${BASH_SOURCE[0]}")"
+
+source "$LIB_PATH/error_handling.sh"
+
+if [ "$#" -ne 1 ]; then
+    _error_invalid_argument "session name" 1 $#
+fi
+SESSION_NAME="$1"
+echo "$SESSION_NAME"
