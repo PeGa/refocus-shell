@@ -16,13 +16,20 @@ case "$1" in
         shift
         [ "$#" -ne 1 ] && _error_invalid_argument 1 $# "$*"
         exec "$LIB_PATH/on.sh" "$@"
+        exit $?
         ;;
     off)
         [ "$#" -ne 0 ] && _error_invalid_argument 0 $# "$*"
         exec "$LIB_PATH/off.sh"
+        exit $?
+        ;;
+    status)
+        [ "$#" -ne 0 ] && _error_invalid_argument 0 $# "$*"
+        exec "$LIB_PATH/status.sh"
+        exit $?
         ;;
     *)
         echo "Unknown command: $1"
         exit 1
         ;;
-esac
+esac 
