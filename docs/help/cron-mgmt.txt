@@ -1,2 +1,26 @@
-# Cron management help
-# Background job scheduling and management
+# Refocus Shell - Cron Management Command
+# ======================================
+
+USAGE
+  focus cron-mgmt <subcommand> [options]
+
+SUBCOMMANDS
+  setup       Install cron job for automated focus reminders
+  status      Show active cron entries related to Refocus
+  remove      Remove all Refocus cron jobs
+  list        Show system cron jobs containing 'focus'
+
+OPTIONS
+  --interval <minutes>  Frequency for cron-triggered nudges (default: 60)
+  --confirm             Skip confirmation prompt during setup
+
+EXAMPLES
+  focus cron-mgmt setup
+  focus cron-mgmt status
+  focus cron-mgmt remove --confirm
+
+NOTES
+  - Requires a running cron daemon.
+  - Uses system crontab; managed entries prefixed with 'refocus_nudge'.
+  - Removal is safe and only targets Refocus-managed jobs.
+  - Interval must be ≥ 10 minutes to prevent spam.

@@ -1,2 +1,31 @@
-# Global help and usage information
-# Main command overview and general usage
+# Refocus Shell - Main CLI Usage
+# ==============================
+
+USAGE
+  focus <command> [options] [arguments]
+
+COMMANDS
+  on          Start a new focus session
+  off         Stop the current focus session
+  past        Manage past sessions (list, add, edit, delete)
+  report      Generate time-tracking reports
+  export      Export session data to file
+  import      Import session data from file
+  nudge       Manage productivity reminders
+  cron-mgmt   Schedule automated focus sessions
+
+GENERAL OPTIONS
+  -h, --help      Show help for a specific command or this overview
+  -v, --version   Show application version
+  -q, --quiet     Suppress non-error output
+  -s, --silent    Run without notifications or prompts
+
+EXAMPLES
+  focus on "Writing"
+  focus off "Took a short break"
+  focus report today
+  focus nudge enable --interval 3000
+
+NOTES
+  All commands interact with ~/.local/refocus/refocus.db.
+  Run 'focus <command> --help' for command-specific details.

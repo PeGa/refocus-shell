@@ -1,2 +1,30 @@
-# Report command help
-# Analytics and reporting functionality
+# Refocus Shell - Report Command
+# ==============================
+
+USAGE
+  focus report [period] [options]
+
+ARGUMENTS
+  [period]        Time range for the report (default: today)
+
+PERIODS
+  today           Current day's sessions
+  week            Last 7 days
+  month           Last 30 days
+  year            Current year
+  all             Entire history
+
+OPTIONS
+  --project "..." Filter by specific project
+  --format json|csv Export to file instead of terminal
+  --output <file> Destination for exported reports
+
+EXAMPLES
+  focus report today
+  focus report week --project "Development"
+  focus report month --format csv --output monthly.csv
+
+NOTES
+  - Reports aggregate duration, session count, and project breakdown.
+  - Terminal output is formatted with aligned columns.
+  - CSV exports include headers and ISO-formatted timestamps.

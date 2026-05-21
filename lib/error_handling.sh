@@ -5,6 +5,15 @@
 # Email: dev@pega.sh
 # Licensed under the GNU General Public License v3
 
+# Prevent direct execution of this file.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    echo "Error: This script is a library and should not be executed directly." >&2
+    exit 7
+fi
+
+# Load logger.
+LIB_PATH="$(dirname "${BASH_SOURCE[0]}")"
+source "$LIB_PATH/logger.sh"
 
 # exit codes
 # 0   success
@@ -16,11 +25,6 @@
 # 6   runtime/session error
 # 7   invalid invocation
 
-# Load logger.
-LIB_PATH="$(dirname "${BASH_SOURCE[0]}")"
-source "$LIB_PATH/logger.sh"
-
-
 _error_invalid_invocation() {
 <<DOC
     Handles direct execution of library scripts.
@@ -31,12 +35,6 @@ DOC
     exit 7
 }
 
-# Prevent direct execution of this file.
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    _error_invalid_invocation
-fi
-
-
 _error_invalid_argument() {
 <<DOC
     This function expects three arguments:
@@ -44,7 +42,6 @@ _error_invalid_argument() {
     '$2': Number of arguments received(integer)"
     '$3': Total arguments received(string)"
 DOC
-
     echo "[Error] Received:" "$3"
     echo "        Invalid number of arguments."
     echo "        Expected $1, got $2."

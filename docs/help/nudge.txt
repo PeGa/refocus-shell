@@ -1,2 +1,26 @@
-# Nudge command help
-# Notification system management
+# Refocus Shell - Nudge Command
+# ============================
+
+USAGE
+  focus nudge <subcommand> [options]
+
+SUBCOMMANDS
+  enable      Start the nudge timer
+  disable     Stop the nudge timer
+  status      Show current nudge state and next interval
+  test        Send a test notification immediately
+
+OPTIONS
+  --interval <seconds>  Set notification interval (default: 3000)
+  --message "..."       Override default nudge message
+
+EXAMPLES
+  focus nudge enable
+  focus nudge enable --interval 1800
+  focus nudge status
+  focus nudge test --message "Time to stretch!"
+
+NOTES
+  - Uses system notifications (`notify-send` or OS equivalent).
+  - State persists across sessions until explicitly disabled.
+  - Interval is stored in DB; respects user overrides.

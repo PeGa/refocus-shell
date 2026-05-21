@@ -1,2 +1,24 @@
-# Import command help
-# Data import and restore functionality
+# Refocus Shell - Import Command
+# =============================
+
+USAGE
+  focus import <file> [options]
+
+ARGUMENTS
+  <file>              Path to the JSON or CSV import file
+
+OPTIONS
+  -f, --format json|csv   Force format detection
+  --overwrite             Replace existing database data
+  --merge                 Append to existing data (default)
+  --dry-run               Validate and show what would be imported
+
+EXAMPLES
+  focus import backup.json
+  focus import data.csv --merge --dry-run
+  focus import legacy.db.json --overwrite
+
+NOTES
+  - Validates schema before importing.
+  - '--merge' keeps existing records; '--overwrite' replaces them.
+  - '--dry-run' shows affected records without modifying the database.

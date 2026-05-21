@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Refocus Shell - Main entry point
-# Copyright (C) 2025 PeGa
+# Copyright (C) 2026 PeGa
 # Website: https://www.pega.sh
 # Email: dev@pega.sh
 # Licensed under the GNU General Public License v3
@@ -15,17 +15,17 @@ case "$1" in
     on)
         shift
         [ "$#" -ne 1 ] && _error_invalid_argument 1 $# "$*"
-        exec "$LIB_PATH/on.sh" "$@"
+        . "$LIB_PATH/on.sh" "$@"
         exit $?
         ;;
     off)
         [ "$#" -ne 0 ] && _error_invalid_argument 0 $# "$*"
-        exec "$LIB_PATH/off.sh"
+        . "$LIB_PATH/off.sh"
         exit $?
         ;;
     status)
         [ "$#" -ne 0 ] && _error_invalid_argument 0 $# "$*"
-        exec "$LIB_PATH/status.sh"
+        . "$LIB_PATH/status.sh"
         exit $?
         ;;
     *)

@@ -1,2 +1,26 @@
-# Past sessions command help
-# Historical session management usage
+# Refocus Shell - Past Sessions Command
+# =====================================
+
+USAGE
+  focus past <subcommand> [options] [arguments]
+
+SUBCOMMANDS
+  list        Show past sessions with filters
+  add         Manually add a past session record
+  edit        Modify an existing session
+  delete      Remove a session record
+
+OPTIONS (for list)
+  -p, --project "..."   Filter by project
+  -s, --start "YYYY-MM-DD"
+  -e, --end "YYYY-MM-DD"
+
+EXAMPLES
+  focus past list
+  focus past list -p "Writing" --start 2025-01-01
+  focus past add --project "Research" --duration 120
+
+NOTES
+  - Default date range is the last 30 days for 'list'.
+  - Manual 'add' sessions bypass active tracking state.
+  - Edit/delete operations require session ID confirmation.

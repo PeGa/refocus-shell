@@ -1,2 +1,20 @@
-# Export command help
-# Data export functionality and formats
+# Refocus Shell - Export Command
+# =============================
+
+USAGE
+  focus export [options]
+
+OPTIONS
+  -o, --output <file>     Destination file (default: ~/.local/refocus/export.json)
+  -f, --format json|csv   Output format (default: json)
+  --all                   Export full database, not just sessions
+
+EXAMPLES
+  focus export
+  focus export --output backup.json --format json
+  focus export --all -f csv -o data.csv
+
+NOTES
+  - JSON exports include sessions, projects, and state.
+  - CSV exports contain session logs only.
+  - File path must be writable; creates parent directories if missing.

@@ -1,2 +1,23 @@
-# Focus on command help
-# Start focus session usage and examples
+# Refocus Shell - Focus On Command
+# ================================
+
+USAGE
+  focus on "<project>" [options]
+
+ARGUMENTS
+  <project>       Name of the project to focus on
+
+OPTIONS
+  -d, --duration <min>    Set expected duration in minutes
+  -n, --notes "..."       Add initial notes for the session
+  -r, --reset             Clear previous session state before starting
+
+EXAMPLES
+  focus on "Article Draft"
+  focus on "Research" --duration 60 --notes "Need to review sources"
+  focus on "Coding Sprint" -r
+
+NOTES
+  - Creates a new session record in the database.
+  - Automatically starts the nudge timer if enabled.
+  - Project names are case-sensitive and should avoid special characters.

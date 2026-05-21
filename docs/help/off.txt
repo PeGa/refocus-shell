@@ -1,2 +1,23 @@
-# Focus off command help
-# Stop focus session usage and examples
+# Refocus Shell - Focus Off Command
+# =================================
+
+USAGE
+  focus off [notes] [options]
+
+ARGUMENTS
+  [notes]       Optional notes to add when stopping the session
+
+OPTIONS
+  -d, --duration <min>    Manually set duration (overrides auto-calculation)
+  -r, --reset             Clear session state completely
+  -n, --no-nudge          Disable nudge timer for next session
+
+EXAMPLES
+  focus off
+  focus off "Took a coffee break"
+  focus off --duration 45
+
+NOTES
+  - Logs end time and auto-calculates duration in seconds.
+  - Records notes in the session history.
+  - If nudge is enabled, timer resets for the next 'focus on' session.
