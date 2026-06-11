@@ -49,17 +49,23 @@ install_deps() {
 }
 
 install_files() {
-    mkdir -p "$INSTALL_DIR/services" "$INSTALL_DIR/lib" "$BIN_DIR"
+    # Confirm before wiping an existing installation
+    if [[ -d "$INSTALL_DIR" ]]; then
+        echo -n "⚠  Existing installation found. This will wipe all data and config. Continue? (yes/N): "
+        read -r ans
+        [[ "$ans" == "yes" ]] || { echo "Aborted."; exit 0; }
+    fi
 
-    # Config state must never survive across installs — wipe it
-    rm -f "$INSTALL_DIR/.env" "$INSTALL_DIR/.cron_backup"
-
-    # Strip any stale nudge cron entry from previous install
+    # Strip any stale nudge cron entry before wiping
     local tmp
     tmp=$(mktemp)
     crontab -l 2>/dev/null | grep -v "$INSTALL_DIR/focus-nudge" > "$tmp" || true
     crontab "$tmp"
     rm -f "$tmp"
+
+    # Clean slate
+    rm -rf "$INSTALL_DIR"
+    mkdir -p "$INSTALL_DIR/services" "$INSTALL_DIR/lib" "$BIN_DIR"
 
     cp "$SRC_DIR/config.sh"      "$INSTALL_DIR/"
     cp "$SRC_DIR/focus"          "$INSTALL_DIR/"
