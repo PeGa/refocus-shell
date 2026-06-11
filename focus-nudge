@@ -24,10 +24,7 @@ if [[ "$active" == "1" && -n "$project" ]]; then
     now_ts=$(date +%s)
     start_ts=$(date --date="$start_time" +%s)
     elapsed=$(( (now_ts - start_ts) / 60 ))
-    # Round to nearest 10 for clean display
-    rounded=$(( (elapsed + 5) / 10 * 10 ))
-    [[ $rounded -lt 10 ]] && rounded=10
-    _notify "Refocus" "Focusing on: $project (${rounded}m)"
+    _notify "Refocus" "Focusing on: $project (${elapsed}m)"
 
 elif [[ "$paused" == "1" && -n "$project" ]]; then
     msg="Paused: $project"
