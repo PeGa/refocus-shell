@@ -1,43 +1,12 @@
 #!/usr/bin/env bash
-# Refocus Shell - Configuration and environment setup
-# Copyright (C) 2025 PeGa
-# Website: https://www.pega.sh
-# Email: dev@pega.sh
-# Licensed under the GNU General Public License v3
+# Refocus Shell - Configuration defaults
+# Override any of these via environment before calling focus.
 
-# Configuration and environment setup
-# Global variables and default settings
+DB_PATH="${REFOCUS_DB_PATH:-$HOME/.local/refocus/refocus.db}"
+NUDGE_INTERVAL="${REFOCUS_NUDGE_INTERVAL:-10}"
+MAX_PROJECT_LENGTH="${REFOCUS_MAX_PROJECT_LENGTH:-100}"
+DATE_FORMAT="${REFOCUS_DATE_FORMAT:-%Y-%m-%d}"
+DATE_SHORT_FORMAT="${REFOCUS_DATE_SHORT_FORMAT:-%Y-%m-%d %H:%M}"
+REPORT_LIMIT="${REFOCUS_REPORT_LIMIT:-20}"
 
-# Load error handling.
-LIB_PATH="$(dirname "${BASH_SOURCE[0]}")/lib"
-source "$LIB_PATH/error_handling.sh"
-
-# --- Global Configuration Variables ---
-# Application metadata
-readonly APP_NAME="Refocus Shell"
-readonly APP_VERSION="0.1.0"
-readonly APP_HOME="$(dirname "$(dirname "${BASH_SOURCE[0]}")")"
-
-# Database paths & table names
-readonly DB_PATH="${HOME}/.local/refocus/refocus.db"
-readonly REFOCUS_STATE_TABLE="refocus_state"
-readonly SESSIONS_TABLE="sessions"
-readonly PROJECTS_TABLE="projects"
-readonly HISTORY_TABLE="session_history"
-readonly NUDGES_TABLE="nudge_logs"
-
-# Default intervals & settings
-readonly DEFAULT_NUDGE_INTERVAL=3000      # seconds (50 minutes)
-readonly DEFAULT_REPORT_PERIOD="today"    # today|week|month
-readonly DATE_FORMAT="YYYY-MM-DD HH:MM:SS"
-readonly LOG_LEVEL="INFO"                 # DEBUG, INFO, WARN, ERROR
-readonly MAX_SESSION_DURATION=28800       # seconds (8 hours)
-readonly NUDGE_ENABLED="false"
-
-# CLI defaults
-readonly CLI_PREFIX="focus"
-
-# Prevent direct execution of this file.
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    _error_invalid_invocation
-fi
+export DB_PATH NUDGE_INTERVAL MAX_PROJECT_LENGTH DATE_FORMAT DATE_SHORT_FORMAT REPORT_LIMIT

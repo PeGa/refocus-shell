@@ -1,101 +1,120 @@
 #!/usr/bin/env bash
-# Refocus Shell - Minimal Installation Script
-# Copyright (C) 2025 PeGa
-# Licensed under the GNU General Public License v3
-
+# Refocus Shell - Setup
 set -euo pipefail
 
-# Source configuration and utilities
-SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
-source "$SCRIPT_DIR/config.sh"
+INSTALL_DIR="$HOME/.local/refocus"
+BIN_DIR="$HOME/.local/bin"
+SRC_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 
-# CLI Entry Point & Dependency Management
-_check_dependencies() {
-    local deps=("sqlite3" "jq" "notify-send")
+_info()  { echo "  $1"; }
+_ok()    { echo "✅ $1"; }
+_warn()  { echo "⚠  $1"; }
+_die()   { echo "❌ $1" >&2; exit 1; }
+
+install_deps() {
     local missing=()
-    for cmd in "${deps[@]}"; do
-        if ! command -v "$cmd" &>/dev/null; then
-            missing+=("$cmd")
-        fi
-    done
-    if [[ ${#missing[@]} -gt 0 ]]; then
-        echo "❌ Missing dependencies: ${missing[*]}"
-        echo "   Please install them and try again." >&2
-        exit 3
+    command -v sqlite3      &>/dev/null || missing+=(sqlite3)
+    command -v notify-send  &>/dev/null || missing+=(libnotify-bin)
+    command -v crontab      &>/dev/null || missing+=(cron)
+
+    [[ ${#missing[@]} -eq 0 ]] && { _ok "Dependencies present."; return; }
+
+    _info "Installing: ${missing[*]}"
+    if command -v apt-get &>/dev/null; then
+        sudo apt-get install -y "${missing[@]}"
+    elif command -v pacman &>/dev/null; then
+        # map names
+        local pkgs=()
+        for p in "${missing[@]}"; do
+            case $p in
+                libnotify-bin) pkgs+=(libnotify);;
+                cron)          pkgs+=(cronie);;
+                *)             pkgs+=("$p");;
+            esac
+        done
+        sudo pacman -S --noconfirm "${pkgs[@]}"
+    elif command -v dnf &>/dev/null; then
+        local pkgs=()
+        for p in "${missing[@]}"; do
+            case $p in
+                libnotify-bin) pkgs+=(libnotify);;
+                cron)          pkgs+=(cronie);;
+                *)             pkgs+=("$p");;
+            esac
+        done
+        sudo dnf install -y "${pkgs[@]}"
+    else
+        _warn "Unknown package manager. Install manually: ${missing[*]}"
     fi
 }
 
-_ensure_dir() {
-    local db_dir
-    db_dir=$(dirname "$DB_PATH")
-    if [[ ! -d "$db_dir" ]]; then
-        mkdir -p "$db_dir"
-        echo "✓ Created directory: $db_dir"
+install_files() {
+    mkdir -p "$INSTALL_DIR/services" "$INSTALL_DIR/lib" "$BIN_DIR"
+
+    cp "$SRC_DIR/config.sh"          "$INSTALL_DIR/"
+    cp "$SRC_DIR/focus"           "$INSTALL_DIR/"
+    cp "$SRC_DIR/focus-nudge"        "$INSTALL_DIR/"
+    cp "$SRC_DIR/services/"*.sh      "$INSTALL_DIR/services/"
+    cp "$SRC_DIR/lib/"*.sh           "$INSTALL_DIR/lib/"
+
+    chmod +x "$INSTALL_DIR/focus"
+    chmod +x "$INSTALL_DIR/focus-nudge"
+    chmod +x "$INSTALL_DIR/lib/"*.sh
+    chmod +x "$INSTALL_DIR/services/"*.sh
+
+    # Convenience symlink: 'focus' in PATH
+    ln -sf "$INSTALL_DIR/focus" "$BIN_DIR/focus"
+
+    _ok "Files installed to $INSTALL_DIR"
+}
+
+install_shell() {
+    local rc="$HOME/.bashrc"
+    local line="source $INSTALL_DIR/services/focus-function.sh"
+
+    if grep -qF "$line" "$rc" 2>/dev/null; then
+        _ok "Shell integration already in $rc"
+    else
+        echo "" >> "$rc"
+        echo "# Refocus Shell" >> "$rc"
+        echo "$line" >> "$rc"
+        _ok "Shell integration added to $rc"
+        _warn "Run: source ~/.bashrc"
     fi
 }
 
-_initialize_database() {
-    echo "✓ Initializing Refocus database at $DB_PATH..."
-    sqlite3 "$DB_PATH" <<'SQL'
-        CREATE TABLE IF NOT EXISTS refocus_state (
-            key TEXT PRIMARY KEY,
-            value TEXT,
-            created TEXT,
-            updated TEXT
-        );
-        CREATE TABLE IF NOT EXISTS sessions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            project TEXT,
-            start_time TEXT,
-            end_time TEXT,
-            duration_seconds INTEGER DEFAULT 0,
-            notes TEXT,
-            duration_only INTEGER DEFAULT 0,
-            session_date TEXT,
-            created TEXT
-        );
-        CREATE TABLE IF NOT EXISTS projects (
-            project TEXT PRIMARY KEY,
-            description TEXT,
-            created_at TEXT,
-            updated_at TEXT
-        );
-        CREATE TABLE IF NOT EXISTS session_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id INTEGER,
-            action TEXT,
-            timestamp TEXT,
-            FOREIGN KEY(session_id) REFERENCES sessions(id)
-        );
-        CREATE TABLE IF NOT EXISTS nudge_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            message TEXT,
-            timestamp TEXT,
-            acknowledged INTEGER DEFAULT 0
-        );
-SQL
-    echo "✓ Database initialized successfully."
+init_db() {
+    REFOCUS_ROOT="$INSTALL_DIR" source "$INSTALL_DIR/config.sh"
+    REFOCUS_ROOT="$INSTALL_DIR" source "$INSTALL_DIR/services/database.sh"
+    db_init
+    _ok "Database initialised at $DB_PATH"
 }
 
-_install() {
-    echo "🔧 Installing Refocus Shell..."
-    _check_dependencies
-    _ensure_dir
-    _initialize_database
-    echo "✅ Refocus Shell installation complete."
-    echo "   Database: $DB_PATH"
-    echo "   Run 'refocus' or 'focus' to start."
-}
-
-# Handle CLI arguments
-case "${1:-}" in
-    install) _install ;;
-    check)   _check_dependencies ;;
-    init)    _ensure_dir && _initialize_database ;;
-    *)       echo "Usage: $0 {install|check|init}" >&2; exit 1 ;;
+case "${1:-install}" in
+    install)
+        echo "Installing Refocus Shell..."
+        install_deps
+        install_files
+        init_db
+        install_shell
+        echo ""
+        echo "Done. Open a new terminal or run: source ~/.bashrc"
+        ;;
+    uninstall)
+        echo -n "Remove $INSTALL_DIR and shell integration? (yes/N): "
+        read -r ans
+        [[ "$ans" == "yes" ]] || { echo "Cancelled."; exit 0; }
+        # Remove cron first
+        REFOCUS_ROOT="$INSTALL_DIR" source "$INSTALL_DIR/services/cron.sh" 2>/dev/null && cron_remove 2>/dev/null || true
+        rm -rf "$INSTALL_DIR"
+        rm -f  "$BIN_DIR/focus"
+        # Remove bashrc line
+        rc="$HOME/.bashrc"
+        sed -i '/# Refocus Shell/d' "$rc"
+        sed -i "\|focus-function.sh|d" "$rc"
+        _ok "Uninstalled."
+        ;;
+    *)
+        echo "Usage: ./setup.sh [install|uninstall]" >&2; exit 2
+        ;;
 esac
-
-# Prevent direct execution of this file if sourced without args.
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]] && [[ $# -eq 0 ]]; then
-    _error_invalid_invocation
-fi

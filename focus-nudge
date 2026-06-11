@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Refocus Shell - Nudge script (executed by cron, not by the user)
+# Self-contained: sources database from known install location.
+
+REFOCUS_ROOT="${REFOCUS_ROOT:-$HOME/.local/refocus}"
+source "$REFOCUS_ROOT/config.sh"
+source "$REFOCUS_ROOT/services/database.sh"
+
+[[ -f "$DB_PATH" ]]     || exit 0
+db_is_disabled          && exit 0
+db_nudging_on           || exit 0
+
+IFS='|' read -r active project start_time paused pause_notes _ _ _ <<< "$(db_get_state)"
+
+_notify() {
+    local title="$1" body="$2"
+    if command -v notify-send &>/dev/null; then
+        notify-send "$title" "$body" 2>/dev/null && return
+    fi
+    logger -t refocus "$title: $body"
+}
+
+if [[ "$active" == "1" && -n "$project" ]]; then
+    now_ts=$(date +%s)
+    start_ts=$(date --date="$start_time" +%s)
+    elapsed=$(( (now_ts - start_ts) / 60 ))
+    # Round to nearest 10 for clean display
+    rounded=$(( (elapsed + 5) / 10 * 10 ))
+    [[ $rounded -lt 10 ]] && rounded=10
+    _notify "Refocus" "Focusing on: $project (${rounded}m)"
+
+elif [[ "$paused" == "1" && -n "$project" ]]; then
+    msg="Paused: $project"
+    [[ -n "$pause_notes" ]] && msg="$msg — $pause_notes"
+    _notify "Refocus" "$msg"
+
+else
+    _notify "Refocus" "Not focusing on anything."
+fi

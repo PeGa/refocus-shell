@@ -1,19 +1,30 @@
 #!/usr/bin/env bash
-# Refocus Shell - Help system
-# Copyright (C) 2025 PeGa
-# Website: https://www.pega.sh
-# Email: dev@pega.sh
-# Licensed under the GNU General Public License v3
+cat << 'EOF'
+Refocus Shell — terminal-first focus tracker
 
-# Help system
-# Command help and usage information
+Usage: focus <command> [args]
 
-# Load error handling.
-LIB_PATH="$(dirname "${BASH_SOURCE[0]}")"
+  on [project]           Start a session (resumes last if no project given)
+  off                    Stop session, capture notes
+  pause                  Pause with notes
+  continue               Resume paused session
+  status                 Current state
 
-source "$LIB_PATH/error_handling.sh"
+  past list [n]          Last n sessions (default 20)
+  past add <p> <s> <e>   Add past session with timestamps
+  past add <p> --duration Xh [--date YYYY/MM/DD]
+  past modify <id> ...   Edit a session
+  past delete <id>       Delete a session
 
-# Prevent direct execution of this file.
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    _error_invalid_invocation
-fi
+  report today|week|month|custom <days>
+
+  nudge enable|disable|status
+  describe add <p> <desc>
+  describe show|remove|list
+
+  enable / disable       Toggle focus tracking
+  init                   Initialise DB
+  reset                  Wipe all data
+
+Time formats: YYYY/MM/DD-HH:MM  HH:MM  "yesterday 14:00"  "2 hours ago"
+EOF

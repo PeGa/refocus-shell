@@ -1,19 +1,29 @@
 #!/usr/bin/env bash
-# Refocus Shell - Nudge notification system
-# Copyright (C) 2025 PeGa
-# Website: https://www.pega.sh
-# Email: dev@pega.sh
-# Licensed under the GNU General Public License v3
+set -euo pipefail
+source "$REFOCUS_ROOT/config.sh"
+source "$REFOCUS_ROOT/services/database.sh"
 
-# Nudge notification system
-# Desktop notifications and reminders
+db_ensure
 
-# Load error handling.
-LIB_PATH="$(dirname "${BASH_SOURCE[0]}")"
+sub="${1:-status}"; shift || true
 
-source "$LIB_PATH/error_handling.sh"
-
-# Prevent direct execution of this file.
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    _error_invalid_invocation
-fi
+case "$sub" in
+    enable)
+        db_flip_flag nudging_enabled 1
+        echo "✅ Nudging enabled (every ${NUDGE_INTERVAL}m during active sessions)."
+        ;;
+    disable)
+        db_flip_flag nudging_enabled 0
+        echo "🚫 Nudging disabled."
+        ;;
+    status)
+        if db_nudging_on; then
+            echo "✅ Nudging is ON (every ${NUDGE_INTERVAL}m)."
+        else
+            echo "🚫 Nudging is OFF."
+        fi
+        ;;
+    *)
+        echo "Usage: focus nudge <enable|disable|status>" >&2; exit 2
+        ;;
+esac
