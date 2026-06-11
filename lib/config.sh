@@ -15,7 +15,8 @@ _show() {
     echo ""
     if [[ -f "$ENV_FILE" && -s "$ENV_FILE" ]]; then
         echo "Overrides ($ENV_FILE):"
-        sed 's/^/  /' "$ENV_FILE"
+        # Strip REFOCUS_ prefix for readability
+        sed 's/^REFOCUS_/  /;t;s/^/  /' "$ENV_FILE"
     else
         echo "(no overrides — $ENV_FILE)"
     fi
@@ -37,18 +38,22 @@ case "$sub" in
     set)
         key="${1:-}"; val="${2:-}"
         [[ -z "$key" || -z "$val" ]] && { echo "Usage: focus config set <KEY> <value>" >&2; exit 2; }
-        _valid_key "$key" || { echo "❌ Unknown key: $key" >&2; echo "Valid: NUDGE_INTERVAL MAX_PROJECT_LENGTH DATE_FORMAT DATE_SHORT_FORMAT REPORT_LIMIT DB_PATH" >&2; exit 2; }
+        _valid_key "$key" || { echo "❌ Unknown key: $key" >&2
+            echo "Valid: NUDGE_INTERVAL MAX_PROJECT_LENGTH DATE_FORMAT DATE_SHORT_FORMAT REPORT_LIMIT DB_PATH" >&2
+            exit 2; }
+        env_key="REFOCUS_${key}"
         touch "$ENV_FILE"
-        if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
-            sed -i "s|^${key}=.*|${key}=${val}|" "$ENV_FILE"
+        if grep -q "^${env_key}=" "$ENV_FILE" 2>/dev/null; then
+            sed -i "s|^${env_key}=.*|${env_key}=${val}|" "$ENV_FILE"
         else
-            echo "${key}=${val}" >> "$ENV_FILE"
+            echo "${env_key}=${val}" >> "$ENV_FILE"
         fi
         echo "✅ $key=$val"
         ;;
     unset)
         key="${1:-}"; [[ -z "$key" ]] && { echo "Usage: focus config unset <KEY>" >&2; exit 2; }
-        [[ -f "$ENV_FILE" ]] && sed -i "/^${key}=/d" "$ENV_FILE" || true
+        env_key="REFOCUS_${key}"
+        [[ -f "$ENV_FILE" ]] && sed -i "/^${env_key}=/d" "$ENV_FILE" || true
         echo "✅ Unset $key (reverts to default)"
         ;;
     *)
