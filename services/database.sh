@@ -31,10 +31,8 @@ db_init() {
             project          TEXT,
             start_time       TEXT,
             paused           INTEGER NOT NULL DEFAULT 0,
-            pause_notes      TEXT,
             pause_start_time TEXT,
             previous_elapsed INTEGER NOT NULL DEFAULT 0,
-            nudging_enabled  INTEGER NOT NULL DEFAULT 1,
             focus_disabled   INTEGER NOT NULL DEFAULT 0,
             last_off_time    TEXT
         );
@@ -48,22 +46,18 @@ db_init() {
             duration_only    INTEGER NOT NULL DEFAULT 0,
             session_date     TEXT
         );
-        CREATE TABLE IF NOT EXISTS projects (
-            name             TEXT PRIMARY KEY,
-            description      TEXT NOT NULL,
-            created_at       TEXT NOT NULL
-        );
         INSERT OR IGNORE INTO state (id) VALUES (1);
     "
 }
 
 db_migrate() {
-    # Idempotent: adds columns missing from older schema versions.
-    local cols
-    cols=$(sqlite3 "$DB_PATH" "PRAGMA table_info(sessions);" | awk -F'|' '{print $2}')
-    echo "$cols" | grep -q "^notes$"         || _db_exec "ALTER TABLE sessions ADD COLUMN notes         TEXT;"
-    echo "$cols" | grep -q "^duration_only$" || _db_exec "ALTER TABLE sessions ADD COLUMN duration_only INTEGER NOT NULL DEFAULT 0;"
-    echo "$cols" | grep -q "^session_date$"  || _db_exec "ALTER TABLE sessions ADD COLUMN session_date  TEXT;"
+    # Idempotent: brings older schema forward. Additive only.
+    local scols
+    scols=$(sqlite3 "$DB_PATH" "PRAGMA table_info(sessions);" | awk -F'|' '{print $2}')
+    echo "$scols" | grep -q "^notes$"         || _db_exec "ALTER TABLE sessions ADD COLUMN notes         TEXT;"
+    echo "$scols" | grep -q "^duration_only$" || _db_exec "ALTER TABLE sessions ADD COLUMN duration_only INTEGER NOT NULL DEFAULT 0;"
+    echo "$scols" | grep -q "^session_date$"  || _db_exec "ALTER TABLE sessions ADD COLUMN session_date  TEXT;"
+    # pause_notes, nudging_enabled: removed from model; stale columns in old DBs are harmless.
 }
 
 db_ensure() {
@@ -74,26 +68,33 @@ db_ensure() {
 # ── State: reads ─────────────────────────────────────────────────────────────
 
 db_get_state() {
-    # Outputs: active|project|start_time|paused|pause_notes|pause_start_time|previous_elapsed|nudging_enabled|focus_disabled|last_off_time
+    # Outputs: active|project|start_time|paused|pause_start_time|previous_elapsed|focus_disabled|last_off_time
     _db_query "SELECT active, COALESCE(project,''), COALESCE(start_time,''),
-                      paused, COALESCE(pause_notes,''), COALESCE(pause_start_time,''),
-                      previous_elapsed, nudging_enabled, focus_disabled,
+                      paused, COALESCE(pause_start_time,''),
+                      previous_elapsed, focus_disabled,
                       COALESCE(last_off_time,'')
                FROM state WHERE id=1;"
 }
 
-db_is_active()   { [[ "$(_db_query "SELECT active       FROM state WHERE id=1;")" == "1" ]]; }
-db_is_paused()   { [[ "$(_db_query "SELECT paused       FROM state WHERE id=1;")" == "1" ]]; }
-db_is_disabled() { [[ "$(_db_query "SELECT focus_disabled FROM state WHERE id=1;")" == "1" ]]; }
-db_nudging_on()  { [[ "$(_db_query "SELECT nudging_enabled FROM state WHERE id=1;")" == "1" ]]; }
+is_session_active()  { [[ "$(_db_query "SELECT active        FROM state WHERE id=1;")" == "1" ]]; }
+is_session_paused()  { [[ "$(_db_query "SELECT paused        FROM state WHERE id=1;")" == "1" ]]; }
+is_focus_disabled()  { [[ "$(_db_query "SELECT focus_disabled FROM state WHERE id=1;")" == "1" ]]; }
 
 # ── State: writes ─────────────────────────────────────────────────────────────
+
+db_set_focus_enabled() {
+    _db_exec "UPDATE state SET focus_disabled=0 WHERE id=1;"
+}
+
+db_set_focus_disabled() {
+    _db_exec "UPDATE state SET focus_disabled=1 WHERE id=1;"
+}
 
 db_start_session() {
     local project="$1" start_time="$2"
     _db_exec "UPDATE state SET
         active=1, project='$(_q "$project")', start_time='$(_q "$start_time")',
-        paused=0, pause_notes=NULL, pause_start_time=NULL, previous_elapsed=0
+        paused=0, pause_start_time=NULL, previous_elapsed=0
         WHERE id=1;"
 }
 
@@ -101,16 +102,16 @@ db_end_session() {
     local now="$1"
     _db_exec "UPDATE state SET
         active=0, project=NULL, start_time=NULL,
-        paused=0, pause_notes=NULL, pause_start_time=NULL, previous_elapsed=0,
+        paused=0, pause_start_time=NULL, previous_elapsed=0,
         last_off_time='$(_q "$now")'
         WHERE id=1;"
 }
 
 db_pause_session() {
-    local elapsed="$1" notes="$2" now="$3"
+    local elapsed="$1" now="$2"
     _db_exec "UPDATE state SET
         active=0, paused=1,
-        pause_notes='$(_q "$notes")', pause_start_time='$(_q "$now")',
+        pause_start_time='$(_q "$now")',
         previous_elapsed=$elapsed
         WHERE id=1;"
 }
@@ -120,18 +121,8 @@ db_resume_session() {
     _db_exec "UPDATE state SET
         active=1, paused=0,
         start_time='$(_q "$new_start")',
-        pause_notes=NULL, pause_start_time=NULL, previous_elapsed=0
+        pause_start_time=NULL, previous_elapsed=0
         WHERE id=1;"
-}
-
-db_flip_flag() {
-    # db_flip_flag <nudging_enabled|focus_disabled> <0|1>
-    local flag="$1" value="$2"
-    case "$flag" in
-        nudging_enabled|focus_disabled) ;;
-        *) echo "❌ Unknown flag: $flag" >&2; return 1 ;;
-    esac
-    _db_exec "UPDATE state SET $flag=$value WHERE id=1;"
 }
 
 # ── Sessions: writes ──────────────────────────────────────────────────────────
@@ -168,7 +159,7 @@ db_list_sessions() {
     local limit="${1:-$REPORT_LIMIT}"
     _db_query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
                       duration_seconds, COALESCE(notes,''), duration_only, COALESCE(session_date,'')
-               FROM sessions WHERE project != '[idle]'
+               FROM sessions
                ORDER BY id DESC LIMIT $limit;"
 }
 
@@ -177,8 +168,7 @@ db_list_sessions_in_range() {
     _db_query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
                       duration_seconds, COALESCE(notes,''), duration_only, COALESCE(session_date,'')
                FROM sessions
-               WHERE project != '[idle]'
-               AND (
+               WHERE (
                    (duration_only=0 AND end_time >= '$(_q "$start")' AND end_time <= '$(_q "$end")')
                    OR
                    (duration_only=1 AND session_date >= date('$(_q "$start")') AND session_date <= date('$(_q "$end")'))
@@ -202,34 +192,11 @@ db_get_total_time() {
 db_get_last_session() {
     # Returns: project|end_time|duration_seconds
     _db_query "SELECT project, COALESCE(end_time,''), duration_seconds
-               FROM sessions WHERE project != '[idle]' AND end_time IS NOT NULL
+               FROM sessions WHERE end_time IS NOT NULL
                ORDER BY end_time DESC LIMIT 1;"
 }
 
 db_get_last_project() {
     _db_query "SELECT project FROM sessions
-               WHERE project != '[idle]'
                ORDER BY id DESC LIMIT 1;"
-}
-
-# ── Projects ──────────────────────────────────────────────────────────────────
-
-db_set_description() {
-    local project="$1" desc="$2"
-    _db_exec "INSERT OR REPLACE INTO projects (name, description, created_at)
-              VALUES ('$(_q "$project")', '$(_q "$desc")', datetime('now'));"
-}
-
-db_get_description() {
-    local project="$1"
-    _db_query "SELECT description FROM projects WHERE name='$(_q "$project")';"
-}
-
-db_rm_description() {
-    local project="$1"
-    _db_exec "DELETE FROM projects WHERE name='$(_q "$project")';"
-}
-
-db_list_descriptions() {
-    _db_query "SELECT name, description FROM projects ORDER BY name;"
 }
