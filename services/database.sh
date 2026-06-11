@@ -57,9 +57,18 @@ db_init() {
     "
 }
 
+db_migrate() {
+    # Idempotent: adds columns missing from older schema versions.
+    local cols
+    cols=$(sqlite3 "$DB_PATH" "PRAGMA table_info(sessions);" | awk -F'|' '{print $2}')
+    echo "$cols" | grep -q "^notes$"         || _db_exec "ALTER TABLE sessions ADD COLUMN notes         TEXT;"
+    echo "$cols" | grep -q "^duration_only$" || _db_exec "ALTER TABLE sessions ADD COLUMN duration_only INTEGER NOT NULL DEFAULT 0;"
+    echo "$cols" | grep -q "^session_date$"  || _db_exec "ALTER TABLE sessions ADD COLUMN session_date  TEXT;"
+}
+
 db_ensure() {
-    # Lazy init: only hits disk once the db file exists.
     [[ -f "$DB_PATH" ]] || db_init
+    db_migrate
 }
 
 # ── State: reads ─────────────────────────────────────────────────────────────
