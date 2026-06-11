@@ -1,246 +1,226 @@
 # Refocus Shell
 
-**Refocus Shell – a lightweight CLI for managing your focus sessions**
-
-## TL;DR
+**Terminal-first focus tracker for neurodivergent minds — local, private, no daemons.**
 
 ```bash
-# Install & start tracking
 git clone https://github.com/PeGa/refocus-shell && cd refocus-shell && ./setup.sh install
-focus on "my-project"    # Start focusing
-focus status             # Check progress  
-focus off                # Stop & add notes
-focus report today       # See your day
+source ~/.bashrc
+
+focus on "my-project"   # start
+focus status            # check in
+focus off               # stop + notes
+focus report today      # see your day
 ```
 
-**What it does:** Tracks your focus time, shows `⏳ [project]` in your terminal, sends gentle nudges every 10 minutes, exports your data as JSON/SQLite. All local, no cloud, no tracking.
-
-> 🧠 **Built for neurodivergent devs, sysadmins, and anyone tired of forgetting where their time went (e.g. me).**  
-
-**Refocus Shell is a terminal-first, privacy-conscious time tracker that nudges, reflects, and gets out of your way.**
-
-
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.
-org/licenses/gpl-3.0)
-[![Platform: Linux](https://img.shields.io/badge/Platform-Linux-lightgrey.svg)](https://www.
-linux.org/)
-[![Shell: Bash](https://img.shields.io/badge/Shell-Bash-green.svg)](https://www.gnu.org/
-software/bash/)
-[![Database: SQLite](https://img.shields.io/badge/Database-SQLite-yellow.svg)](https://www.
-sqlite.org/)
-[![Privacy: Local-First](https://img.shields.io/badge/Privacy-Local--First-brightgreen.svg)]
-(https://en.wikipedia.org/wiki/Local-first_software)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Platform: Linux](https://img.shields.io/badge/Platform-Linux-lightgrey.svg)](https://www.linux.org/)
+[![Shell: Bash](https://img.shields.io/badge/Shell-Bash-green.svg)](https://www.gnu.org/software/bash/)
+[![Database: SQLite](https://img.shields.io/badge/Database-SQLite-yellow.svg)](https://www.sqlite.org/)
+[![Privacy: Local-First](https://img.shields.io/badge/Privacy-Local--First-brightgreen.svg)](https://en.wikipedia.org/wiki/Local-first_software)
 
 ---
 
-## 🎯 Quick Start
+## Why Refocus?
+
+Most time trackers want you to manage *work*. Refocus tracks *where your focus went* — honest to you and honest to anyone above you who wants to steer the team, not clock the seats.
+
+- **No daemons.** No background processes. State lives in SQLite.
+- **Multi-terminal prompt.** Start in one terminal, `⏳ [project]` shows up in all of them.
+- **Pause/resume.** Multi-day sessions are valid. Breaks are unjudgmental.
+- **Local only.** No telemetry, no cloud sync, no accounts. Your patterns are yours.
+- **GPLv3.** Free software with a privacy-first philosophy baked in.
+
+---
+
+## Install
 
 ```bash
-# Install Refocus Shell
 git clone https://github.com/PeGa/refocus-shell
 cd refocus-shell
 ./setup.sh install
-
-# Start your first focus session
-focus on "my-project"
-focus status    # See your progress
-focus off       # End session (allows adding session notes)
 ```
 
-**That's it!** Your focus sessions are now tracked, and you'll get gentle nudges every 10 minutes to stay on track.
+The installer:
+- auto-detects your package manager and installs `sqlite3`, `libnotify-bin`, and `cron` if missing
+- copies everything to `~/.local/refocus/`
+- symlinks `focus` into `~/.local/bin/`
+- appends shell integration to `~/.bashrc`
 
----
+Then activate the integration in your current shell:
 
-## Live Prompt (no daemon)
-
-Show live focus information in your terminal prompt without any daemons or background processes. The prompt updates right after any `focus` command and also on every Enter, without re-running the DB or spawning daemons.
-
-### Bash
 ```bash
-echo 'source /path/to/extras/prompt/refocus-prompt.bash' >>~/.bashrc
+source ~/.bashrc
 ```
 
-### Zsh
+To uninstall:
+
 ```bash
-echo 'source /path/to/extras/prompt/refocus-prompt.zsh' >>~/.zshrc
-# And ensure ${REFOCUS_PROMPT_SEG} is in PROMPT or RPROMPT.
+./setup.sh uninstall
 ```
 
----
+### Shell Integration
 
-## 🧠 Why Refocus?
-
-- **🎯 Automatic Logging** - No manual timers, no complex interfaces. Just `focus on` and go.
-- **📊 Smart Continuation** - `focus on` without a project name continues your last session seamlessly.
-- **💾 Import/Export** - Your data stays yours. Export to JSON or SQLite, import anywhere.
-- **⚡ Prompt Integration** - See `⏳ [project]` in every terminal. Start in one terminal, see it everywhere.
-- **🔔 Gentle Nudges** - Real-time reminders during active sessions, plus idle notifications when you're not focusing. When you don't want to focus, refocus won't bother you. No spam, no overwhelm.
-- **📝 Session Notes** - Capture what you accomplished. Perfect for neurodivergent minds who need context.
-
----
-
-## 📋 Dependencies
-
-Refocus Shell requires these system packages:
-
-- **sqlite3** - Database for storing focus sessions
-- **notify-send** - Desktop notifications (libnotify-bin on Debian/Ubuntu)
-- **jq** - JSON processing for import/export features
-
-The installer will automatically detect your distribution and install missing dependencies:
+The installer adds one line to your `~/.bashrc`:
 
 ```bash
-# Debian/Ubuntu
-sudo apt-get install sqlite3 libnotify-bin jq
+source ~/.local/refocus/services/focus-function.sh
+```
 
-# Arch/Manjaro  
-sudo pacman -S sqlite libnotify jq
+This does two things:
 
-# Fedora/RHEL
-sudo dnf install sqlite libnotify jq
+1. Hooks `_refocus_prompt` into `PROMPT_COMMAND` — your prompt reads state from the DB on every `Enter`, zero spawned processes.
+2. Wraps `focus` as a shell function so the prompt updates *immediately* after any command, without waiting for the next prompt.
 
-# openSUSE
-sudo zypper install sqlite3 libnotify-tools jq
+Prompt states:
+```
+⏳ [project] user@host:~$   # active session
+⏸  [project] user@host:~$   # paused session
+user@host:~$                 # not tracking
 ```
 
 ---
 
+## Commands
+
+### Session lifecycle
+
 ```bash
-# Focus Management
-focus on "project"     # Start focusing
-focus off              # Stop and add notes
-focus pause            # Pause (asks for context notes)
-focus continue         # Resume paused session
-focus status           # See current state
+focus on [project]      # start session; no project = continue last
+focus off               # stop and capture notes
+focus pause             # pause with context notes
+focus continue          # resume paused session
+focus status            # current state, elapsed time, last session
+```
 
-# Session History
-focus past list        # View all sessions
-focus past add "project" "14:00" "16:00"  # Add past session
-focus report today     # Generate reports
+`focus continue` asks whether to carry forward the prior elapsed time or restart the timer.
 
-# Data & Configuration
-focus export           # Backup your data
-focus import file.json # Restore from backup
-focus config           # Manage settings
+### Past sessions
+
+```bash
+focus past list [n]                         # last n sessions (default 20)
+focus past add <project> <start> <end>      # add with timestamps
+focus past add <project> --duration Xh [--date YYYY/MM/DD]   # duration-only entry
+focus past modify <id> [project] [start] [end]
+focus past delete <id>
+```
+
+### Reports
+
+```bash
+focus report today
+focus report week
+focus report month
+focus report custom <days>    # e.g. focus report custom 14
+```
+
+Reports print to stdout: total time, project breakdown, per-session detail with notes.
+
+### Nudges
+
+```bash
+focus nudge enable     # turn on cron-based reminders (every NUDGE_INTERVAL minutes)
+focus nudge disable
+focus nudge status     # shows state + active crontab entry
+focus nudge test       # fires a test notification + validates the nudge script
+```
+
+The cron entry is installed dynamically when you `focus on` and removed on `focus off` — interval anchors to your session start minute so nudges land at consistent offsets, not random cron ticks.
+
+### Project descriptions
+
+```bash
+focus describe add <project> "description"
+focus describe show <project>
+focus describe remove <project>
+focus describe list
+```
+
+Descriptions show up in `focus status` and `focus report`.
+
+### Export / Import
+
+```bash
+focus export [basename]          # produces basename.sql + basename.json
+focus import <file.sql|file.json>
+```
+
+Export uses `sqlite3 -json` (no extra deps). JSON import requires `jq`.
+
+SQL export is the safe backup format. JSON export is human-readable and portable.
+
+### Configuration
+
+```bash
+focus config show                  # effective values + active overrides
+focus config set <KEY> <value>     # write to ~/.local/refocus/.env
+focus config unset <KEY>           # remove override, revert to default
+```
+
+Valid keys and defaults:
+
+| Key                  | Default              | Description                     |
+|----------------------|----------------------|---------------------------------|
+| `NUDGE_INTERVAL`     | `10`                 | Nudge frequency in minutes      |
+| `MAX_PROJECT_LENGTH` | `100`                | Max project name length (chars) |
+| `DATE_FORMAT`        | `%Y-%m-%d`           | Date format in reports          |
+| `DATE_SHORT_FORMAT`  | `%Y-%m-%d %H:%M`     | Datetime format in session list |
+| `REPORT_LIMIT`       | `20`                 | Default row limit for `past list` |
+| `DB_PATH`            | `~/.local/refocus/refocus.db` | Database path            |
+
+All keys can also be set via `REFOCUS_<KEY>` environment variables — they take precedence over `~/.local/refocus/.env`, which takes precedence over built-in defaults.
+
+### Other
+
+```bash
+focus enable / focus disable    # toggle tracking globally
+focus init                      # (re)initialise the database
+focus reset                     # wipe ALL data — requires typing "yes"
 ```
 
 ---
 
-## 📚 Documentation
+## Time and duration formats
 
-- **[Getting Started](docs/getting-started.md)** - First steps and basic workflow
-- **[Session Management](docs/sessions.md)** - Advanced session techniques and workflows
-- **[Data Management](docs/data.md)** - Import/export, backups, and migration
-- **[Reports & Analytics](docs/reports.md)** - Generate insights from your focus data
-- **[Configuration](docs/configuration.md)** - Customize settings and behavior
-- **[Installation Guide](docs/installation.md)** - Detailed setup for all platforms
-- **[Troubleshooting](docs/troubleshooting.md)** - Solve common issues
-- **[Advanced Usage](docs/advanced.md)** - Power-user features and automation
+Anywhere a timestamp is accepted:
 
----
-
-## 🎨 Features in Action
-
-### Smart Session Management
-```bash
-$ focus on "coding"
-🎯 Started focusing on: coding
-
-$ focus pause
-⏸️  Pausing focus session on: coding
-Focus paused. Please add notes for future recalling: debugging auth flow
-
-$ focus continue
-▶️  Resuming paused focus session on: coding
-Include previous elapsed time? (y/N): y
+```
+YYYY/MM/DD-HH:MM     2025/06/11-14:30   (recommended — no quoting needed)
+HH:MM                14:30              (today assumed)
+"yesterday 14:00"
+"2 hours ago"
 ```
 
-### Rich Status Information
-```bash
-$ focus status
-🎯 Currently focusing on: coding
-⏱️  Session time: 25m
-📝 Current session notes: debugging auth flow
-📊 Total time on this project: 2h 15m
+Durations (`--duration`):
+
 ```
-
-### Comprehensive Reporting
-```bash
-$ focus report today
-📊 Today's Focus Report
-═══════════════════════
-Total focus time: 3h 45m
-Active projects: 2
-Sessions: 4
-
-📋 Project Breakdown:
-coding: 2h 30m (2 sessions)
-planning: 1h 15m (2 sessions)
+1h30m   2h   45m
 ```
 
 ---
 
-## 🛠️ Installation
+## Privacy & design philosophy
 
-```bash
-# Quick install (recommended)
-git clone https://github.com/PeGa/refocus-shell
-cd refocus-shell
-./setup.sh install
+**No cloud, no telemetry.** All data is in `~/.local/refocus/refocus.db`. Nothing leaves your machine.
 
-For detailed installation instructions, see [Advanced Usage](docs/usage.md#installation).
+**No gamification.** No streaks, no points, no badges. Focus isn't linear and the tool doesn't pretend it is.
 
----
+**Pause is not failure.** Sessions can span multiple days. Multi-hour gaps mid-session are fine. The tool tracks what you tell it, not what it infers.
 
-## 🔧 Configuration
-
-Refocus Shell works out of the box, but you can customize it:
-
-```bash
-# Enable verbose output for debugging
-focus config set VERBOSE true
-
-# Customize nudge intervals
-focus nudge enable    # Enable gentle reminders
-focus nudge disable   # Disable if too distracting
-
-# Manage project descriptions
-focus description add coding "Main development project"
-focus description show coding
-```
+**No daemons.** The cron entry for nudges is installed when you `focus on` and removed when you `focus off`. Zero persistent processes when you're not tracking.
 
 ---
 
-## 🧩 Privacy & Philosophy
+## Dependencies
 
-**Built for neurodivergent minds** - Refocus Shell understands that focus isn't linear. It's okay to pause, resume, and take breaks. The tool adapts to you, not the other way around.
-
-**Privacy-first** - All data stays on your machine. No telemetry, no cloud sync, no data collection. Your focus patterns are yours alone.
-
-**Gentle by design** - No aggressive notifications, no gamification pressure. Just gentle nudges when you're already working, silent when you're not.
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Whether it's bug fixes, new features, or documentation improvements, your help makes Refocus Shell better for everyone.
-
-- **[Contributing Guide](docs/contributing.md)** - How to contribute
-- **[Code of Conduct](CODE_OF_CONDUCT.md)** - Our community standards
-- **[Issue Tracker](https://github.com/PeGa/refocus-shell/issues)** - Report bugs or request features
+| Package         | Required for                        | Auto-installed |
+|-----------------|-------------------------------------|----------------|
+| `sqlite3`       | everything                          | yes            |
+| `libnotify-bin` | desktop notifications (nudges)      | yes            |
+| `cron`          | timed nudges                        | yes            |
+| `jq`            | JSON import only                    | no             |
 
 ---
 
-## 📄 License
+## License
 
 Refocus Shell is licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE) for details.
-
----
-
-## 🙏 Acknowledgments
-
-Inspired by the need for focus tools that respect neurodivergent minds and prioritize privacy. Built with ❤️ for the terminal-first community.
-
----
-
-*Made with ❤️ for neurodivergent minds who need gentle structure without the overwhelm.*
