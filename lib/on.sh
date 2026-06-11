@@ -2,18 +2,17 @@
 set -euo pipefail
 source "$REFOCUS_ROOT/config.sh"
 source "$REFOCUS_ROOT/services/database.sh"
-source "$REFOCUS_ROOT/services/cron.sh"
 
 db_ensure
 
-if db_is_disabled; then
+if is_focus_disabled; then
     echo "❌ Refocus is disabled. Run 'focus enable' first." >&2; exit 1
 fi
-if db_is_active; then
+if is_session_active; then
     IFS='|' read -r _ project _ <<< "$(db_get_state)"
     echo "❌ Already focusing on: $project. Run 'focus off' first." >&2; exit 1
 fi
-if db_is_paused; then
+if is_session_paused; then
     IFS='|' read -r _ project _ <<< "$(db_get_state)"
     echo "❌ Session paused: $project. Run 'focus continue' or 'focus off'." >&2; exit 1
 fi
@@ -23,30 +22,43 @@ project="${1:-}"
 if [[ -z "$project" ]]; then
     last=$(db_get_last_project)
     if [[ -n "$last" ]]; then
-        echo -n "▶ Continue '$last'? (Y/n): "
+        total=$(db_get_total_time "$last")
+        total_min=$(( total / 60 ))
+        suffix=""
+        [[ $total_min -gt 0 ]] && suffix=" (${total_min}m logged)"
+        echo -n "▶ Continue '$last'${suffix}? (Y/n): "
         read -r ans
-        [[ "${ans:-Y}" =~ ^[Nn]$ ]] && { echo "Aborted."; exit 0; }
+        if [[ "${ans:-Y}" =~ ^[Nn]$ ]]; then
+            echo "Run 'focus on <project>' to focus on something else."
+            exit 0
+        fi
         project="$last"
     else
         echo "Usage: focus on <project>" >&2; exit 2
     fi
-fi
-
-if [[ ${#project} -gt $MAX_PROJECT_LENGTH ]]; then
-    echo "❌ Project name too long (max $MAX_PROJECT_LENGTH chars)." >&2; exit 2
+else
+    if [[ ${#project} -gt $MAX_PROJECT_LENGTH ]]; then
+        echo "❌ Project name too long (max $MAX_PROJECT_LENGTH chars)." >&2; exit 2
+    fi
+    total=$(db_get_total_time "$project")
+    total_min=$(( total / 60 ))
+    if [[ $total_min -gt 0 ]]; then
+        echo -n "▶ '$project' has ${total_min}m logged. Continue? (Y/n): "
+        read -r ans
+        if [[ "${ans:-Y}" =~ ^[Nn]$ ]]; then
+            echo "Run 'focus on <project>' with the correct project name."
+            exit 0
+        fi
+    fi
 fi
 
 start_time=$(date -Iseconds)
 db_start_session "$project" "$start_time"
-cron_install "$project" "$start_time" || echo "⚠  Cron nudge unavailable — check 'focus nudge test'" >&2
 
-total=$(db_get_total_time "$project")
-total_min=$(( total / 60 ))
-
-if [[ $total_min -gt 0 ]]; then
-    echo "🎯 Started focus on: $project (Total so far: ${total_min}m)"
+if [[ ${total_min:-0} -gt 0 ]]; then
+    echo "🎯 Started: $project (Total so far: ${total_min}m)"
 else
-    echo "🎯 Started focus on: $project"
+    echo "🎯 Started: $project"
 fi
 
 notify-send "Refocus" "Started: $project" 2>/dev/null || true

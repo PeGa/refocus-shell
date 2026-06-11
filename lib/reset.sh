@@ -11,4 +11,5 @@ read -r ans
 cron_remove 2>/dev/null || true
 rm -f "$DB_PATH"
 db_init
-echo "✅ Reset complete."
+db_set_focus_disabled
+echo "✅ Reset complete. Run 'focus enable' to start tracking."

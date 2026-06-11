@@ -2,34 +2,28 @@
 set -euo pipefail
 source "$REFOCUS_ROOT/config.sh"
 source "$REFOCUS_ROOT/services/database.sh"
-source "$REFOCUS_ROOT/services/cron.sh"
 
 db_ensure
 
-if ! db_is_paused; then
+if ! is_session_paused; then
     echo "❌ No paused session." >&2; exit 1
 fi
 
-IFS='|' read -r _ project _ _ _ _ previous_elapsed _ <<< "$(db_get_state)"
+IFS='|' read -r _ project _ _ _ previous_elapsed _ _ <<< "$(db_get_state)"
 prev_min=$(( previous_elapsed / 60 ))
 
-echo -n "▶ Resume '$project' (${prev_min}m logged). Count previous time? (Y/n): "
+echo -n "▶ Continue '$project' (${prev_min}m before pause)? (Y/n): "
 read -r ans
+if [[ "${ans:-Y}" =~ ^[Nn]$ ]]; then
+    echo "Session remains paused. Use 'focus off' to end it."
+    exit 0
+fi
 
 now=$(date -Iseconds)
 now_ts=$(date +%s)
+adjusted_ts=$(( now_ts - previous_elapsed ))
+adjusted=$(date --date="@$adjusted_ts" -Iseconds)
+db_resume_session "$adjusted"
 
-if [[ "${ans:-Y}" =~ ^[Nn]$ ]]; then
-    # Fresh start: new start_time = now
-    db_resume_session "$now"
-    echo "▶  Resumed '$project' (timer reset)."
-else
-    # Keep accumulated time: back-date start_time by previous_elapsed seconds
-    adjusted_ts=$(( now_ts - previous_elapsed ))
-    adjusted=$(date --date="@$adjusted_ts" -Iseconds)
-    db_resume_session "$adjusted"
-    echo "▶  Resumed '$project' (continuing from ${prev_min}m)."
-fi
-
-cron_install "$project" "$now" || echo "⚠  Cron nudge unavailable — check 'focus nudge test'" >&2
+echo "▶  Resumed: $project (continuing from ${prev_min}m)."
 notify-send "Refocus" "Resumed: $project" 2>/dev/null || true

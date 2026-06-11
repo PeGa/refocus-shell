@@ -4,9 +4,9 @@ Refocus Shell — terminal-first focus tracker
 
 Usage: focus <command> [args]
 
-  on [project]           Start a session (resumes last if no project given)
-  off                    Stop session, capture notes
-  pause                  Pause with notes
+  on [project]           Start a session (offers to continue last if no project given)
+  off                    Stop session and capture notes
+  pause                  Pause current session (silent — nudge reminds you)
   continue               Resume paused session
   status                 Current state
 
@@ -18,9 +18,8 @@ Usage: focus <command> [args]
 
   report today|week|month|custom <days>
 
-  nudge enable|disable|status|test
-  describe add <p> <desc>
-  describe show|remove|list
+  nudge status           Show nudging state and cron entry
+  nudge test             Test notification and nudge script
 
   config show            Effective configuration
   config set <KEY> <val> Set a user override
@@ -29,10 +28,14 @@ Usage: focus <command> [args]
   export [basename]      Export to .sql and .json
   import <file>          Import from .sql or .json
 
-  enable / disable       Toggle focus tracking
+  enable                 Enable Refocus (installs nudge cron)
+  disable                Disable Refocus (removes nudge cron)
   init                   Initialise DB
-  reset                  Wipe all data
+  reset                  Wipe all data (leaves Refocus disabled)
 
 Time formats: YYYY/MM/DD-HH:MM  HH:MM  "yesterday 14:00"  "2 hours ago"
 Duration:     1h30m  2h  45m
+
+Note: nudging is always active while Refocus is enabled.
+      'focus disable' is the only way to silence it.
 HELP
