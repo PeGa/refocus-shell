@@ -51,18 +51,27 @@ install_deps() {
 install_files() {
     mkdir -p "$INSTALL_DIR/services" "$INSTALL_DIR/lib" "$BIN_DIR"
 
-    cp "$SRC_DIR/config.sh"          "$INSTALL_DIR/"
-    cp "$SRC_DIR/focus"           "$INSTALL_DIR/"
-    cp "$SRC_DIR/focus-nudge"        "$INSTALL_DIR/"
-    cp "$SRC_DIR/services/"*.sh      "$INSTALL_DIR/services/"
-    cp "$SRC_DIR/lib/"*.sh           "$INSTALL_DIR/lib/"
+    # Config state must never survive across installs — wipe it
+    rm -f "$INSTALL_DIR/.env" "$INSTALL_DIR/.cron_backup"
+
+    # Strip any stale nudge cron entry from previous install
+    local tmp
+    tmp=$(mktemp)
+    crontab -l 2>/dev/null | grep -v "$INSTALL_DIR/focus-nudge" > "$tmp" || true
+    crontab "$tmp"
+    rm -f "$tmp"
+
+    cp "$SRC_DIR/config.sh"      "$INSTALL_DIR/"
+    cp "$SRC_DIR/focus"          "$INSTALL_DIR/"
+    cp "$SRC_DIR/focus-nudge"    "$INSTALL_DIR/"
+    cp "$SRC_DIR/services/"*.sh  "$INSTALL_DIR/services/"
+    cp "$SRC_DIR/lib/"*.sh       "$INSTALL_DIR/lib/"
 
     chmod +x "$INSTALL_DIR/focus"
     chmod +x "$INSTALL_DIR/focus-nudge"
     chmod +x "$INSTALL_DIR/lib/"*.sh
     chmod +x "$INSTALL_DIR/services/"*.sh
 
-    # Convenience symlink: 'focus' in PATH
     ln -sf "$INSTALL_DIR/focus" "$BIN_DIR/focus"
 
     _ok "Files installed to $INSTALL_DIR"
