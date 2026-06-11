@@ -5,6 +5,11 @@ REFOCUS_ROOT="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 export REFOCUS_ROOT
 source "$REFOCUS_ROOT/config.sh"
 
+# User overrides — sourced after defaults, only what's explicitly set
+_env="$(dirname "$DB_PATH")/.env"
+[[ -f "$_env" ]] && source "$_env"
+unset _env
+
 cmd="${1:-help}"
 shift || true
 

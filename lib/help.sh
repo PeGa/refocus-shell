@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-cat << 'EOF'
+cat << 'HELP'
 Refocus Shell — terminal-first focus tracker
 
 Usage: focus <command> [args]
@@ -18,13 +18,21 @@ Usage: focus <command> [args]
 
   report today|week|month|custom <days>
 
-  nudge enable|disable|status
+  nudge enable|disable|status|test
   describe add <p> <desc>
   describe show|remove|list
+
+  config show            Effective configuration
+  config set <KEY> <val> Set a user override
+  config unset <KEY>     Remove override (revert to default)
+
+  export [basename]      Export to .sql and .json
+  import <file>          Import from .sql or .json
 
   enable / disable       Toggle focus tracking
   init                   Initialise DB
   reset                  Wipe all data
 
 Time formats: YYYY/MM/DD-HH:MM  HH:MM  "yesterday 14:00"  "2 hours ago"
-EOF
+Duration:     1h30m  2h  45m
+HELP
