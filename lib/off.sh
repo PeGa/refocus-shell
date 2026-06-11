@@ -42,7 +42,7 @@ fi
 
 db_insert_session "$project" "$start_time" "$now" "$duration" "$final_notes"
 db_end_session "$now"
-cron_remove 2>/dev/null || true
+cron_remove || echo "⚠  Could not remove cron nudge" >&2
 
 if [[ -n "$final_notes" ]]; then
     echo "✅ Stopped. Notes: $final_notes"

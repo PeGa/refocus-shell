@@ -38,7 +38,7 @@ fi
 
 start_time=$(date -Iseconds)
 db_start_session "$project" "$start_time"
-cron_install "$project" "$start_time" 2>/dev/null || true
+cron_install "$project" "$start_time" || echo "⚠  Cron nudge unavailable — check 'focus nudge test'" >&2
 
 total=$(db_get_total_time "$project")
 total_min=$(( total / 60 ))

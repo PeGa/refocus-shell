@@ -31,5 +31,5 @@ else
     echo "▶  Resumed '$project' (continuing from ${prev_min}m)."
 fi
 
-cron_install "$project" "$now" 2>/dev/null || true
+cron_install "$project" "$now" || echo "⚠  Cron nudge unavailable — check 'focus nudge test'" >&2
 notify-send "Refocus" "Resumed: $project" 2>/dev/null || true

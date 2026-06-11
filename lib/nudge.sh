@@ -22,8 +22,25 @@ case "$sub" in
         else
             echo "🚫 Nudging is OFF."
         fi
+        echo ""
+        echo "Crontab:"
+        crontab -l 2>/dev/null | grep "focus-nudge" || echo "  (no cron entry found)"
+        ;;
+    test)
+        echo "Testing notification..."
+        notify-send "Refocus test" "If you see this, notify-send works." \
+            && echo "✅ notify-send: OK" \
+            || echo "❌ notify-send: failed — check DISPLAY/WAYLAND_DISPLAY"
+        echo ""
+        echo "Testing nudge script directly..."
+        bash "$HOME/.local/refocus/focus-nudge" \
+            && echo "✅ focus-nudge: OK" \
+            || echo "❌ focus-nudge: failed"
+        echo ""
+        echo "Crontab:"
+        crontab -l 2>/dev/null | grep "focus-nudge" || echo "  (no cron entry — run 'focus on' to install it)"
         ;;
     *)
-        echo "Usage: focus nudge <enable|disable|status>" >&2; exit 2
+        echo "Usage: focus nudge <enable|disable|status|test>" >&2; exit 2
         ;;
 esac
