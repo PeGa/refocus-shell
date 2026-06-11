@@ -3,7 +3,6 @@ set -euo pipefail
 source "$REFOCUS_ROOT/config.sh"
 
 ENV_FILE="$(dirname "$DB_PATH")/.env"
-[[ -f "$ENV_FILE" ]] && source "$ENV_FILE"
 
 _show() {
     echo "Effective configuration:"
