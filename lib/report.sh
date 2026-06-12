@@ -8,14 +8,14 @@ db_ensure
 _fmt_dur() {
     local s="$1"
     local h=$(( s/3600 )) m=$(( (s%3600)/60 ))
-    [[ $h -gt 0 ]] && echo "${h}h ${m}m" || echo "${m}m"
+    if [[ $h -gt 0 ]]; then echo "${h}h ${m}m"; else echo "${m}m"; fi
 }
 
 _report() {
     local label="$1" start="$2" end="$3"
 
     echo "📊 $label"
-    echo "$(printf '═%.0s' $(seq 1 ${#label}))"
+    printf '═%.0s' $(seq 1 "${#label}"); echo
     echo "Period: $(date --date="$start" +"$DATE_FORMAT") → $(date --date="$end" +"$DATE_FORMAT")"
     echo ""
 
@@ -49,7 +49,7 @@ _report() {
             e=$(date --date="$end_t"   +"%H:%M"               2>/dev/null)
             echo "  [$id] $project — $s–$e ($(_fmt_dur "$dur"))"
         fi
-        [[ -n "$notes" ]] && echo "       📝 $notes" || true
+        if [[ -n "$notes" ]]; then echo "       📝 $notes"; fi
     done < <(list_sessions_in_range "$start" "$end")
 }
 

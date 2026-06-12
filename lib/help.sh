@@ -15,7 +15,7 @@ if [[ -n "$cmd" ]]; then
     exit 0
 fi
 
-cat << HELP
+cat << 'HELP'
 Refocus Shell -- terminal-first focus tracker
 
 Usage: focus <command> [args]
@@ -57,7 +57,7 @@ System
   init              Initialise database
   reset             Wipe ALL data -- requires typing yes
 
-Time formats   YYYY/MM/DD-HH:MM  HH:MM  yesterday 14:00  2 hours ago
+Time formats   YYYY/MM/DD-HH:MM  HH:MM  "yesterday 14:00"  "2 hours ago"
 Duration       1h30m  2h  45m
 
 Run focus help <command> for per-command detail.

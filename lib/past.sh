@@ -8,7 +8,7 @@ db_ensure
 _fmt_duration() {
     local secs="$1"
     local h=$(( secs / 3600 )) m=$(( (secs % 3600) / 60 ))
-    [[ $h -gt 0 ]] && echo "${h}h ${m}m" || echo "${m}m"
+    if [[ $h -gt 0 ]]; then echo "${h}h ${m}m"; else echo "${m}m"; fi
 }
 
 _parse_time() {
@@ -35,7 +35,7 @@ case "$sub" in
                 e=$(date --date="$end"   +"$DATE_SHORT_FORMAT" 2>/dev/null || echo "$end")
             fi
             printf "%-4s %-22s %-19s %-19s %-8s\n" "$id" "$project" "$s" "$e" "$(_fmt_duration "$dur")"
-            [[ -n "$notes" ]] && echo "     $notes" || true
+            if [[ -n "$notes" ]]; then echo "     📝 $notes"; fi
         done < <(list_sessions "$limit")
         ;;
 
@@ -55,13 +55,13 @@ case "$sub" in
             elif [[ "$dur_str" =~ ^([0-9]+)m$ ]]; then
                 dur=$(( BASH_REMATCH[1]*60 ))
             else
-                echo "Bad duration: $dur_str (use 1h30m, 2h, 45m)" >&2; exit 2
+                echo "❌ Invalid duration: $dur_str (use 1h30m, 2h, 45m)" >&2; exit 2
             fi
 
-            date_iso=$(date --date="$date_str" +"$DATE_FORMAT" 2>/dev/null) || { echo "Bad date: $date_str" >&2; exit 2; }
-            echo -n "Notes (Enter to skip): "; read -r notes
+            date_iso=$(date --date="$date_str" +"$DATE_FORMAT" 2>/dev/null) || { echo "❌ Invalid date: $date_str" >&2; exit 2; }
+            echo -n "📝 Notes (Enter to skip): "; read -r notes
             record_duration_session "$project" "$dur" "$date_iso" "$notes"
-            echo "Added $project -- $dur_str on $date_iso"
+            echo "✅ Added: $project ($dur_str on $date_iso)"
 
         else
             start_raw="${1:-}"; end_raw="${2:-}"; shift 2 || true
@@ -72,12 +72,12 @@ case "$sub" in
 
             start_ts=$(date --date="$start" +%s)
             end_ts=$(date --date="$end"     +%s)
-            [[ $end_ts -le $start_ts ]] && { echo "End must be after start." >&2; exit 2; }
+            [[ $end_ts -le $start_ts ]] && { echo "❌ End must be after start." >&2; exit 2; }
             dur=$(( end_ts - start_ts ))
 
-            echo -n "Notes (Enter to skip): "; read -r notes
+            echo -n "📝 Notes (Enter to skip): "; read -r notes
             record_session "$project" "$start" "$end" "$dur" "$notes"
-            echo "Added $project -- $(_fmt_duration "$dur")"
+            echo "✅ Added: $project ($(_fmt_duration "$dur"))"
         fi
         ;;
 
@@ -86,7 +86,7 @@ case "$sub" in
         shift
 
         row=$(get_session "$id")
-        [[ -z "$row" ]] && { echo "Session $id not found." >&2; exit 1; }
+        [[ -z "$row" ]] && { echo "❌ Session $id not found." >&2; exit 1; }
         IFS="|" read -r _ cur_proj cur_start cur_end cur_dur _ cur_donly _ <<< "$row"
 
         if [[ "$cur_donly" == "1" ]]; then
@@ -101,10 +101,10 @@ case "$sub" in
                 elif [[ "$dur_str" =~ ^([0-9]+)m$ ]]; then
                     new_dur=$(( BASH_REMATCH[1]*60 ))
                 else
-                    echo "Bad duration: $dur_str (use 1h30m, 2h, 45m)" >&2; exit 2
+                    echo "❌ Invalid duration: $dur_str (use 1h30m, 2h, 45m)" >&2; exit 2
                 fi
             elif [[ $# -gt 0 ]]; then
-                echo "Session $id is duration-only. Timestamps cannot be edited." >&2
+                echo "❌ Session $id is duration-only. Timestamps cannot be edited." >&2
                 echo "Usage: focus past modify $id [project] [--duration Xh]" >&2
                 exit 2
             fi
@@ -125,19 +125,19 @@ case "$sub" in
 
             update_session "$id" "$new_proj" "$new_start" "$new_end" "$new_dur"
         fi
-        echo "Session $id updated."
+        echo "✅ Session $id updated."
         ;;
 
     delete|del|rm)
         id="${1:-}"; [[ -z "$id" ]] && { echo "Usage: focus past delete <id>" >&2; exit 2; }
         row=$(get_session "$id")
-        [[ -z "$row" ]] && { echo "Session $id not found." >&2; exit 1; }
+        [[ -z "$row" ]] && { echo "❌ Session $id not found." >&2; exit 1; }
         IFS="|" read -r _ project _ _ dur _ <<< "$row"
-        echo -n "Delete session $id ($project, $(_fmt_duration "$dur"))? (y/N): "
+        echo -n "🗑  Delete session $id ($project, $(_fmt_duration "$dur"))? (y/N): "
         read -r ans
         [[ "${ans:-N}" =~ ^[Yy]$ ]] || { echo "Cancelled."; exit 0; }
         delete_session "$id"
-        echo "Deleted."
+        echo "✅ Deleted."
         ;;
 
     *)

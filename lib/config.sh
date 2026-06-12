@@ -53,7 +53,9 @@ case "$sub" in
     unset)
         key="${1:-}"; [[ -z "$key" ]] && { echo "Usage: focus config unset <KEY>" >&2; exit 2; }
         env_key="REFOCUS_${key}"
-        [[ -f "$ENV_FILE" ]] && sed -i "/^${env_key}=/d" "$ENV_FILE" || true
+        if [[ -f "$ENV_FILE" ]]; then
+            sed -i "/^${env_key}=/d" "$ENV_FILE"
+        fi
         echo "✅ Unset $key (reverts to default)"
         ;;
     *)

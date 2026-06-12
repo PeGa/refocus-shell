@@ -102,9 +102,11 @@ install_shell() {
     if grep -qF "$line" "$rc" 2>/dev/null; then
         _ok "Shell integration already in $rc"
     else
-        echo "" >> "$rc"
-        echo "# Refocus Shell" >> "$rc"
-        echo "$line" >> "$rc"
+        {
+            echo ""
+            echo "# Refocus Shell"
+            echo "$line"
+        } >> "$rc"
         _ok "Shell integration added to $rc"
         _warn "Run: source ~/.bashrc"
     fi
@@ -132,7 +134,11 @@ case "${1:-install}" in
         echo -n "Remove $INSTALL_DIR and shell integration? (yes/N): "
         read -r ans
         [[ "$ans" == "yes" ]] || { echo "Cancelled."; exit 0; }
-        REFOCUS_ROOT="$INSTALL_DIR" source "$INSTALL_DIR/services/cron.sh" 2>/dev/null             && cron_remove 2>/dev/null || true
+        if [[ -f "$INSTALL_DIR/services/cron.sh" ]]; then
+            export REFOCUS_ROOT="$INSTALL_DIR"
+            source "$INSTALL_DIR/services/cron.sh"
+            cron_remove 2>/dev/null || true
+        fi
         rm -rf "$INSTALL_DIR"
         rm -f  "$BIN_DIR/focus"
         rc="$HOME/.bashrc"
