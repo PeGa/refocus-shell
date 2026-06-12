@@ -137,7 +137,7 @@ case "${1:-install}" in
         rm -f  "$BIN_DIR/focus"
         rc="$HOME/.bashrc"
         sed -i '/# Refocus Shell/d' "$rc"
-        sed -i "|focus-function.sh|d" "$rc"
+        sed -i '/focus-function\.sh/d' "$rc"
         _ok "Uninstalled."
         ;;
     *)
