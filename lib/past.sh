@@ -2,22 +2,9 @@
 set -euo pipefail
 source "$REFOCUS_ROOT/config.sh"
 source "$REFOCUS_ROOT/services/database.sh"
+source "$REFOCUS_ROOT/core/time.sh"
 
 db_ensure
-
-_fmt_duration() {
-    local secs="$1"
-    local h=$(( secs / 3600 )) m=$(( (secs % 3600) / 60 ))
-    if [[ $h -gt 0 ]]; then echo "${h}h ${m}m"; else echo "${m}m"; fi
-}
-
-_parse_time() {
-    local raw="$1"
-    if [[ "$raw" =~ ^([0-9]{4})/([0-9]{2})/([0-9]{2})-([0-9]{2}:[0-9]{2})$ ]]; then
-        raw="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]} ${BASH_REMATCH[4]}"
-    fi
-    date --date="$raw" -Iseconds 2>/dev/null || { echo "❌ Can not parse time: $1" >&2; return 1; }
-}
 
 sub="${1:-list}"; shift || true
 
@@ -34,7 +21,7 @@ case "$sub" in
                 s=$(date --date="$start" +"$DATE_SHORT_FORMAT" 2>/dev/null || echo "$start")
                 e=$(date --date="$end"   +"$DATE_SHORT_FORMAT" 2>/dev/null || echo "$end")
             fi
-            printf "%-4s %-22s %-19s %-19s %-8s\n" "$id" "$project" "$s" "$e" "$(_fmt_duration "$dur")"
+            printf "%-4s %-22s %-19s %-19s %-8s\n" "$id" "$project" "$s" "$e" "$(fmt_duration "$dur")"
             if [[ -n "$notes" ]]; then echo "     📝 $notes"; fi
         done < <(list_sessions "$limit")
         ;;
@@ -48,15 +35,7 @@ case "$sub" in
             date_str="today"
             [[ "${1:-}" == "--date" ]] && { date_str="${2:-today}"; shift 2 || true; }
 
-            if [[ "$dur_str" =~ ^([0-9]+)h([0-9]+)m$ ]]; then
-                dur=$(( BASH_REMATCH[1]*3600 + BASH_REMATCH[2]*60 ))
-            elif [[ "$dur_str" =~ ^([0-9]+)h$ ]]; then
-                dur=$(( BASH_REMATCH[1]*3600 ))
-            elif [[ "$dur_str" =~ ^([0-9]+)m$ ]]; then
-                dur=$(( BASH_REMATCH[1]*60 ))
-            else
-                echo "❌ Invalid duration: $dur_str (use 1h30m, 2h, 45m)" >&2; exit 2
-            fi
+            dur=$(parse_duration "$dur_str") || exit 2
 
             date_iso=$(date --date="$date_str" +"$DATE_FORMAT" 2>/dev/null) || { echo "❌ Invalid date: $date_str" >&2; exit 2; }
             echo -n "📝 Notes (Enter to skip): "; read -r notes
@@ -67,8 +46,8 @@ case "$sub" in
             start_raw="${1:-}"; end_raw="${2:-}"; shift 2 || true
             [[ -z "$start_raw" || -z "$end_raw" ]] && { echo "Usage: focus past add <project> <start> <end>" >&2; exit 2; }
 
-            start=$(_parse_time "$start_raw") || exit 2
-            end=$(_parse_time "$end_raw")     || exit 2
+            start=$(parse_time "$start_raw") || exit 2
+            end=$(parse_time "$end_raw")     || exit 2
 
             start_ts=$(date --date="$start" +%s)
             end_ts=$(date --date="$end"     +%s)
@@ -77,7 +56,7 @@ case "$sub" in
 
             echo -n "📝 Notes (Enter to skip): "; read -r notes
             record_session "$project" "$start" "$end" "$dur" "$notes"
-            echo "✅ Added: $project ($(_fmt_duration "$dur"))"
+            echo "✅ Added: $project ($(fmt_duration "$dur"))"
         fi
         ;;
 
@@ -94,15 +73,7 @@ case "$sub" in
             new_dur="$cur_dur"
             if [[ "${1:-}" == "--duration" ]]; then
                 dur_str="${2:-}"; shift 2 || true
-                if [[ "$dur_str" =~ ^([0-9]+)h([0-9]+)m$ ]]; then
-                    new_dur=$(( BASH_REMATCH[1]*3600 + BASH_REMATCH[2]*60 ))
-                elif [[ "$dur_str" =~ ^([0-9]+)h$ ]]; then
-                    new_dur=$(( BASH_REMATCH[1]*3600 ))
-                elif [[ "$dur_str" =~ ^([0-9]+)m$ ]]; then
-                    new_dur=$(( BASH_REMATCH[1]*60 ))
-                else
-                    echo "❌ Invalid duration: $dur_str (use 1h30m, 2h, 45m)" >&2; exit 2
-                fi
+                new_dur=$(parse_duration "$dur_str") || exit 2
             elif [[ $# -gt 0 ]]; then
                 echo "❌ Session $id is duration-only. Timestamps cannot be edited." >&2
                 echo "Usage: focus past modify $id [project] [--duration Xh]" >&2
@@ -116,8 +87,8 @@ case "$sub" in
 
             new_start="$cur_start"
             new_end="$cur_end"
-            [[ -n "$new_start_raw" ]] && new_start=$(_parse_time "$new_start_raw")
-            [[ -n "$new_end_raw"   ]] && new_end=$(_parse_time "$new_end_raw")
+            [[ -n "$new_start_raw" ]] && new_start=$(parse_time "$new_start_raw")
+            [[ -n "$new_end_raw"   ]] && new_end=$(parse_time "$new_end_raw")
 
             s_ts=$(date --date="$new_start" +%s)
             e_ts=$(date --date="$new_end"   +%s)
@@ -133,7 +104,7 @@ case "$sub" in
         row=$(get_session "$id")
         [[ -z "$row" ]] && { echo "❌ Session $id not found." >&2; exit 1; }
         IFS="|" read -r _ project _ _ dur _ <<< "$row"
-        echo -n "🗑  Delete session $id ($project, $(_fmt_duration "$dur"))? (y/N): "
+        echo -n "🗑  Delete session $id ($project, $(fmt_duration "$dur"))? (y/N): "
         read -r ans
         [[ "${ans:-N}" =~ ^[Yy]$ ]] || { echo "Cancelled."; exit 0; }
         delete_session "$id"

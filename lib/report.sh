@@ -2,14 +2,9 @@
 set -euo pipefail
 source "$REFOCUS_ROOT/config.sh"
 source "$REFOCUS_ROOT/services/database.sh"
+source "$REFOCUS_ROOT/core/time.sh"
 
 db_ensure
-
-_fmt_dur() {
-    local s="$1"
-    local h=$(( s/3600 )) m=$(( (s%3600)/60 ))
-    if [[ $h -gt 0 ]]; then echo "${h}h ${m}m"; else echo "${m}m"; fi
-}
 
 _report() {
     local label="$1" start="$2" end="$3"
@@ -29,13 +24,13 @@ _report() {
         proj_cnt[$project]=$(( ${proj_cnt[$project]:-0} + 1 ))
     done < <(list_sessions_in_range "$start" "$end")
 
-    echo "Total: $(_fmt_dur $total) across $sessions session(s)"
+    echo "Total: $(fmt_duration $total) across $sessions session(s)"
     echo ""
 
     if [[ ${#proj_dur[@]} -gt 0 ]]; then
         echo "Projects:"
         for p in "${!proj_dur[@]}"; do
-            printf "  %-24s %s (%d session(s))\n" "$p" "$(_fmt_dur "${proj_dur[$p]}")" "${proj_cnt[$p]}"
+            printf "  %-24s %s (%d session(s))\n" "$p" "$(fmt_duration "${proj_dur[$p]}")" "${proj_cnt[$p]}"
         done
         echo ""
     fi
@@ -43,11 +38,11 @@ _report() {
     echo "Sessions:"
     while IFS='|' read -r id project start_t end_t dur notes duration_only session_date; do
         if [[ "$duration_only" == "1" ]]; then
-            echo "  [$id] $project — $(_fmt_dur "$dur") on $session_date (manual)"
+            echo "  [$id] $project — $(fmt_duration "$dur") on $session_date (manual)"
         else
             s=$(date --date="$start_t" +"$DATE_SHORT_FORMAT" 2>/dev/null)
             e=$(date --date="$end_t"   +"%H:%M"               2>/dev/null)
-            echo "  [$id] $project — $s–$e ($(_fmt_dur "$dur"))"
+            echo "  [$id] $project — $s–$e ($(fmt_duration "$dur"))"
         fi
         if [[ -n "$notes" ]]; then echo "       📝 $notes"; fi
     done < <(list_sessions_in_range "$start" "$end")

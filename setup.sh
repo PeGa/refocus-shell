@@ -73,13 +73,14 @@ install_files() {
 
     # Wipe and rebuild
     rm -rf "$INSTALL_DIR"
-    mkdir -p "$INSTALL_DIR/services" "$INSTALL_DIR/lib" "$BIN_DIR"
+    mkdir -p "$INSTALL_DIR/services" "$INSTALL_DIR/lib" "$INSTALL_DIR/core" "$BIN_DIR"
 
     cp "$SRC_DIR/config.sh"      "$INSTALL_DIR/"
     cp "$SRC_DIR/focus"          "$INSTALL_DIR/"
     cp "$SRC_DIR/focus-nudge"    "$INSTALL_DIR/"
     cp "$SRC_DIR/services/"*.sh  "$INSTALL_DIR/services/"
     cp "$SRC_DIR/lib/"*.sh       "$INSTALL_DIR/lib/"
+    cp "$SRC_DIR/core/"*.sh      "$INSTALL_DIR/core/"
     [[ -d "$SRC_DIR/docs" ]]     && cp -r "$SRC_DIR/docs" "$INSTALL_DIR/docs"
 
     chmod +x "$INSTALL_DIR/focus"
