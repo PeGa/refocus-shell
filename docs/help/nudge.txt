@@ -1,26 +1,30 @@
-# Refocus Shell - Nudge Command
-# ============================
+# focus nudge — Nudge diagnostics
+# =================================
+#
+# nudge enable / nudge disable no longer exist.
+# Nudging is structural: it is armed by 'focus enable' and disarmed by
+# 'focus disable'. It is NOT a flag in the state table.
 
 USAGE
-  focus nudge <subcommand> [options]
+  focus nudge status
+  focus nudge test
 
 SUBCOMMANDS
-  enable      Start the nudge timer
-  disable     Stop the nudge timer
-  status      Show current nudge state and next interval
-  test        Send a test notification immediately
+  status
+    Shows whether Refocus is enabled or disabled.
+    Prints the active crontab entry for focus-nudge (or reports it missing).
 
-OPTIONS
-  --interval <seconds>  Set notification interval (default: 3000)
-  --message "..."       Override default nudge message
+  test
+    Fires a test desktop notification via notify-send.
+    Runs focus-nudge directly and reports pass/fail.
+    Prints the crontab entry.
+    Use this to debug notification issues (DISPLAY, WAYLAND_DISPLAY, DBUS).
 
-EXAMPLES
-  focus nudge enable
-  focus nudge enable --interval 1800
-  focus nudge status
-  focus nudge test --message "Time to stretch!"
-
-NOTES
-  - Uses system notifications (`notify-send` or OS equivalent).
-  - State persists across sessions until explicitly disabled.
-  - Interval is stored in DB; respects user overrides.
+ARCHITECTURE NOTE
+  The nudge script (focus-nudge) is a standalone payload that sources
+  config.sh and database.sh, then fires a notification appropriate to
+  the current state:
+    active  → 'Focusing on: X (Nm)'
+    paused  → 'Paused: X'
+    idle    → 'Not focusing on anything.'
+  It exits silently when focus_disabled=1.

@@ -5,11 +5,10 @@ set -euo pipefail
 INSTALL_DIR="$HOME/.local/refocus"
 BIN_DIR="$HOME/.local/bin"
 SRC_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
-
 _info()  { echo "  $1"; }
-_ok()    { echo "✅ $1"; }
-_warn()  { echo "⚠  $1"; }
-_die()   { echo "❌ $1" >&2; exit 1; }
+_ok()    { echo "$1"; }
+_warn()  { echo "  $1"; }
+_die()   { echo "$1" >&2; exit 1; }
 
 install_deps() {
     local missing=()
@@ -23,7 +22,6 @@ install_deps() {
     if command -v apt-get &>/dev/null; then
         sudo apt-get install -y "${missing[@]}"
     elif command -v pacman &>/dev/null; then
-        # map names
         local pkgs=()
         for p in "${missing[@]}"; do
             case $p in
@@ -49,21 +47,31 @@ install_deps() {
 }
 
 install_files() {
-    # Confirm before wiping an existing installation
+    local db_tmp="" env_tmp=""
+
     if [[ -d "$INSTALL_DIR" ]]; then
-        echo -n "⚠  Existing installation found. This will wipe all data and config. Continue? (yes/N): "
+        echo -n "Existing installation found. Code will be updated; data and config preserved. Continue? (yes/N): "
         read -r ans
         [[ "$ans" == "yes" ]] || { echo "Aborted."; exit 0; }
+
+        # Stash data before the code wipe
+        if [[ -f "$INSTALL_DIR/refocus.db" ]]; then
+            db_tmp=$(mktemp)
+            cp "$INSTALL_DIR/refocus.db" "$db_tmp"
+        fi
+        if [[ -f "$INSTALL_DIR/.env" ]]; then
+            env_tmp=$(mktemp)
+            cp "$INSTALL_DIR/.env" "$env_tmp"
+        fi
     fi
 
-    # Strip any stale nudge cron entry before wiping
-    local tmp
-    tmp=$(mktemp)
-    crontab -l 2>/dev/null | grep -v "$INSTALL_DIR/focus-nudge" > "$tmp" || true
+    # Strip any stale nudge cron entry before wiping (fixed-string — dots in path are literal)
+    local tmp; tmp=$(mktemp)
+    crontab -l 2>/dev/null | grep -vF "$INSTALL_DIR/focus-nudge" > "$tmp" || true
     crontab "$tmp"
     rm -f "$tmp"
 
-    # Clean slate
+    # Wipe and rebuild
     rm -rf "$INSTALL_DIR"
     mkdir -p "$INSTALL_DIR/services" "$INSTALL_DIR/lib" "$BIN_DIR"
 
@@ -72,14 +80,18 @@ install_files() {
     cp "$SRC_DIR/focus-nudge"    "$INSTALL_DIR/"
     cp "$SRC_DIR/services/"*.sh  "$INSTALL_DIR/services/"
     cp "$SRC_DIR/lib/"*.sh       "$INSTALL_DIR/lib/"
+    [[ -d "$SRC_DIR/docs" ]]     && cp -r "$SRC_DIR/docs" "$INSTALL_DIR/docs"
 
     chmod +x "$INSTALL_DIR/focus"
     chmod +x "$INSTALL_DIR/focus-nudge"
     chmod +x "$INSTALL_DIR/lib/"*.sh
     chmod +x "$INSTALL_DIR/services/"*.sh
 
-    ln -sf "$INSTALL_DIR/focus" "$BIN_DIR/focus"
+    # Restore stashed data
+    [[ -n "$db_tmp"  ]] && { mv "$db_tmp"  "$INSTALL_DIR/refocus.db"; _ok "Database preserved."; }
+    [[ -n "$env_tmp" ]] && { mv "$env_tmp" "$INSTALL_DIR/.env";       _ok "Config (.env) preserved."; }
 
+    ln -sf "$INSTALL_DIR/focus" "$BIN_DIR/focus"
     _ok "Files installed to $INSTALL_DIR"
 }
 
@@ -110,7 +122,8 @@ case "${1:-install}" in
         echo "Installing Refocus Shell..."
         install_deps
         install_files
-        init_db
+        # Only init DB if it does not already exist (preserved from prior install)
+        [[ -f "$INSTALL_DIR/refocus.db" ]] || init_db
         install_shell
         echo ""
         echo "Done. Open a new terminal or run: source ~/.bashrc"
@@ -119,14 +132,12 @@ case "${1:-install}" in
         echo -n "Remove $INSTALL_DIR and shell integration? (yes/N): "
         read -r ans
         [[ "$ans" == "yes" ]] || { echo "Cancelled."; exit 0; }
-        # Remove cron first
-        REFOCUS_ROOT="$INSTALL_DIR" source "$INSTALL_DIR/services/cron.sh" 2>/dev/null && cron_remove 2>/dev/null || true
+        REFOCUS_ROOT="$INSTALL_DIR" source "$INSTALL_DIR/services/cron.sh" 2>/dev/null             && cron_remove 2>/dev/null || true
         rm -rf "$INSTALL_DIR"
         rm -f  "$BIN_DIR/focus"
-        # Remove bashrc line
         rc="$HOME/.bashrc"
         sed -i '/# Refocus Shell/d' "$rc"
-        sed -i "\|focus-function.sh|d" "$rc"
+        sed -i "|focus-function.sh|d" "$rc"
         _ok "Uninstalled."
         ;;
     *)

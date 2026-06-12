@@ -247,3 +247,19 @@ db_import_session_row() {
         VALUES ('$(_q "$project")', $start_sql, $end_sql,
                 $duration, '$(_q "$notes")', $duration_only, $date_sql);"
 }
+
+update_duration_session() {
+    # Rename and/or re-duration a duration-only session. Never touches timestamps.
+    local id="$1" project="$2" duration="$3"
+    _exec "UPDATE sessions SET project='$(_q "$project")', duration_seconds=$duration WHERE id=$id;"
+}
+
+reset_state_post_import() {
+    # State is runtime, not data. After any import, normalize to idle+disabled.
+    # Sessions were restored verbatim. User must 'focus enable' consciously.
+    _exec "UPDATE state SET
+        active=0, project=NULL, start_time=NULL,
+        paused=0, pause_start_time=NULL, previous_elapsed=0,
+        focus_disabled=1, last_off_time=NULL
+        WHERE id=1;"
+}

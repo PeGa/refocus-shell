@@ -2,7 +2,7 @@
 set -euo pipefail
 source "$REFOCUS_ROOT/config.sh"
 
-ENV_FILE="$(dirname "$DB_PATH")/.env"
+# ENV_FILE is exported by config.sh — no need to re-derive it here.
 
 _show() {
     echo "Effective configuration:"

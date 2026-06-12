@@ -1,30 +1,26 @@
-# Refocus Shell - Report Command
-# ==============================
+# focus report — Generate time reports
+# ======================================
 
 USAGE
-  focus report [period] [options]
+  focus report today
+  focus report week
+  focus report month
+  focus report custom <days>
 
-ARGUMENTS
-  [period]        Time range for the report (default: today)
+OUTPUT FOR EACH PERIOD
+  - Period range (start date to end date)
+  - Total time across all sessions
+  - Per-project breakdown: total time and session count
+  - Per-session detail: ID, timestamps or date, duration, notes
 
 PERIODS
-  today           Current day's sessions
-  week            Last 7 days
-  month           Last 30 days
-  year            Current year
-  all             Entire history
-
-OPTIONS
-  --project "..." Filter by specific project
-  --format json|csv Export to file instead of terminal
-  --output <file> Destination for exported reports
-
-EXAMPLES
-  focus report today
-  focus report week --project "Development"
-  focus report month --format csv --output monthly.csv
+  today     Current calendar day
+  week      Last 7 days
+  month     Last 30 days
+  custom N  Last N days
 
 NOTES
-  - Reports aggregate duration, session count, and project breakdown.
-  - Terminal output is formatted with aligned columns.
-  - CSV exports include headers and ISO-formatted timestamps.
+  - Duration-only sessions (from 'past add --duration') are included using
+    their session_date field for range filtering.
+  - Sessions are sorted by end time descending within the period.
+  - Reports print to stdout; redirect to a file or pipe to less as needed.

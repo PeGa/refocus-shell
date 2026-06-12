@@ -13,10 +13,19 @@ case "$file" in
     *.sql)  fmt=sql  ;;
     *.json) fmt=json ;;
     *)
-        # Sniff content
         head -1 "$file" | grep -q "PRAGMA\|BEGIN\|CREATE\|INSERT" && fmt=sql || fmt=json
         ;;
 esac
+
+# Warn if a session is in flight
+db_ensure
+if is_session_active; then
+    IFS='|' read -r _ project _ <<< "$(get_state)"
+    echo "⚠  Active session '$project' will be discarded."
+elif is_session_paused; then
+    IFS='|' read -r _ project _ <<< "$(get_state)"
+    echo "⚠  Paused session '$project' will be discarded."
+fi
 
 echo -n "⚠  Import will overwrite all data. Continue? (yes/N): "
 read -r ans
@@ -35,7 +44,10 @@ cron_remove 2>/dev/null || true
 if [[ "$fmt" == "sql" ]]; then
     rm -f "$DB_PATH"
     db_load_sql "$file"
+    # State is runtime — normalize to idle+disabled regardless of what was exported.
+    reset_state_post_import
     echo "✅ Imported from SQL: $file"
+    echo "   Run 'focus enable' to resume tracking."
     exit 0
 fi
 
@@ -45,8 +57,8 @@ command -v jq &>/dev/null || { echo "❌ jq required for JSON import. Install it
 rm -f "$DB_PATH"
 db_init
 
-# Sessions — full fidelity through the adapter. Older exports may carry a
-# 'projects' array; it's from the dead model and is ignored on purpose.
+# Sessions — verbatim, full fidelity. Older exports may carry a 'projects' array;
+# that's from the dead model and silently ignored by the '[]?' optional iterator.
 jq -c '.sessions[]?' "$file" | while IFS= read -r row; do
     project=$(jq -r '.project'            <<< "$row")
     start=$(  jq -r '.start_time  // ""'  <<< "$row")
@@ -58,4 +70,7 @@ jq -c '.sessions[]?' "$file" | while IFS= read -r row; do
     db_import_session_row "$project" "$start" "$end" "$dur" "$notes" "$donly" "$sdate"
 done
 
+# Normalize state — db_init defaults focus_disabled=0; set it to 1 explicitly.
+reset_state_post_import
 echo "✅ Imported from JSON: $file"
+echo "   Run 'focus enable' to resume tracking."

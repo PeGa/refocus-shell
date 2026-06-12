@@ -25,7 +25,7 @@ case "$sub" in
             || echo "❌ notify-send: failed — check DISPLAY/WAYLAND_DISPLAY"
         echo ""
         echo "Testing nudge script directly..."
-        bash "$HOME/.local/refocus/focus-nudge" \
+        bash "$REFOCUS_ROOT/focus-nudge" \
             && echo "✅ focus-nudge: OK" \
             || echo "❌ focus-nudge: failed"
         echo ""

@@ -1,23 +1,29 @@
-# Refocus Shell - Focus On Command
-# ================================
+# focus on — Start a session
+# ==========================
 
 USAGE
-  focus on "<project>" [options]
+  focus on [project]
 
-ARGUMENTS
-  <project>       Name of the project to focus on
+BEHAVIOUR
+  No project given
+    Offers to continue the last project. Shows total time logged.
+    If the user answers No, exits cleanly with a hint.
+    If no history exists, requires a project name (exit 2).
 
-OPTIONS
-  -d, --duration <min>    Set expected duration in minutes
-  -n, --notes "..."       Add initial notes for the session
-  -r, --reset             Clear previous session state before starting
+  Project given, prior time logged
+    Typo guard: "X has Ym logged. Continue? (Y/n)"
+    This catches accidental mis-spellings before starting a duplicate ledger.
 
-EXAMPLES
-  focus on "Article Draft"
-  focus on "Research" --duration 60 --notes "Need to review sources"
-  focus on "Coding Sprint" -r
+  Project given, no prior time
+    Starts immediately, no prompt.
+
+  While disabled
+    Hard stop: run 'focus enable' first. (exit 1)
+
+  While active or paused
+    Hard stop: tells you what's running and how to resolve. (exit 1)
 
 NOTES
-  - Creates a new session record in the database.
-  - Automatically starts the nudge timer if enabled.
-  - Project names are case-sensitive and should avoid special characters.
+  - Projects are labels, not stored entities. The name IS the identity.
+  - Recommended naming: customer/project-name (git-commit style, no spaces).
+  - Max project name length: MAX_PROJECT_LENGTH (default 100 chars).

@@ -1,0 +1,23 @@
+# focus status — Show current state
+# ===================================
+
+USAGE
+  focus status
+
+OUTPUT
+  Disabled
+    '🚫 Refocus disabled — run focus enable to start tracking.'
+    Shows last session if available.
+
+  Active session
+    '⏳ Focusing on: <project> — Nm (Total: Xm)'
+    Total = sum of all recorded sessions for this project.
+
+  Paused session
+    '⏸  Paused: <project>'
+    Session so far (previous_elapsed) and time paused so far.
+    Hints for continue and off.
+
+  Idle (no session)
+    '✅ Not focusing.'
+    Shows last session: project, duration, time since.

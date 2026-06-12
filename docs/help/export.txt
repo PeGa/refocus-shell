@@ -1,20 +1,18 @@
-# Refocus Shell - Export Command
-# =============================
+# focus export — Export session data
+# ====================================
 
 USAGE
-  focus export [options]
+  focus export [basename]
 
-OPTIONS
-  -o, --output <file>     Destination file (default: ~/.local/refocus/export.json)
-  -f, --format json|csv   Output format (default: json)
-  --all                   Export full database, not just sessions
+  basename defaults to 'refocus-export-YYYYMMDD_HHMMSS'
 
-EXAMPLES
-  focus export
-  focus export --output backup.json --format json
-  focus export --all -f csv -o data.csv
+OUTPUT
+  basename.sql    Full SQLite dump (schema + data). Safe backup format.
+  basename.json   JSON export: { exported_at, db_path, state, sessions }
 
 NOTES
-  - JSON exports include sessions, projects, and state.
-  - CSV exports contain session logs only.
-  - File path must be writable; creates parent directories if missing.
+  - JSON export does NOT include a 'projects' array (projects are labels,
+    not stored entities in the settled model).
+  - SQL export is the recommended backup format. It restores exactly.
+  - JSON export is for portability and human inspection.
+  - Neither format requires jq. JSON import requires jq.
