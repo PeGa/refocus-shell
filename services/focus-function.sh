@@ -8,8 +8,8 @@ _REFOCUS_INSTALL="${_REFOCUS_INSTALL:-$HOME/.local/refocus}"
 # Source config + database adapter ONCE, at shell init. The prompt hook talks
 # to the adapter (get_state) — no SQL escapes database.sh, not even here.
 # Neither file sets errexit, so this is safe to pull into an interactive shell.
-if [[ -f "$_REFOCUS_INSTALL/config.sh" && -f "$_REFOCUS_INSTALL/services/database.sh" ]]; then
-    source "$_REFOCUS_INSTALL/config.sh"
+if [[ -f "$_REFOCUS_INSTALL/env.sh" && -f "$_REFOCUS_INSTALL/services/database.sh" ]]; then
+    source "$_REFOCUS_INSTALL/env.sh"
     source "$_REFOCUS_INSTALL/services/database.sh"
 fi
 

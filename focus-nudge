@@ -4,7 +4,7 @@
 # Fires in all states. Only exits early when focus_disabled = 1.
 
 REFOCUS_ROOT="${REFOCUS_ROOT:-$HOME/.local/refocus}"
-source "$REFOCUS_ROOT/config.sh"
+source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
 
 [[ -f "$DB_PATH" ]]  || exit 0

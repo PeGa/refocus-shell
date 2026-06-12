@@ -75,7 +75,7 @@ install_files() {
     rm -rf "$INSTALL_DIR"
     mkdir -p "$INSTALL_DIR/services" "$INSTALL_DIR/lib" "$INSTALL_DIR/core" "$BIN_DIR"
 
-    cp "$SRC_DIR/config.sh"      "$INSTALL_DIR/"
+    cp "$SRC_DIR/env.sh"      "$INSTALL_DIR/"
     cp "$SRC_DIR/focus"          "$INSTALL_DIR/"
     cp "$SRC_DIR/focus-nudge"    "$INSTALL_DIR/"
     cp "$SRC_DIR/services/"*.sh  "$INSTALL_DIR/services/"
@@ -138,7 +138,7 @@ DESKTOP
 
 init_and_enable() {
     export REFOCUS_ROOT="$INSTALL_DIR"
-    source "$INSTALL_DIR/config.sh"
+    source "$INSTALL_DIR/env.sh"
     source "$INSTALL_DIR/services/database.sh"
     source "$INSTALL_DIR/services/cron.sh"
     db_init                 # INSERT OR IGNORE — no-op on a preserved DB

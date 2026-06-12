@@ -3,7 +3,7 @@ set -euo pipefail
 
 REFOCUS_ROOT="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 export REFOCUS_ROOT
-source "$REFOCUS_ROOT/config.sh"
+source "$REFOCUS_ROOT/env.sh"
 
 cmd="${1:-help}"
 shift || true

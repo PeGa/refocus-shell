@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Refocus Shell - Configuration
+# Refocus Shell - Environment loader
+# Loads defaults and .env overrides, exports them for all handlers.
+# The 'focus config' command (lib/config.sh) reads/writes the .env this loads.
 # Defaults can be overridden via REFOCUS_* env vars or the .env file
 # co-located with the database.
 

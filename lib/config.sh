@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-source "$REFOCUS_ROOT/config.sh"
+source "$REFOCUS_ROOT/env.sh"
 
-# ENV_FILE is exported by config.sh — no need to re-derive it here.
+# ENV_FILE is exported by env.sh — no need to re-derive it here.
 
 _show() {
     echo "Effective configuration:"
