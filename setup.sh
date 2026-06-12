@@ -113,11 +113,38 @@ install_shell() {
     fi
 }
 
-init_db() {
-    REFOCUS_ROOT="$INSTALL_DIR" source "$INSTALL_DIR/config.sh"
-    REFOCUS_ROOT="$INSTALL_DIR" source "$INSTALL_DIR/services/database.sh"
-    db_init
-    _ok "Database initialised at $DB_PATH"
+install_desktop_entry() {
+    # Registers Refocus with the desktop notification subsystem so nudges are
+    # logged in notification history. Plasma (and other XDG-compliant daemons)
+    # match the desktop-entry hint sent by focus-nudge against this file's
+    # basename: 'refocus'. Without it, the bubble shows but is discarded.
+    local app_dir="$HOME/.local/share/applications"
+    local desktop="$app_dir/refocus.desktop"
+    mkdir -p "$app_dir"
+    cat > "$desktop" <<'DESKTOP'
+[Desktop Entry]
+Type=Application
+Name=Refocus
+Comment=Focus and time tracker
+Icon=appointment-soon
+NoDisplay=true
+NotifyRcName=refocus
+DESKTOP
+    if command -v update-desktop-database &>/dev/null; then
+        update-desktop-database "$app_dir" 2>/dev/null || true
+    fi
+    _ok "Desktop entry installed (notifications will appear in history)."
+}
+
+init_and_enable() {
+    export REFOCUS_ROOT="$INSTALL_DIR"
+    source "$INSTALL_DIR/config.sh"
+    source "$INSTALL_DIR/services/database.sh"
+    source "$INSTALL_DIR/services/cron.sh"
+    db_init                 # INSERT OR IGNORE — no-op on a preserved DB
+    set_focus_enabled
+    cron_install || _warn "Could not arm cron nudge — run 'focus enable' manually."
+    _ok "Database ready and nudging armed."
 }
 
 case "${1:-install}" in
@@ -125,9 +152,10 @@ case "${1:-install}" in
         echo "Installing Refocus Shell..."
         install_deps
         install_files
-        # Only init DB if it does not already exist (preserved from prior install)
-        [[ -f "$INSTALL_DIR/refocus.db" ]] || init_db
+        [[ -f "$INSTALL_DIR/refocus.db" ]] && _ok "Existing database preserved."
+        init_and_enable
         install_shell
+        install_desktop_entry
         echo ""
         echo "Done. Open a new terminal or run: source ~/.bashrc"
         ;;
@@ -142,6 +170,7 @@ case "${1:-install}" in
         fi
         rm -rf "$INSTALL_DIR"
         rm -f  "$BIN_DIR/focus"
+        rm -f  "$HOME/.local/share/applications/refocus.desktop"
         rc="$HOME/.bashrc"
         sed -i '/# Refocus Shell/d' "$rc"
         sed -i '/focus-function\.sh/d' "$rc"

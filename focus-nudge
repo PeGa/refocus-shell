@@ -15,7 +15,12 @@ IFS='|' read -r active project start_time paused _ _ _ _ <<< "$(get_state)"
 _notify() {
     local title="$1" body="$2"
     if command -v notify-send &>/dev/null; then
-        notify-send "$title" "$body" 2>/dev/null && return
+        # --hint=desktop-entry:refocus links to refocus.desktop so the
+        # notification daemon logs it in history instead of discarding it.
+        notify-send \
+            --app-name="Refocus" \
+            --hint=string:desktop-entry:refocus \
+            "$title" "$body" 2>/dev/null && return
     fi
     logger -t refocus "$title: $body"
 }
