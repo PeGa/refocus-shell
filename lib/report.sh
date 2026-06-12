@@ -27,7 +27,7 @@ _report() {
         sessions=$(( sessions + 1 ))
         proj_dur[$project]=$(( ${proj_dur[$project]:-0} + dur ))
         proj_cnt[$project]=$(( ${proj_cnt[$project]:-0} + 1 ))
-    done < <(db_list_sessions_in_range "$start" "$end")
+    done < <(list_sessions_in_range "$start" "$end")
 
     echo "Total: $(_fmt_dur $total) across $sessions session(s)"
     echo ""
@@ -35,9 +35,7 @@ _report() {
     if [[ ${#proj_dur[@]} -gt 0 ]]; then
         echo "Projects:"
         for p in "${!proj_dur[@]}"; do
-            desc=$(db_get_description "$p")
             printf "  %-24s %s (%d session(s))\n" "$p" "$(_fmt_dur "${proj_dur[$p]}")" "${proj_cnt[$p]}"
-            [[ -n "$desc" ]] && printf "  %-24s %s\n" "" "↳ $desc"
         done
         echo ""
     fi
@@ -52,7 +50,7 @@ _report() {
             echo "  [$id] $project — $s–$e ($(_fmt_dur "$dur"))"
         fi
         [[ -n "$notes" ]] && echo "       📝 $notes" || true
-    done < <(db_list_sessions_in_range "$start" "$end")
+    done < <(list_sessions_in_range "$start" "$end")
 }
 
 period="${1:-today}"

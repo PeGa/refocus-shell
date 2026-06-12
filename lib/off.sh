@@ -5,7 +5,7 @@ source "$REFOCUS_ROOT/services/database.sh"
 
 db_ensure
 
-IFS='|' read -r active project start_time paused _ previous_elapsed _ _ <<< "$(db_get_state)"
+IFS='|' read -r active project start_time paused _ previous_elapsed _ _ <<< "$(get_state)"
 
 if [[ "$active" != "1" && "$paused" != "1" ]]; then
     echo "❌ No active session." >&2; exit 1
@@ -28,8 +28,8 @@ echo ""
 echo -n "📝 What did you accomplish? (Enter to skip): "
 read -r notes
 
-db_insert_session "$project" "$start_time" "$now" "$duration" "$notes"
-db_end_session "$now"
+record_session "$project" "$start_time" "$now" "$duration" "$notes"
+end_session "$now"
 
 if [[ -n "$notes" ]]; then
     echo "✅ Stopped. Notes: $notes"

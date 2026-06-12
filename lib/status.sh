@@ -5,7 +5,7 @@ source "$REFOCUS_ROOT/services/database.sh"
 
 db_ensure
 
-IFS='|' read -r active project start_time paused pause_start_time previous_elapsed _ _ <<< "$(db_get_state)"
+IFS='|' read -r active project start_time paused pause_start_time previous_elapsed _ _ <<< "$(get_state)"
 now_ts=$(date +%s)
 
 if [[ "$active" == "1" ]]; then
@@ -13,7 +13,7 @@ if [[ "$active" == "1" ]]; then
     elapsed=$(( now_ts - start_ts ))
     elapsed_min=$(( elapsed / 60 ))
 
-    total=$(db_get_total_time "$project")
+    total=$(get_total_time "$project")
     total_min=$(( total / 60 ))
 
     echo -n "⏳ Focusing on: $project — ${elapsed_min}m"
@@ -32,7 +32,7 @@ elif [[ "$paused" == "1" ]]; then
 else
     echo "✅ Not focusing."
 
-    last=$(db_get_last_session)
+    last=$(get_last_session)
     if [[ -n "$last" ]]; then
         IFS='|' read -r last_project last_end last_dur <<< "$last"
         last_ts=$(date --date="$last_end" +%s 2>/dev/null || echo 0)

@@ -4,21 +4,24 @@
 #   source ~/.local/refocus/services/focus-function.sh
 
 _REFOCUS_INSTALL="${_REFOCUS_INSTALL:-$HOME/.local/refocus}"
-_REFOCUS_DB="${REFOCUS_DB_PATH:-$HOME/.local/refocus/refocus.db}"
+
+# Source config + database adapter ONCE, at shell init. The prompt hook talks
+# to the adapter (get_state) — no SQL escapes database.sh, not even here.
+# Neither file sets errexit, so this is safe to pull into an interactive shell.
+if [[ -f "$_REFOCUS_INSTALL/config.sh" && -f "$_REFOCUS_INSTALL/services/database.sh" ]]; then
+    source "$_REFOCUS_INSTALL/config.sh"
+    source "$_REFOCUS_INSTALL/services/database.sh"
+fi
 
 # Save original PS1 once
 [[ -z "${_REFOCUS_ORIGINAL_PS1:-}" ]] && export _REFOCUS_ORIGINAL_PS1="$PS1"
 
-# Prompt hook — reads state from DB, updates PS1
+# Prompt hook — reads state through the adapter, updates PS1
 _refocus_prompt() {
-    [[ -f "$_REFOCUS_DB" ]] || return
-
-    local row
-    row=$(sqlite3 -separator '|' "$_REFOCUS_DB" \
-        "SELECT active, project, paused FROM state WHERE id=1;" 2>/dev/null) || return
+    [[ -f "${DB_PATH:-}" ]] || return
 
     local active project paused
-    IFS='|' read -r active project paused <<< "$row"
+    IFS='|' read -r active project _ paused _ _ _ _ <<< "$(get_state 2>/dev/null)"
 
     if [[ "$active" == "1" && -n "$project" ]]; then
         PS1="⏳ [$project] $_REFOCUS_ORIGINAL_PS1"

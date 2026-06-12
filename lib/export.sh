@@ -11,29 +11,19 @@ sql_file="${base}.sql"
 json_file="${base}.json"
 
 # ── SQL dump ──────────────────────────────────────────────────────────────────
-sqlite3 "$DB_PATH" .dump > "$sql_file"
+db_dump_sql > "$sql_file"
 echo "✅ SQL:  $sql_file"
 
 # ── JSON export ───────────────────────────────────────────────────────────────
-# sqlite3 -json available since 3.33 (2020). Ubuntu 24 ships 3.45. Safe.
 {
     echo "{"
     echo "  \"exported_at\": \"$(date -Iseconds)\","
     echo "  \"db_path\": \"$DB_PATH\","
-
     echo "  \"state\":"
-    sqlite3 -json "$DB_PATH" "SELECT * FROM state WHERE id=1;" \
-        | tr -d '\n' | sed 's/^\[//;s/\]$//'
+    db_export_state_json
     echo ","
-
     echo "  \"sessions\":"
-    result=$(sqlite3 -json "$DB_PATH" "SELECT * FROM sessions ORDER BY id;")
-    echo "${result:-[]}"
-    echo ","
-
-    echo "  \"projects\":"
-    result=$(sqlite3 -json "$DB_PATH" "SELECT * FROM projects ORDER BY name;")
-    echo "${result:-[]}"
+    db_export_sessions_json
     echo "}"
 } > "$json_file"
 

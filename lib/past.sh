@@ -38,7 +38,7 @@ case "$sub" in
             fi
             printf "%-4s %-22s %-19s %-19s %-8s\n" "$id" "$project" "$s" "$e" "$(_fmt_duration "$dur")"
             [[ -n "$notes" ]] && echo "     📝 $notes" || true
-        done < <(db_list_sessions "$limit")
+        done < <(list_sessions "$limit")
         ;;
 
     add)
@@ -64,7 +64,7 @@ case "$sub" in
 
             date_iso=$(date --date="$date_str" +"$DATE_FORMAT" 2>/dev/null) || { echo "❌ Bad date: $date_str" >&2; exit 2; }
             echo -n "📝 Notes (Enter to skip): "; read -r notes
-            db_insert_duration_session "$project" "$dur" "$date_iso" "$notes"
+            record_duration_session "$project" "$dur" "$date_iso" "$notes"
             echo "✅ Added $project — $dur_str on $date_iso"
 
         else
@@ -81,7 +81,7 @@ case "$sub" in
             dur=$(( end_ts - start_ts ))
 
             echo -n "📝 Notes (Enter to skip): "; read -r notes
-            db_insert_session "$project" "$start" "$end" "$dur" "$notes"
+            record_session "$project" "$start" "$end" "$dur" "$notes"
             echo "✅ Added $project — $(_fmt_duration "$dur")"
         fi
         ;;
@@ -90,7 +90,7 @@ case "$sub" in
         id="${1:-}"; [[ -z "$id" ]] && { echo "Usage: focus past modify <id> [project] [start] [end]" >&2; exit 2; }
         shift
 
-        row=$(db_get_session "$id")
+        row=$(get_session "$id")
         [[ -z "$row" ]] && { echo "❌ Session $id not found." >&2; exit 1; }
         IFS='|' read -r _ cur_proj cur_start cur_end cur_dur _ _ _ <<< "$row"
 
@@ -107,19 +107,19 @@ case "$sub" in
         e_ts=$(date --date="$new_end"   +%s)
         new_dur=$(( e_ts - s_ts ))
 
-        db_update_session "$id" "$new_proj" "$new_start" "$new_end" "$new_dur"
+        update_session "$id" "$new_proj" "$new_start" "$new_end" "$new_dur"
         echo "✅ Session $id updated."
         ;;
 
     delete|del|rm)
         id="${1:-}"; [[ -z "$id" ]] && { echo "Usage: focus past delete <id>" >&2; exit 2; }
-        row=$(db_get_session "$id")
+        row=$(get_session "$id")
         [[ -z "$row" ]] && { echo "❌ Session $id not found." >&2; exit 1; }
         IFS='|' read -r _ project _ _ dur _ <<< "$row"
         echo -n "Delete session $id ($project, $(_fmt_duration "$dur"))? (y/N): "
         read -r ans
         [[ "${ans:-N}" =~ ^[Yy]$ ]] || { echo "Cancelled."; exit 0; }
-        db_delete_session "$id"
+        delete_session "$id"
         echo "✅ Deleted."
         ;;
 

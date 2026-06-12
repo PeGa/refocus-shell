@@ -5,11 +5,12 @@ NUDGE_BIN="$HOME/.local/refocus/focus-nudge"
 CRON_BACKUP="$HOME/.local/refocus/.cron_backup"
 
 cron_install() {
-    local project="$1" start_time="$2"
+    # Cron is armed at 'focus enable', independent of any session. Phase the
+    # nudge schedule to the current minute so it fires every $interval minutes.
     local interval="${NUDGE_INTERVAL:-10}"
 
     local start_min
-    start_min=$(date --date="$start_time" +%M 2>/dev/null || date +%M)
+    start_min=$(date +%M)
     local ones=$(( 10#$start_min % interval ))
     local pattern="${ones}-59/${interval}"
     local entry="$pattern * * * * DISPLAY=${DISPLAY:-} WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-} DBUS_SESSION_BUS_ADDRESS=${DBUS_SESSION_BUS_ADDRESS:-} $NUDGE_BIN"

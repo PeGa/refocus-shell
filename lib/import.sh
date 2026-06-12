@@ -34,7 +34,7 @@ cron_remove 2>/dev/null || true
 # ── SQL import ────────────────────────────────────────────────────────────────
 if [[ "$fmt" == "sql" ]]; then
     rm -f "$DB_PATH"
-    sqlite3 "$DB_PATH" < "$file"
+    db_load_sql "$file"
     echo "✅ Imported from SQL: $file"
     exit 0
 fi
@@ -45,34 +45,17 @@ command -v jq &>/dev/null || { echo "❌ jq required for JSON import. Install it
 rm -f "$DB_PATH"
 db_init
 
-# Sessions
+# Sessions — full fidelity through the adapter. Older exports may carry a
+# 'projects' array; it's from the dead model and is ignored on purpose.
 jq -c '.sessions[]?' "$file" | while IFS= read -r row; do
-    project=$(jq -r '.project'          <<< "$row")
-    start=$(  jq -r '.start_time  // ""' <<< "$row")
-    end=$(    jq -r '.end_time    // ""' <<< "$row")
-    dur=$(    jq -r '.duration_seconds'  <<< "$row")
-    notes=$(  jq -r '.notes       // ""' <<< "$row")
+    project=$(jq -r '.project'            <<< "$row")
+    start=$(  jq -r '.start_time  // ""'  <<< "$row")
+    end=$(    jq -r '.end_time    // ""'  <<< "$row")
+    dur=$(    jq -r '.duration_seconds'   <<< "$row")
+    notes=$(  jq -r '.notes       // ""'  <<< "$row")
     donly=$(  jq -r '.duration_only // 0' <<< "$row")
     sdate=$(  jq -r '.session_date // ""' <<< "$row")
-
-    sqlite3 "$DB_PATH" "INSERT INTO sessions
-        (project, start_time, end_time, duration_seconds, notes, duration_only, session_date)
-        VALUES ('$(_q "$project")',
-                $([ -n "$start" ] && echo "'$(_q "$start")'" || echo "NULL"),
-                $([ -n "$end"   ] && echo "'$(_q "$end")'"   || echo "NULL"),
-                $dur,
-                '$(_q "$notes")',
-                $donly,
-                $([ -n "$sdate" ] && echo "'$(_q "$sdate")'" || echo "NULL"));"
-done
-
-# Projects
-jq -c '.projects[]?' "$file" | while IFS= read -r row; do
-    name=$(jq -r '.name'        <<< "$row")
-    desc=$(jq -r '.description' <<< "$row")
-    cat=$(jq -r '.created_at'   <<< "$row")
-    sqlite3 "$DB_PATH" "INSERT OR REPLACE INTO projects (name, description, created_at)
-        VALUES ('$(_q "$name")', '$(_q "$desc")', '$(_q "$cat")');"
+    db_import_session_row "$project" "$start" "$end" "$dur" "$notes" "$donly" "$sdate"
 done
 
 echo "✅ Imported from JSON: $file"

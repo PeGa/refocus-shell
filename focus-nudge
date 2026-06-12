@@ -10,7 +10,7 @@ source "$REFOCUS_ROOT/services/database.sh"
 [[ -f "$DB_PATH" ]]  || exit 0
 is_focus_disabled    && exit 0
 
-IFS='|' read -r active project start_time paused _ _ _ _ <<< "$(db_get_state)"
+IFS='|' read -r active project start_time paused _ _ _ _ <<< "$(get_state)"
 
 _notify() {
     local title="$1" body="$2"
