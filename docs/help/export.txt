@@ -1,0 +1,18 @@
+# focus export — Export session data
+# ====================================
+
+USAGE
+  focus export [basename]
+
+  basename defaults to 'refocus-export-YYYYMMDD_HHMMSS'
+
+OUTPUT
+  basename.sql    Full SQLite dump (schema + data). Safe backup format.
+  basename.json   JSON export: { exported_at, db_path, state, sessions }
+
+NOTES
+  - JSON export does NOT include a 'projects' array (projects are labels,
+    not stored entities in the settled model).
+  - SQL export is the recommended backup format. It restores exactly.
+  - JSON export is for portability and human inspection.
+  - Neither format requires jq. JSON import requires jq.

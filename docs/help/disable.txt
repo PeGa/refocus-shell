@@ -1,0 +1,18 @@
+# focus disable — Disable Refocus and disarm the nudge cron
+# ===========================================================
+
+USAGE
+  focus disable
+
+BEHAVIOUR
+  Refuses if a session is active or paused.
+  Reason: a running timer and disabled tracking is an illegal state —
+  the timer would keep running with no nudges and no way to know.
+  Run 'focus off' to end the session first.
+
+  Sets focus_disabled=1 in state.
+  Removes the cron entry for focus-nudge.
+
+NOTES
+  - Disabling does NOT affect session data.
+  - Re-enable with 'focus enable'.

@@ -1,0 +1,32 @@
+# focus import — Import session data
+# ====================================
+
+USAGE
+  focus import <file.sql|file.json>
+
+BEHAVIOUR
+  Warns if a session is currently active or paused (it will be discarded).
+  Requires typing 'yes' at the confirmation prompt.
+  Backs up the current database before overwriting.
+  Removes the nudge cron.
+
+  Format detection: by extension (.sql/.json), then by content sniffing.
+
+  SQL import
+    Restores the full database from a .dump file.
+    State row is then normalized to idle+disabled regardless of what was exported.
+
+  JSON import
+    Rebuilds the database from scratch (db_init + row-by-row session insert).
+    Requires jq. Older exports with a 'projects' array are silently ignored.
+    State row is explicitly set to idle+disabled after all rows are inserted.
+
+  Post-import state (both formats)
+    active=0, paused=0, focus_disabled=1
+    Run 'focus enable' to resume tracking.
+
+EXIT CODES
+  Requires the literal word 'yes' — anything else cancels cleanly (exit 0).
+  exit 1 if file not found.
+  exit 2 if no file argument.
+  exit 1 if jq required but not available (JSON only).

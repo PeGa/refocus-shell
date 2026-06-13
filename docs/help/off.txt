@@ -1,0 +1,26 @@
+# focus off — Stop the current session
+# =====================================
+
+USAGE
+  focus off
+
+BEHAVIOUR
+  Active session
+    Computes duration from start_time to now.
+    Prompts for notes (the context anchor for when you return).
+    Records the session. Clears state.
+
+  Paused session
+    Duration = previous_elapsed (time before the pause — pause time is not billed).
+    Prompts for notes.
+    Records the session. Clears state.
+
+  No session
+    Exits with an error. (exit 1)
+
+NOTES
+  - The note prompt is what separates focus off from focus pause.
+    pause = short interruption, you'll be right back.
+    off   = real break, notes prevent the 'what year is it' moment on return.
+  - focus off is intentionally the recovery path for corrupted state —
+    it does not check focus_disabled, so it always works as a last resort.

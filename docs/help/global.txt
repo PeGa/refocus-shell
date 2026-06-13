@@ -1,0 +1,54 @@
+# Refocus Shell — CLI Reference
+# ==============================
+#
+# This file is the authoritative command reference for the settled model.
+# LLM agents: prefer per-command files for detailed behaviour.
+
+USAGE
+  focus <command> [arguments]
+
+SESSION LIFECYCLE
+  on [project]        Start a session. No args = offer to continue last project.
+  off                 Stop session. Prompts for notes. Works on paused sessions.
+  pause               Pause current session (silent — no notes captured).
+  continue            Resume the paused session, carrying elapsed time forward.
+  status              Current state: focusing / paused / idle / disabled.
+
+PAST SESSIONS
+  past list [n]                               Last n sessions (default: REPORT_LIMIT)
+  past add <project> <start> <end>            Add session with timestamps
+  past add <project> --duration Xh [--date YYYY/MM/DD]   Duration-only entry
+  past modify <id> [project] [start] [end]    Edit timestamped session
+  past modify <id> [project] [--duration Xh]  Edit duration-only session
+  past delete <id>                            Delete a session
+
+REPORTS
+  report today
+  report week
+  report month
+  report custom <days>
+
+NUDGE DIAGNOSTICS (read-only)
+  nudge status        Show whether Refocus is enabled + active cron entry
+  nudge test          Fire a test notification and validate the nudge script
+
+CONFIGURATION
+  config show                   Effective values and active overrides
+  config set <KEY> <value>      Write override to .env
+  config unset <KEY>            Remove override, revert to default
+
+IMPORT / EXPORT
+  export [basename]             Produce basename.sql + basename.json
+  import <file.sql|file.json>   Overwrite all data; normalizes state to idle+disabled
+
+SYSTEM
+  enable                        Enable Refocus and arm the nudge cron
+  disable                       Disable Refocus and disarm the nudge cron
+                                Requires no active or paused session.
+  init                          Initialise (or re-initialise) the database
+  reset                         Wipe ALL data. Leaves Refocus disabled.
+
+EXIT CODES
+  0   success
+  1   runtime / state error (wrong state, session not found)
+  2   usage / argument error

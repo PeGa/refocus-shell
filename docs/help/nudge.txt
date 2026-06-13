@@ -1,0 +1,30 @@
+# focus nudge — Nudge diagnostics
+# =================================
+#
+# nudge enable / nudge disable no longer exist.
+# Nudging is structural: it is armed by 'focus enable' and disarmed by
+# 'focus disable'. It is NOT a flag in the state table.
+
+USAGE
+  focus nudge status
+  focus nudge test
+
+SUBCOMMANDS
+  status
+    Shows whether Refocus is enabled or disabled.
+    Prints the active crontab entry for focus-nudge (or reports it missing).
+
+  test
+    Fires a test desktop notification via notify-send.
+    Runs focus-nudge directly and reports pass/fail.
+    Prints the crontab entry.
+    Use this to debug notification issues (DISPLAY, WAYLAND_DISPLAY, DBUS).
+
+ARCHITECTURE NOTE
+  The nudge script (focus-nudge) is a standalone payload that sources
+  config.sh and database.sh, then fires a notification appropriate to
+  the current state:
+    active  → 'Focusing on: X (Nm)'
+    paused  → 'Paused: X'
+    idle    → 'Not focusing on anything.'
+  It exits silently when focus_disabled=1.
