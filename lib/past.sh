@@ -69,7 +69,12 @@ case "$sub" in
         IFS="|" read -r _ cur_proj cur_start cur_end cur_dur _ cur_donly _ <<< "$row"
 
         if [[ "$cur_donly" == "1" ]]; then
-            new_proj="${1:-$cur_proj}"; shift || true
+            # Leading [project] is optional — only consume $1 as project when it
+            # isn't the --duration flag itself (CMD-PAST-ARGS).
+            new_proj="$cur_proj"
+            if [[ -n "${1:-}" && "${1:-}" != "--duration" ]]; then
+                new_proj="$1"; shift || true
+            fi
             new_dur="$cur_dur"
             if [[ "${1:-}" == "--duration" ]]; then
                 dur_str="${2:-}"; shift 2 || true

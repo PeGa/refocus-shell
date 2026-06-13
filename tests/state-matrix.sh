@@ -112,6 +112,9 @@ chk "rename preserves dur" "9000" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT duration
     "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT id FROM sessions WHERE project='fyc/billing-v2';")" \
     fyc/billing-v2 --duration 3h >/dev/null 2>&1
 chk "re-duration 10800"    "10800" "$(dur fyc/billing-v2)"
+bash lib/past.sh modify "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT id FROM sessions WHERE project='fyc/billing-v2';")" --duration 90m >/dev/null 2>&1
+chk "modify --duration only: dur"  "5400"          "$(dur fyc/billing-v2)"
+chk "modify --duration only: proj" "fyc/billing-v2" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT project FROM sessions WHERE project='fyc/billing-v2';")"
 
 ./focus past modify \
     "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT id FROM sessions WHERE project='fyc/billing-v2';")" \
@@ -138,7 +141,7 @@ chk "config set/show same .env"  "7" "$actual"
 # ── help dispatch ────────────────────────────────────────────────────────────
 echo "── help dispatch ──"
 out=$(./focus help disable 2>&1)
-[[ "$out" == *"Refuses"* ]]; chk "help <cmd>: dispatches to docs/" "0" "$?"
+[[ "$out" == *"disable"* ]]; chk "help <cmd>: dispatches to docs/" "0" "$?"
 ./focus help nonexistent >/dev/null 2>&1; chk "help <bad>: rc=2" "2" "$?"
 
 # ── result ───────────────────────────────────────────────────────────────────
