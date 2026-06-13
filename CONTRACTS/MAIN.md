@@ -11,19 +11,23 @@
 **Audience.** An agent (or developer) rebuilding refocus-shell from scratch, or
 modifying it without drifting from its design.
 
-**Acceptance oracle.** A correct rebuild passes both:
+**Acceptance oracle.** A correct build passes both:
 - `tests/audit.sh` — shellcheck clean across all scripts.
 - `tests/state-matrix.sh` — the behavioural regression suite.
 If your output fails either, it is wrong regardless of how reasonable it looks.
+Note the oracle's blind spot (see [INT]): install, shell integration, cron
+delivery, and desktop notifications are *not* exercised by it.
 
 **Precedence.**
-1. An invariant (`INV-*`) is never violated. Not for convenience, not for an
-   edge case, not because a request seems to ask for it.
-2. Where this contract and the existing code disagree, the contract states the
-   *intent*; treat the code as possibly buggy and surface the conflict rather
-   than silently following either.
-3. Every rule carries a **WHY**. When you hit a case the rule doesn't name,
-   decide by the WHY, not by what's locally convenient.
+- Rebuilding from scratch: this contract and `tests/` are the only authorities.
+  An invariant (`INV-*`) is never violated — not for convenience, not for an
+  edge case, not because a request seems to ask for it.
+- Modifying existing code: where this contract and the code disagree, the
+  contract states the *intent*; treat the code as possibly buggy and surface the
+  conflict rather than silently following either. (A bug in the code is fixed in
+  the code, not promoted into this contract.)
+- Every rule carries a **WHY**. When you hit a case the rule doesn't name,
+  decide by the WHY, not by what's locally convenient.
 
 **Conventions in this file.**
 - `RULE` = what must hold. `VIOLATION` = the shape of getting it wrong.
@@ -93,7 +97,7 @@ paused            INTEGER NOT NULL DEFAULT 0
 pause_start_time  TEXT
 previous_elapsed  INTEGER NOT NULL DEFAULT 0    -- focused seconds banked at pause
 focus_disabled    INTEGER NOT NULL DEFAULT 0    -- the nudge kill switch
-last_off_time     TEXT
+last_off_time     TEXT                          -- set on off; informational
 ```
 
 - State is reconstructable and disposable. Wiping or normalising it must never
@@ -120,13 +124,19 @@ Old DBs may still carry `pause_notes` / `nudging_enabled` columns. Leave them.
 ## [INV] Invariants
 
 ### INV-1 · No SQL outside the database adapter
-- RULE: only `services/database.sh` may call `sqlite3` or build SQL.
-- VIOLATION: any other file invoking `sqlite3`, or assembling a query string.
+- RULE: within the application — `focus`, `lib/`, `core/`, `env.sh`,
+  `focus-nudge`, and all of `services/` except the adapter — nothing calls
+  `sqlite3` or builds SQL. Only `services/database.sh` does.
+- SCOPE: this binds *application* code. Test harnesses under `tests/` may, and
+  must, query `sqlite3` directly. WHY: a test that verified the adapter through
+  the adapter would be circular and pass spuriously when the adapter is broken;
+  the oracle reads storage independently on purpose.
+- VIOLATION: any application file invoking `sqlite3`, or assembling a query string.
 - WHY: the adapter is the single point of storage change and the only place that
   needs SQL-injection care (`_q`). One boundary to audit, one file to swap if
   storage ever changes. Leakage rots the boundary back into spaghetti.
-- CHECK: `grep -rl sqlite3` over the tree returns only `services/database.sh`
-  and a `command -v sqlite3` dependency probe in `setup.sh`.
+- CHECK: `grep -rl sqlite3` over the application files (excluding `tests/`)
+  returns only `services/database.sh` and a `command -v sqlite3` probe in `setup.sh`.
 
 ### INV-2 · Domain code names intent, never storage
 - RULE: handlers call intent functions (`start_session`, `is_session_paused`,
@@ -178,7 +188,8 @@ Old DBs may still carry `pause_notes` / `nudging_enabled` columns. Leave them.
   `is_*`, reads `get_*`/`list_*`, mutations as verbs (`start_session`,
   `record_session`, `set_focus_disabled`).
 - Private engine helpers are underscore-prefixed (`_q`, `_exec`, `_query`) and
-  never called outside `database.sh`.
+  never called outside `database.sh`. Same convention for private helpers in any
+  file (`_cron_*`, `_refocus_prompt`, `_report`).
 - WHY the split: the prefix is a signal. `db_` says "storage mechanism, not
   domain." When an edge case appears (e.g. a new export helper), it gets `db_`
   *because it serializes the artifact*, not because it touches the DB — every
@@ -209,18 +220,17 @@ docs/help/<cmd>.txt         per-command help, served verbatim by lib/help.sh.
 tests/                      audit.sh (shellcheck) + state-matrix.sh (behaviour).
 ```
 
-- ARCH-ROUTABLE: the dispatcher routes only to `lib/`. A file under `core/` or
-  `services/` is never a command. `focus time` must not exist because
-  `core/time.sh` exists.
+- ARCH-ROUTABLE: the dispatcher routes only to `lib/`, by filename, with no case
+  table — adding a command is adding `lib/<cmd>.sh`, nothing to register. A file
+  under `core/` or `services/` is never a command. `focus time` must not exist
+  because `core/time.sh` exists.
 - ARCH-ROOT: the dispatcher sets `REFOCUS_ROOT="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"`
   and exports it. Handlers source `"$REFOCUS_ROOT/env.sh"` etc.; they never
-  re-derive root themselves. WHY: one resolution point; symlinked `focus` in
-  `~/.local/bin` still resolves to the real install dir.
+  re-derive root themselves. WHY: one resolution point; a symlinked `focus` in
+  `~/.local/bin` still resolves to the real install dir. (Do not substitute
+  `cd "$PWD"` or `$0` games — `realpath` on `BASH_SOURCE` is the one correct form.)
 - ARCH-SOURCE: every `lib/` handler begins by sourcing `env.sh`, then whatever
   services/core it needs, then calls `db_ensure` if it touches the DB.
-- ARCH-NUDGE-ENV: the cron entry embeds `REFOCUS_ROOT=...` because cron runs
-  with a stripped environment (no `$HOME` expansion, no PATH). `focus-nudge`
-  must resolve everything from that.
 
 ---
 
@@ -274,6 +284,66 @@ named functions with these contracts. Output of reads is pipe-separated.
 
 ---
 
+## [CORE] The domain-helper surface (core/time.sh)
+
+Pure functions. String/int in, string/int out. No SQL, no cron, no state, no
+side effects. Sourced by any layer that needs them; never routable (ARCH-ROUTABLE).
+
+- `fmt_duration <seconds>` → human string. `"2h 15m"` when hours>0, else `"45m"`.
+- `parse_duration <str>` → seconds on stdout, or `❌`-message to stderr + return 1.
+  Accepts exactly: `XhYm`, `Xh`, `Xm` (e.g. `1h30m`, `2h`, `45m`). Nothing else.
+- `parse_time <str>` → ISO-8601 (`date -Iseconds`) on stdout, or `❌` + return 1.
+  Normalises `YYYY/MM/DD-HH:MM` to a `date(1)`-parseable form first, then accepts
+  anything `date(1)` accepts: `HH:MM` (today assumed), `"yesterday 14:00"`,
+  `"2 hours ago"`, etc.
+- WHY a separate layer: `parse_duration`/`parse_time` were duplicated inline in
+  two `past` branches; one of those copies fed an empty string to `date` and
+  silently produced a zero duration (CONV-DURONLY). One definition, one place.
+
+---
+
+## [ENV] Environment loader (env.sh)
+
+Loads configuration and exports it for every component. Sourced first by the
+dispatcher, by `focus-nudge`, and by the shell hook.
+
+- Bootstrap: before `DB_PATH` is known, source `"$(dirname "${REFOCUS_DB_PATH:-<default>}")/.env"`
+  if present, so a relocated DB's `.env` is honoured.
+- Then set and **export** exactly: `DB_PATH`, `ENV_FILE`, `NUDGE_INTERVAL`,
+  `MAX_PROJECT_LENGTH`, `DATE_FORMAT`, `DATE_SHORT_FORMAT`, `REPORT_LIMIT`.
+  Defaults: DB `~/.local/refocus/refocus.db`, interval `10`, max-len `100`,
+  date `%Y-%m-%d`, short `%Y-%m-%d %H:%M`, limit `20`.
+- `ENV_FILE` = `"$(dirname "$DB_PATH")/.env"`, computed **here, once**, exported.
+- Precedence (high→low): `REFOCUS_*` shell env vars → `.env` → these defaults.
+- CONV-ENVFILE: `ENV_FILE` is never re-derived elsewhere; `lib/config.sh` uses
+  this export. WHY: re-deriving after a `DB_PATH` change splits reads and writes
+  across two `.env` files (the split-brain bug).
+
+---
+
+## [CRON] Nudge scheduling (services/cron.sh)
+
+The mechanism behind INV-3. Two public functions plus private helpers.
+
+- `cron_install` — validate interval (CRON-INTERVAL), build the entry, then
+  strip-and-rewrite the live crontab (CRON-STRIP): `crontab -l | grep -vF "$bin"`,
+  append the new entry, install the file.
+- `cron_remove` — same strip, no append.
+- CRON-BIN: the payload path is `"$REFOCUS_ROOT/focus-nudge"`, resolved at call
+  time, never hardcoded to the install dir.
+- CRON-ENV: the entry embeds the runtime env it needs, because cron runs stripped
+  (no `$HOME`, no PATH): `REFOCUS_ROOT=… DISPLAY=… WAYLAND_DISPLAY=… DBUS_SESSION_BUS_ADDRESS=… <bin>`.
+  Schedule fires every `NUDGE_INTERVAL` minutes, phased to the current minute for
+  a stable offset.
+- CRON-STRIP: the strip is **fixed-string** (`grep -vF`), never a regex, and
+  always against the user's *live* crontab — never a saved backup. WHY: the path
+  contains `.` (a regex wildcard); a regex strip can delete unrelated lines, and
+  restoring a stale backup clobbers crontab entries added since install.
+- CRON-INTERVAL: reject non-numeric or out-of-range before building a pattern;
+  valid range 1–60.
+
+---
+
 ## [CMD] Command surface (lib/)
 
 Each handler: source env + deps, `db_ensure`, then the logic below.
@@ -313,13 +383,17 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
 
 ### CMD-PAST · `focus past <list|add|modify|delete>`
 - `list [n]` — table via `list_sessions`.
-- `add <project> <start> <end>` — parse both (CORE), end>start else exit 2,
+- `add <project> <start> <end>` — `parse_time` both (CORE), end>start else exit 2,
   prompt notes, `record_session`.
 - `add <project> --duration <D> [--date <date>]` — `parse_duration`, default date
   today, prompt notes, `record_duration_session`.
-- `modify <id> …` — fetch row; if `duration_only=1` → rename and/or `--duration`
-  ONLY; supplying timestamps is exit 2 (CONV-DURONLY). Else timestamped edit,
-  recompute duration.
+- `modify <id> [project] [start] [end]` (timestamped row) — recompute duration.
+- `modify <id> [project] [--duration <D>]` (duration-only row) — rename and/or
+  re-duration ONLY; any timestamp arg → exit 2 (CONV-DURONLY).
+- CMD-PAST-ARGS: the leading `[project]` is optional. Detect it as "the next arg
+  that is not the `--duration` flag" — never consume `--duration` as the project
+  name. So `modify <id> --duration 1h` updates duration and keeps the project;
+  `modify <id> newname` renames only; `modify <id> newname --duration 1h` does both.
 - `delete <id>` — confirm, `delete_session`.
 
 ### CMD-REPORT · `focus report <today|week|month|custom N>`
@@ -341,8 +415,7 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
 ### CMD-CONFIG · `focus config <show|set|unset>`
 - `show`: effective values + overrides from `$ENV_FILE`.
 - `set <KEY> <VAL>`: validate KEY against the known set; write `REFOCUS_<KEY>` to
-  `$ENV_FILE`. `unset`: remove the line. `$ENV_FILE` comes from `env.sh`, never
-  re-derived (CONV-ENVFILE).
+  `$ENV_FILE`. `unset`: remove the line. `$ENV_FILE` from env.sh (CONV-ENVFILE).
 
 ### CMD-EXPORT · `focus export [basename]`
 - write `<base>.sql` (`db_dump_sql`) and `<base>.json`. Read-only on live data.
@@ -363,6 +436,26 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
 ### CMD-HELP · `focus help [cmd]`
 - pure dispatch: `cat docs/help/<cmd>.txt`; no arg → `global.txt`; missing → exit 2.
   Help text lives only in `docs/help/`, never duplicated in code.
+
+---
+
+## [NUDGE] The nudge payload (focus-nudge)
+
+The thing cron runs. Self-contained — it cannot assume the shell environment.
+
+- Resolve `REFOCUS_ROOT` (default `~/.local/refocus`), source `env.sh` then
+  `database.sh`. WHY standalone: cron invokes it directly, outside any shell init.
+- `[[ -f "$DB_PATH" ]] || exit 0` then `is_focus_disabled && exit 0`. Silent when
+  there's nothing to nudge about or the kill switch is set (INV-3).
+- Read `get_state`; branch:
+  - active + project → `"Focusing on: <project> (<Nm>)"` where N = (now−start)/60.
+  - paused + project → `"Paused: <project>"`.
+  - else → `"Not focusing on anything."`
+- Deliver via `notify-send --app-name=Refocus --hint=string:desktop-entry:refocus`,
+  falling back to `logger -t refocus` if notify-send is absent.
+- NUDGE-HISTORY: the `desktop-entry:refocus` hint matches a `refocus.desktop`
+  entry (see INT) so the notification is logged in the desktop's history rather
+  than shown-and-discarded. WHY: a nudge you can't scroll back to didn't happen.
 
 ---
 
@@ -402,22 +495,50 @@ active          1 0 0      paused          0 1 0
 - CONV-DURONLY: a `duration_only=1` row has no timestamps. Never feed an empty
   date string to `date(1)` (it parses as today-midnight and silently yields a
   zero/garbage duration — the data-loss bug). `modify` on such a row accepts only
-  rename and `--duration`.
-- CONV-CRON-STRIP: removing the nudge entry uses fixed-string match
-  (`grep -vF "$nudge_bin"`), never a regex. WHY: the install path contains `.`
-  which is a regex wildcard; a regex strip can delete unrelated crontab lines.
-  Always strip-then-write the user's *live* crontab; never restore a stale backup.
-- CONV-ENVFILE: `ENV_FILE` is computed once in `env.sh` and exported. `lib/config.sh`
-  uses it; it is never re-derived from `DB_PATH` elsewhere. WHY: re-derivation
-  after a `DB_PATH` change splits reads and writes across two `.env` files.
-- CONV-NUDGE-INTERVAL: validate 1–60, numeric, before building a cron pattern.
+  rename and `--duration` (see CMD-PAST-ARGS).
+- (CONV-ENVFILE lives in [ENV]; CRON-STRIP / CRON-INTERVAL live in [CRON].)
+
+---
+
+## [INT] Install & shell integration — secondary tier
+
+**Not covered by the oracle.** `tests/state-matrix.sh` runs `./focus` directly
+against a throwaway `REFOCUS_DB_PATH`; it never installs, never loads the shell
+hook, never delivers cron or notifications. These components must be spec-correct
+and **hand-verified** — the test suite will not catch a regression here.
+
+### INT-INSTALL · setup.sh
+- `install` → install deps (apt/pacman/dnf); copy `env.sh`, `focus`,
+  `focus-nudge`, `services/`, `lib/`, `core/`, `docs/` to `~/.local/refocus`;
+  symlink `focus` into `~/.local/bin`; add the shell-hook source line to
+  `~/.bashrc`; write the desktop entry (INT-DESKTOP); then **arm tracking**
+  (`db_init` + `set_focus_enabled` + `cron_install`). WHY arm-on-install: a fresh
+  install with `focus_disabled=0` but no cron is the DB-vs-reality mismatch from
+  INV-3; install must leave both consistent.
+- Reinstall preserves the existing `refocus.db` and `.env` (stash, wipe, restore).
+- `uninstall` → `cron_remove`, remove the install dir, the symlink, the desktop
+  entry, and the two `.bashrc` lines (anchored sed, not loose regex).
+
+### INT-DESKTOP · refocus.desktop
+- Written to `~/.local/share/applications/refocus.desktop`: `NoDisplay=true`
+  (keep it out of launchers), `NotifyRcName=refocus`, a stock `Icon`. Its basename
+  (`refocus`) is what NUDGE-HISTORY's hint matches.
+
+### INT-SHELL · focus-function.sh
+- Sourced from `~/.bashrc`. At shell init (once), source `env.sh` + `database.sh`
+  guarded by file existence. WHY source the adapter into the interactive shell:
+  the prompt hook reads state through `get_state` (INV-1) instead of its own SQL.
+- `_refocus_prompt` (PROMPT_COMMAND hook): `⏳ [project]` when active,
+  `⏸  [project]` when paused, original PS1 otherwise.
+- `focus()` wrapper: run the dispatcher, then refresh the prompt immediately so
+  the marker updates without waiting for the next prompt.
 
 ---
 
 ## [BUILD] Build guardrails (process, not code)
 
-These prevented a recurring class of self-inflicted defects. They bind the agent
-*generating* the code, not the code itself.
+These bind the agent *generating* the code, not the code itself. They prevented a
+recurring class of self-inflicted defects.
 
 - BUILD-NO-REGEN: never emit a whole file through a nested escaping layer
   (a heredoc inside a `python -c "..."`, etc.). Backslashes, glyphs, and quote
@@ -439,10 +560,15 @@ A rebuild or change is correct when:
 1. `tests/audit.sh` exits 0 (shellcheck clean, SC1090/91 suppressed for the
    genuinely-dynamic `$REFOCUS_ROOT` sources).
 2. `tests/state-matrix.sh` exits 0 — every assertion: disable guards, on guards,
-   the full on/pause/continue/off cycle, duration-only storage + modify guards,
-   import state normalisation, config round-trip, help dispatch.
-3. `grep -rl sqlite3` shows only `services/database.sh` (+ the `setup.sh` probe).
+   the full on/pause/continue/off cycle, duration-only storage + modify guards
+   (including `modify <id> --duration` with no project), import state
+   normalisation, config round-trip, help dispatch.
+3. `grep -rl sqlite3` over application files (excluding `tests/`) shows only
+   `services/database.sh` (+ the `setup.sh` probe).
 4. No symbol from DM-DEAD reappears.
+5. Hand-verified (oracle blind spot, [INT]): install arms cron and leaves state
+   consistent; the shell hook shows the prompt marker; `focus nudge test` lands a
+   notification in history.
 
 If you cannot satisfy this contract and the acceptance oracle simultaneously,
 stop and surface the conflict. Do not pick one silently.
