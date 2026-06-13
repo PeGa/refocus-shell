@@ -1,18 +1,8 @@
-# focus reset — Wipe all data
-# ============================
+focus reset — wipe everything
 
-USAGE
   focus reset
 
-BEHAVIOUR
-  Warns if a session is active or paused (it will be discarded).
-  Requires typing 'yes' at the confirmation prompt.
-  Removes the nudge cron.
-  Deletes and reinitialises the database (empty sessions, clean state).
-  Sets focus_disabled=1 — leaves Refocus DISABLED.
+Deletes all sessions and clears state. Warns about an open session, then asks
+you to type "yes". Nothing happens until you do.
 
-  The user must run 'focus enable' explicitly to resume tracking.
-  This is intentional: reset should require a conscious re-arm.
-
-EXIT CODES
-  Requires the literal word 'yes' — anything else cancels cleanly (exit 0).
+Leaves tracking off afterward — picking back up is a conscious 'focus enable'.

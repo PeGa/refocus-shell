@@ -1,21 +1,8 @@
-# focus pause — Pause the current session
-# ========================================
+focus pause — pause the session
 
-USAGE
   focus pause
 
-BEHAVIOUR
-  Captures elapsed time in previous_elapsed.
-  Sets active=0, paused=1.
-  Fires a desktop notification.
-  Captures NO notes — pause is a pit stop.
+A pit stop. No note, no questions — stepping away shouldn't cost you anything.
+The nudge keeps reminding you the session is open so you don't lose it.
 
-  The nudge cron continues firing on schedule and emits
-  'Paused: <project>' to remind you the session exists.
-
-  No active session → exit 1.
-
-NOTES
-  - Use focus pause for short interruptions (meeting, break, lunch).
-  - Use focus off for longer stops where you need a context note.
-  - Duration paused does NOT count toward session time.
+Paused time is never counted. Use 'off' instead when you want to leave a note.

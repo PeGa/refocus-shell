@@ -1,24 +1,9 @@
-# focus continue — Resume a paused session
-# ==========================================
+focus continue — resume a paused session
 
-USAGE
   focus continue
 
-BEHAVIOUR
-  Reads previous_elapsed from state.
-  Confirms: 'Continue X (Nm before pause)? (Y/n)'
-  If yes: adjusts start_time to now - previous_elapsed, clears pause state.
-  If no: session stays paused. User can focus off instead.
+Picks up where you paused, carrying your elapsed time forward, after a quick
+confirm. Decline and it stays paused (or 'off' to end it).
 
-  No paused session → exit 1.
-
-MATHS
-  previous_elapsed is baked into the adjusted start_time so that
-  duration = now - start_time always gives the correct total across
-  any number of pause/continue cycles.
-
-  Example:
-    T0       focus on
-    T0+30m   focus pause  → previous_elapsed = 1800
-    T0+45m   focus continue → start_time = T0+15m (now - 1800s)
-    T0+60m   focus off    → duration = T0+60m - T0+15m = 45m  ✓
+Across any number of pause/resume cycles, the total only ever counts the
+minutes you were actually focused.

@@ -1,30 +1,15 @@
-# focus config — Manage configuration
-# =====================================
+focus config — settings
 
-USAGE
   focus config show
-  focus config set <KEY> <value>
-  focus config unset <KEY>
+  focus config set <key> <value>
+  focus config unset <key>
 
-KEYS AND DEFAULTS
-  NUDGE_INTERVAL        10          Nudge frequency in minutes (1-60)
-  MAX_PROJECT_LENGTH    100         Max project name length in characters
-  DATE_FORMAT           %Y-%m-%d    Date format in reports
-  DATE_SHORT_FORMAT     %Y-%m-%d %H:%M   Datetime format in session list
-  REPORT_LIMIT          20          Default row limit for past list
-  DB_PATH               ~/.local/refocus/refocus.db
+  NUDGE_INTERVAL       10                minutes between nudges (1–60)
+  MAX_PROJECT_LENGTH   100               longest project name
+  DATE_FORMAT          %Y-%m-%d          date format in reports
+  DATE_SHORT_FORMAT    %Y-%m-%d %H:%M    datetime in the session list
+  REPORT_LIMIT         20                rows in 'past list'
+  DB_PATH              ~/.local/refocus/refocus.db
 
-STORAGE
-  Overrides are written to a .env file co-located with the database.
-  ENV_FILE is computed once in config.sh and exported; lib/config.sh
-  uses it directly. This prevents split-brain when DB_PATH is relocated.
-
-PRECEDENCE (highest to lowest)
-  1. REFOCUS_* environment variables set in the shell
-  2. .env file (DB_PATH directory)
-  3. Built-in defaults in config.sh
-
-NOTES
-  - Changes to NUDGE_INTERVAL take effect on the next 'focus enable'
-    (or 'focus disable' + 'focus enable' if currently enabled).
-  - Changing DB_PATH requires re-running 'focus init' at the new path.
+Overrides live in a .env file beside your database. Precedence: shell env vars,
+then .env, then the defaults above. A new interval takes effect on the next enable.

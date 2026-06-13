@@ -1,45 +1,19 @@
-# focus past — Manage past sessions
-# ===================================
+focus past — log and fix sessions
 
-USAGE
   focus past list [n]
   focus past add <project> <start> <end>
-  focus past add <project> --duration Xh [--date YYYY/MM/DD]
-  focus past modify <id> [project] [start] [end]
-  focus past modify <id> [project] [--duration Xh]
+  focus past add <project> --duration 2h30m [--date YYYY/MM/DD]
+  focus past modify <id> [project] [start] [end]      timestamped session
+  focus past modify <id> [project] [--duration 2h]    duration-only session
   focus past delete <id>
 
-SUBCOMMANDS
-  list [n]
-    Prints the last n sessions (default: REPORT_LIMIT).
-    Columns: ID, Project, Start, End, Duration. Notes shown on next line.
+Forgot to start the timer? Log it after the fact.
 
-  add <project> <start> <end>
-    Adds a session with full timestamps. Duration is computed automatically.
-    Prompts for notes after parsing times.
+  with times    duration is computed for you
+  --duration    no clock times — just a length and a date (default today)
 
-  add <project> --duration Xh [--date YYYY/MM/DD]
-    Adds a duration-only session (no timestamps stored).
-    Date defaults to today. Duration formats: 1h30m, 2h, 45m.
-    Use this for sessions tracked externally, retroactive entries, or
-    time blocks where exact timestamps don't matter.
+A duration-only session has no timestamps: modify can rename it or change its
+length, but won't bolt fake times onto it. list shows the most recent first.
 
-  modify <id> [project] [start] [end]
-    Edit a timestamped session. Duration is recomputed from new timestamps.
-    Omitted arguments keep their current value.
-
-  modify <id> [project] [--duration Xh]
-    Edit a duration-only session. Timestamps cannot be added retroactively.
-    Omitting --duration keeps the current duration (rename only).
-    Providing timestamps to a duration-only session is an error (exit 2).
-
-  delete <id>
-    Prompts for confirmation, then deletes. No undo.
-
-TIME FORMATS
-  YYYY/MM/DD-HH:MM   2025/06/11-14:30   (recommended — no quoting needed)
-  HH:MM              14:30              (today assumed)
-  natural language   'yesterday 14:00'  'two hours ago'
-
-DURATION FORMATS
-  1h30m   2h   45m
+times       YYYY/MM/DD-HH:MM   14:30   "yesterday 14:00"   "2 hours ago"
+durations   1h30m   2h   45m

@@ -1,19 +1,9 @@
-# focus enable — Enable Refocus and arm the nudge cron
-# =====================================================
+focus enable — turn tracking on
 
-USAGE
   focus enable
 
-BEHAVIOUR
-  Sets focus_disabled=0 in state.
-  Installs a cron entry for focus-nudge at the configured interval.
-  The cron entry is phased to the current minute for consistent offsets.
-  REFOCUS_ROOT is embedded in the entry so focus-nudge resolves correctly
-  under cron's stripped environment.
+Marks tracking active and arms the nudge schedule. Install does this for you;
+you'll only need it after a disable, reset, or import.
 
-  Idempotent: safe to run when already enabled (strips and reinstalls cron).
-
-NOTES
-  - Nudging fires in all states: focusing, paused, and idle.
-    idle nudges say 'Not focusing on anything.' — intentional.
-  - NUDGE_INTERVAL must be 1–60 minutes.
+Already on? It says so and changes nothing. Nudging then fires in every state,
+every NUDGE_INTERVAL minutes (1–60).

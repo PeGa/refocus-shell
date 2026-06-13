@@ -1,29 +1,13 @@
-# focus on — Start a session
-# ==========================
+focus on — start a session
 
-USAGE
   focus on [project]
 
-BEHAVIOUR
-  No project given
-    Offers to continue the last project. Shows total time logged.
-    If the user answers No, exits cleanly with a hint.
-    If no history exists, requires a project name (exit 2).
+Start tracking. The name is just a label — customer/project reads well in reports.
 
-  Project given, prior time logged
-    Typo guard: "X has Ym logged. Continue? (Y/n)"
-    This catches accidental mis-spellings before starting a duplicate ledger.
+  no project      offer to continue your last (shows time logged); declining exits clean
+  known project   typo guard: "X has Ym logged. Continue? (Y/n)"
+  new project     starts right away
+  disabled        stops you — run 'focus enable' first
+  already busy    stops you — close the open session first
 
-  Project given, no prior time
-    Starts immediately, no prompt.
-
-  While disabled
-    Hard stop: run 'focus enable' first. (exit 1)
-
-  While active or paused
-    Hard stop: tells you what's running and how to resolve. (exit 1)
-
-NOTES
-  - Projects are labels, not stored entities. The name IS the identity.
-  - Recommended naming: customer/project-name (git-commit style, no spaces).
-  - Max project name length: MAX_PROJECT_LENGTH (default 100 chars).
+Starting is meant to be one word, or none. Low cost on purpose.

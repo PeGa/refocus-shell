@@ -1,0 +1,8 @@
+focus init — create the database
+
+  focus init
+
+Creates the database and schema if they're missing. Install runs this for you;
+you'd only call it by hand to start a fresh database at a new DB_PATH.
+
+Safe to re-run — it never overwrites existing data.

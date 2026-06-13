@@ -1,26 +1,12 @@
-# focus report — Generate time reports
-# ======================================
+focus report — where the time went
 
-USAGE
-  focus report today
-  focus report week
-  focus report month
+  focus report today|week|month
   focus report custom <days>
 
-OUTPUT FOR EACH PERIOD
-  - Period range (start date to end date)
-  - Total time across all sessions
-  - Per-project breakdown: total time and session count
-  - Per-session detail: ID, timestamps or date, duration, notes
+Total time, a per-project breakdown, and every session with its notes.
+Plain facts — no score attached.
 
-PERIODS
-  today     Current calendar day
-  week      Last 7 days
-  month     Last 30 days
-  custom N  Last N days
+  today    since midnight          week     last 7 days
+  month    last 30 days            custom   last <days>
 
-NOTES
-  - Duration-only sessions (from 'past add --duration') are included using
-    their session_date field for range filtering.
-  - Sessions are sorted by end time descending within the period.
-  - Reports print to stdout; redirect to a file or pipe to less as needed.
+Duration-only sessions are included by their date.
