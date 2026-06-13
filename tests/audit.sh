@@ -21,7 +21,7 @@ cd "$ROOT"
 TARGETS=(
     focus
     focus-nudge
-    config.sh
+    env.sh
     setup.sh
     core/*.sh
     lib/*.sh
