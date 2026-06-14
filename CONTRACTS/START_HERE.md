@@ -15,6 +15,11 @@ intent, one file speaks SQL. You are correct iff `tests/audit.sh` **and**
 `tests/state-matrix.sh` both exit 0 — no matter how reasonable your change looks.
 `[ACCEPT]`
 
+### Shortcuts to the CONTRACT
+
+Should you need to go back to the MAIN.md contract to revise and/or recall directives 
+or architecture, you can go through CONTRACT_INDEX.md, which is a glossary of sorts with
+line pointers to the main contract, MAIN.md.
 ---
 
 ## 1 · DO NOT RE-ADD (negative space) — top failure mode
