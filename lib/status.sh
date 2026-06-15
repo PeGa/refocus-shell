@@ -6,7 +6,7 @@ source "$REFOCUS_ROOT/core/time.sh"
 
 db_ensure
 
-now_ts=$(date +%s)
+now_ts=$(_now_epoch)
 
 _show_last() {
     local last; last=$(get_last_session)

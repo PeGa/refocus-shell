@@ -20,8 +20,8 @@ if [[ "${ans:-Y}" =~ ^[Nn]$ ]]; then
     exit 0
 fi
 
-now=$(date -Iseconds)
-now_ts=$(date +%s)
+now=$(_now_iso)
+now_ts=$(_now_epoch)
 adjusted_ts=$(( now_ts - previous_elapsed ))
 adjusted=$(_epoch_to_iso "$adjusted_ts")
 resume_session "$adjusted"

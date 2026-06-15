@@ -12,8 +12,8 @@ if [[ "$active" != "1" && "$paused" != "1" ]]; then
     echo "❌ No active session." >&2; exit 1
 fi
 
-now=$(date -Iseconds)
-now_ts=$(date +%s)
+now=$(_now_iso)
+now_ts=$(_now_epoch)
 
 if [[ "$paused" == "1" ]]; then
     duration=$previous_elapsed

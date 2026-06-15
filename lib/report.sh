@@ -53,24 +53,24 @@ period="${1:-today}"
 case "$period" in
     today)
         start=$(_iso_days_ago 0)
-        end=$(date -Iseconds)
+        end=$(_now_iso)
         _report "Today's Focus" "$start" "$end"
         ;;
     week)
         start=$(_iso_days_ago 7)
-        end=$(date -Iseconds)
+        end=$(_now_iso)
         _report "This Week's Focus" "$start" "$end"
         ;;
     month)
         start=$(_iso_month_start)
-        end=$(date -Iseconds)
+        end=$(_now_iso)
         _report "This Month's Focus" "$start" "$end"
         ;;
     custom)
         days="${2:-7}"
         [[ ! "$days" =~ ^[0-9]+$ ]] && { echo "Usage: focus report custom <days>" >&2; exit 2; }
         start=$(_iso_days_ago "$days")
-        end=$(date -Iseconds)
+        end=$(_now_iso)
         _report "Last ${days}-day Focus" "$start" "$end"
         ;;
     *)

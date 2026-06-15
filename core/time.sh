@@ -11,12 +11,21 @@ else
     _date() { date "$@"; }
 fi
 
-# GNU `date` understands --version; BSD errors out. Detect once.
 if _date --version >/dev/null 2>&1; then
     _DATE_IS_GNU=1
 else
     _DATE_IS_GNU=0
 fi
+
+_now_iso() {
+    # current time -> ISO-8601 timestamp
+    _date -Iseconds
+}
+
+_now_epoch() {
+    # current time -> epoch seconds
+    _date +%s
+}
 
 _epoch_to_iso() {
     # epoch seconds -> ISO-8601 timestamp
