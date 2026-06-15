@@ -5,12 +5,6 @@
 # No SQL, no cron, no state. No side effects.
 # Sourced by any layer that needs time representation — not routable as a command.
 
-# --- Portable date layer (GNU + BSD/macOS) --------------------------------
-# The rest of the codebase only ever asks for a few well-defined conversions.
-# GNU `date` (Linux) and BSD `date` (macOS) speak different flags, so every
-# date(1) call routes through the helpers below, which branch once on platform.
-# GNU coreutils `gdate`, if installed on macOS, is preferred transparently.
-
 if command -v gdate >/dev/null 2>&1; then
     _date() { gdate "$@"; }
 else
