@@ -2,6 +2,7 @@
 set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
+source "$REFOCUS_ROOT/core/time.sh"
 
 db_ensure
 
@@ -22,7 +23,7 @@ fi
 now=$(date -Iseconds)
 now_ts=$(date +%s)
 adjusted_ts=$(( now_ts - previous_elapsed ))
-adjusted=$(date --date="@$adjusted_ts" -Iseconds)
+adjusted=$(_epoch_to_iso "$adjusted_ts")
 resume_session "$adjusted"
 
 echo "▶  Resumed: $project (continuing from ${prev_min}m)."

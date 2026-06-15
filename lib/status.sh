@@ -2,6 +2,7 @@
 set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
+source "$REFOCUS_ROOT/core/time.sh"
 
 db_ensure
 
@@ -11,7 +12,7 @@ _show_last() {
     local last; last=$(get_last_session)
     [[ -z "$last" ]] && return
     IFS='|' read -r last_project last_end last_dur <<< "$last"
-    local last_ts; last_ts=$(date --date="$last_end" +%s 2>/dev/null || echo 0)
+    local last_ts; last_ts=$(_iso_to_epoch "$last_end" 2>/dev/null || echo 0)
     local since=$(( (now_ts - last_ts) / 60 ))
     echo "   Last: $last_project ($(( last_dur / 60 ))m, ${since}m ago)"
 }
@@ -25,7 +26,7 @@ fi
 IFS='|' read -r active project start_time paused pause_start_time previous_elapsed _ _ <<< "$(get_state)"
 
 if [[ "$active" == "1" ]]; then
-    local_start_ts=$(date --date="$start_time" +%s)
+    local_start_ts=$(_iso_to_epoch "$start_time")
     elapsed=$(( now_ts - local_start_ts ))
     elapsed_min=$(( elapsed / 60 ))
     total=$(get_total_time "$project")
@@ -34,7 +35,7 @@ if [[ "$active" == "1" ]]; then
     [[ $total_min -gt 0 ]] && echo " (Total: ${total_min}m)" || echo ""
 
 elif [[ "$paused" == "1" ]]; then
-    pause_ts=$(date --date="$pause_start_time" +%s)
+    pause_ts=$(_iso_to_epoch "$pause_start_time")
     paused_for=$(( (now_ts - pause_ts) / 60 ))
     echo "⏸  Paused: $project"
     echo "   Session so far: $(( previous_elapsed / 60 ))m | Paused for: ${paused_for}m"

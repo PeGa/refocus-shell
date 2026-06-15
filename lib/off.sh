@@ -2,6 +2,7 @@
 set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
+source "$REFOCUS_ROOT/core/time.sh"
 
 db_ensure
 
@@ -19,7 +20,7 @@ if [[ "$paused" == "1" ]]; then
     echo "⏸  Stopping paused session: $project"
     echo "   Session time: $(( duration / 60 ))m"
 else
-    start_ts=$(date --date="$start_time" +%s)
+    start_ts=$(_iso_to_epoch "$start_time")
     duration=$(( now_ts - start_ts ))
     echo "⏹  Stopping: $project ($(( duration / 60 ))m)"
 fi
