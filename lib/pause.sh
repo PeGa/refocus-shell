@@ -2,6 +2,7 @@
 set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
+source "$REFOCUS_ROOT/core/time.sh"
 
 db_ensure
 
@@ -10,9 +11,9 @@ if ! is_session_active; then
 fi
 
 IFS='|' read -r _ project start_time _ <<< "$(get_state)"
-now=$(date -Iseconds)
-now_ts=$(date +%s)
-start_ts=$(date --date="$start_time" +%s)
+now=$(_now_iso)
+now_ts=$(_now_epoch)
+start_ts=$(_iso_to_epoch "$start_time")
 elapsed=$(( now_ts - start_ts ))
 
 pause_session "$elapsed" "$now"

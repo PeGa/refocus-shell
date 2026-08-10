@@ -2,6 +2,7 @@
 set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
+source "$REFOCUS_ROOT/core/time.sh"
 
 db_ensure
 
@@ -17,7 +18,7 @@ echo "✅ SQL:  $sql_file"
 # ── JSON export ───────────────────────────────────────────────────────────────
 {
     echo "{"
-    echo "  \"exported_at\": \"$(date -Iseconds)\","
+    echo "  \"exported_at\": \"$(_now_iso)\","
     echo "  \"db_path\": \"$DB_PATH\","
     echo "  \"state\":"
     db_export_state_json

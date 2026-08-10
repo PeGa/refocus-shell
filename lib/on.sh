@@ -2,6 +2,7 @@
 set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
+source "$REFOCUS_ROOT/core/time.sh"
 
 db_ensure
 
@@ -52,7 +53,7 @@ else
     fi
 fi
 
-start_time=$(date -Iseconds)
+start_time=$(_now_iso)
 start_session "$project" "$start_time"
 
 if [[ ${total_min:-0} -gt 0 ]]; then
