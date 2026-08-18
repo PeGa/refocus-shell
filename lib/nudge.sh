@@ -2,6 +2,9 @@
 set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
+source "$REFOCUS_ROOT/services/help.sh"
+
+wants_help "$@" && show_help nudge
 
 db_ensure
 
@@ -33,6 +36,6 @@ case "$sub" in
         crontab -l 2>/dev/null | grep "focus-nudge" || echo "  (no cron entry)"
         ;;
     *)
-        echo "Usage: focus nudge <status|test>" >&2; exit 2
+        usage_error nudge
         ;;
 esac

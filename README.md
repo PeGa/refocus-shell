@@ -256,7 +256,10 @@ Refocus is a small Bash program over SQLite, laid out hexagonally (ports and ada
 focus                       dispatcher — routes `focus <cmd>` to lib/<cmd>.sh
 lib/*.sh                    command handlers (primary adapters)
 core/time.sh                pure helpers — duration/time parsing, no I/O
+core/text.sh                pure helpers — decodes and indents stored notes
 services/database.sh        the ONLY file that speaks SQL (secondary adapter)
+services/help.sh            renders docs/help/*.txt for --help and usage errors
+services/editor.sh          opens $EDITOR to capture a note
 services/cron.sh            arms and disarms the nudge schedule
 services/focus-function.sh  shell integration (prompt + focus() wrapper)
 env.sh                      loads defaults and .env, exports config
@@ -265,7 +268,9 @@ docs/help/*.txt             per-command reference (also served by `focus help`)
 tests/                      shellcheck wrapper + state-machine regression suite
 ```
 
-Two rules keep it honest: **no SQL lives outside `services/database.sh`**, and **domain code never calls storage by name** — handlers ask for intent (`start_session`, `is_session_paused`, `set_focus_disabled`) and the adapter decides which column moves. Run `tests/audit.sh` for static analysis and `tests/state-matrix.sh` for the behavioural regression suite.
+Two rules keep it honest: **no SQL lives outside `services/database.sh`**, and **domain code never calls storage by name** — handlers ask for intent (`start_session`, `is_session_paused`, `set_focus_disabled`) and the adapter decides which column moves. Two more keep it portable and predictable: **`date(1)` is called only from `core/time.sh`** (GNU and BSD disagree on nearly all of its flags), and **no handler spells its own usage string** — `--help` and argument errors both render `docs/help/<cmd>.txt`, so they can never drift apart.
+
+Run `tests/audit.sh` for static analysis and `tests/state-matrix.sh` for the behavioural regression suite. On macOS, also run `tests/time-portability.sh` — twice, with and without `gdate` on `PATH` — since the BSD branch of the time layer is unreachable on Linux.
 
 ---
 

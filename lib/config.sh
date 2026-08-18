@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
+source "$REFOCUS_ROOT/services/help.sh"
+
+wants_help "$@" && show_help config
 
 # ENV_FILE is exported by env.sh — no need to re-derive it here.
 
@@ -37,28 +40,33 @@ case "$sub" in
         ;;
     set)
         key="${1:-}"; val="${2:-}"
-        [[ -z "$key" || -z "$val" ]] && { echo "Usage: focus config set <KEY> <value>" >&2; exit 2; }
+        [[ -z "$key" || -z "$val" ]] && usage_error config
         _valid_key "$key" || { echo "❌ Unknown key: $key" >&2
             echo "Valid: NUDGE_INTERVAL MAX_PROJECT_LENGTH DATE_FORMAT DATE_SHORT_FORMAT REPORT_LIMIT DB_PATH" >&2
             exit 2; }
         env_key="REFOCUS_${key}"
         touch "$ENV_FILE"
         if grep -q "^${env_key}=" "$ENV_FILE" 2>/dev/null; then
-            sed -i "s|^${env_key}=.*|${env_key}=${val}|" "$ENV_FILE"
+            # No `sed -i`: GNU takes a bare -i, BSD demands -i ''. Write a sibling
+            # temp file and rename over the original — same filesystem, atomic,
+            # and identical on both platforms.
+            tmp=$(mktemp "${ENV_FILE}.XXXXXX")
+            sed "s|^${env_key}=.*|${env_key}=${val}|" "$ENV_FILE" > "$tmp" && mv "$tmp" "$ENV_FILE"
         else
             echo "${env_key}=${val}" >> "$ENV_FILE"
         fi
         echo "✅ $key=$val"
         ;;
     unset)
-        key="${1:-}"; [[ -z "$key" ]] && { echo "Usage: focus config unset <KEY>" >&2; exit 2; }
+        key="${1:-}"; [[ -z "$key" ]] && usage_error config
         env_key="REFOCUS_${key}"
         if [[ -f "$ENV_FILE" ]]; then
-            sed -i "/^${env_key}=/d" "$ENV_FILE"
+            tmp=$(mktemp "${ENV_FILE}.XXXXXX")
+            sed "/^${env_key}=/d" "$ENV_FILE" > "$tmp" && mv "$tmp" "$ENV_FILE"
         fi
         echo "✅ Unset $key (reverts to default)"
         ;;
     *)
-        echo "Usage: focus config <show|set|unset>" >&2; exit 2
+        usage_error config
         ;;
 esac

@@ -3,6 +3,9 @@ set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
 source "$REFOCUS_ROOT/core/time.sh"
+source "$REFOCUS_ROOT/services/help.sh"
+
+wants_help "$@" && show_help continue
 
 db_ensure
 
@@ -20,10 +23,10 @@ if [[ "${ans:-Y}" =~ ^[Nn]$ ]]; then
     exit 0
 fi
 
-now=$(_now_iso)
-now_ts=$(_now_epoch)
+now=$(now_iso)
+now_ts=$(now_epoch)
 adjusted_ts=$(( now_ts - previous_elapsed ))
-adjusted=$(_epoch_to_iso "$adjusted_ts")
+adjusted=$(epoch_to_iso "$adjusted_ts")
 resume_session "$adjusted"
 
 echo "▶  Resumed: $project (continuing from ${prev_min}m)."

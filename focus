@@ -8,6 +8,16 @@ source "$REFOCUS_ROOT/env.sh"
 cmd="${1:-help}"
 shift || true
 
+# `focus --help` is the same request as `focus help`; routing it by filename
+# would look for lib/--help.sh and report an unknown command.
+case "$cmd" in
+    -h|--help) cmd="help" ;;
+esac
+
 lib="$REFOCUS_ROOT/lib/${cmd}.sh"
-[[ -x "$lib" ]] || { echo "❌ Unknown command: $cmd" >&2; exit 2; }
+[[ -x "$lib" ]] || {
+    echo "❌ Unknown command: $cmd" >&2
+    echo "Run 'focus help' for the command list." >&2
+    exit 2
+}
 exec "$lib" "$@"

@@ -3,6 +3,9 @@ set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
 source "$REFOCUS_ROOT/services/cron.sh"
+source "$REFOCUS_ROOT/services/help.sh"
+
+wants_help "$@" && show_help disable
 db_ensure
 
 if is_session_active || is_session_paused; then

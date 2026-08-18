@@ -13,8 +13,17 @@ _die()   { echo "$1" >&2; exit 1; }
 install_deps() {
     local missing=()
     command -v sqlite3      &>/dev/null || missing+=(sqlite3)
-    command -v notify-send  &>/dev/null || missing+=(libnotify-bin)
     command -v crontab      &>/dev/null || missing+=(cron)
+
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        # macOS has no libnotify — focus-nudge already falls back to logger(1),
+        # and the notify-send calls in the handlers are `|| true` no-ops.
+        # gdate is what lets relative times ("2 hours ago") parse; core/time.sh
+        # works without it, but only for explicit formats.
+        command -v gdate &>/dev/null || missing+=(coreutils)
+    else
+        command -v notify-send &>/dev/null || missing+=(libnotify-bin)
+    fi
 
     [[ ${#missing[@]} -eq 0 ]] && { _ok "Dependencies present."; return; }
 
@@ -41,6 +50,17 @@ install_deps() {
             esac
         done
         sudo dnf install -y "${pkgs[@]}"
+    elif command -v brew &>/dev/null; then
+        local pkgs=()
+        for p in "${missing[@]}"; do
+            case $p in
+                sqlite3) pkgs+=(sqlite);;
+                cron)    ;;   # macOS ships cron; nothing to install
+                *)       pkgs+=("$p");;
+            esac
+        done
+        # Guard the expansion: macOS bash is 3.2, where "${empty[@]}" trips set -u.
+        [[ ${#pkgs[@]} -gt 0 ]] && brew install "${pkgs[@]}"
     else
         _warn "Unknown package manager. Install manually: ${missing[*]}"
     fi
@@ -172,8 +192,13 @@ case "${1:-install}" in
         rm -f  "$BIN_DIR/focus"
         rm -f  "$HOME/.local/share/applications/refocus.desktop"
         rc="$HOME/.bashrc"
-        sed -i '/# Refocus Shell/d' "$rc"
-        sed -i '/focus-function\.sh/d' "$rc"
+        # No `sed -i`: GNU takes a bare -i, BSD demands -i ''. Sibling temp + rename
+        # behaves identically on both.
+        if [[ -f "$rc" ]]; then
+            rc_tmp=$(mktemp "${rc}.XXXXXX")
+            sed -e '/# Refocus Shell/d' -e '/focus-function\.sh/d' "$rc" > "$rc_tmp" \
+                && mv "$rc_tmp" "$rc"
+        fi
         _ok "Uninstalled."
         ;;
     *)

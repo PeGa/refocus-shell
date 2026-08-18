@@ -157,6 +157,14 @@ update_session() {
         WHERE id=$id;"
 }
 
+update_session_notes() {
+    # Notes are orthogonal to timing: this is the one session edit that is legal
+    # on duration-only rows too, since it bolts no timestamps onto them
+    # [CONV-DURONLY].
+    local id="$1" notes="$2"
+    _exec "UPDATE sessions SET notes='$(_q "$notes")' WHERE id=$id;"
+}
+
 delete_session() {
     local id="$1"
     _exec "DELETE FROM sessions WHERE id=$id;"
@@ -164,10 +172,16 @@ delete_session() {
 
 # ── Sessions: reads ──────────────────────────────────────────────────────────
 
+# Notes are the only free-text column and may hold newlines, but every session
+# read must stay one line per row [PORT]. Encode backslashes first so the decode
+# is reversible, then the line breaks; core/text.sh notes_decode reverses it.
+# char() keeps backslashes out of the SQL source entirely.
+_NOTES_ENCODED="REPLACE(REPLACE(REPLACE(COALESCE(notes,''), char(92), char(92,92)), char(10), char(92,110)), char(13), char(92,114))"
+
 list_sessions() {
     local limit="${1:-$REPORT_LIMIT}"
     _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
-                   duration_seconds, COALESCE(notes,''), duration_only, COALESCE(session_date,'')
+                   duration_seconds, $_NOTES_ENCODED, duration_only, COALESCE(session_date,'')
             FROM sessions
             ORDER BY id DESC LIMIT $limit;"
 }
@@ -175,7 +189,7 @@ list_sessions() {
 list_sessions_in_range() {
     local start="$1" end="$2"
     _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
-                   duration_seconds, COALESCE(notes,''), duration_only, COALESCE(session_date,'')
+                   duration_seconds, $_NOTES_ENCODED, duration_only, COALESCE(session_date,'')
             FROM sessions
             WHERE (
                 (duration_only=0 AND end_time >= '$(_q "$start")' AND end_time <= '$(_q "$end")')
@@ -188,7 +202,7 @@ list_sessions_in_range() {
 get_session() {
     local id="$1"
     _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
-                   duration_seconds, COALESCE(notes,''), duration_only, COALESCE(session_date,'')
+                   duration_seconds, $_NOTES_ENCODED, duration_only, COALESCE(session_date,'')
             FROM sessions WHERE id=$id;"
 }
 

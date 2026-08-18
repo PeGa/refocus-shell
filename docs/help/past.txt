@@ -5,6 +5,7 @@ focus past — log and fix sessions
   focus past add <project> --duration 2h30m [--date YYYY/MM/DD]
   focus past modify <id> [project] [start] [end]      timestamped session
   focus past modify <id> [project] [--duration 2h]    duration-only session
+  focus past modify <id> --notes                      rewrite the note
   focus past delete <id>
 
 Forgot to start the timer? Log it after the fact.
@@ -13,7 +14,11 @@ Forgot to start the timer? Log it after the fact.
   --duration    no clock times — just a length and a date (default today)
 
 A duration-only session has no timestamps: modify can rename it or change its
-length, but won't bolt fake times onto it. list shows the most recent first.
+length, but won't bolt fake times onto it. --notes works on either kind — a
+note carries no timestamps. list shows the most recent first.
+
+Notes open in $EDITOR, so they can run to several lines. Piped input works too:
+  echo "shipped the parser" | focus past add refactor 14:00 15:30
 
 times       YYYY/MM/DD-HH:MM   14:30   "yesterday 14:00"   "2 hours ago"
 durations   1h30m   2h   45m

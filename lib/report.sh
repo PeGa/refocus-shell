@@ -3,6 +3,10 @@ set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
 source "$REFOCUS_ROOT/core/time.sh"
+source "$REFOCUS_ROOT/core/text.sh"
+source "$REFOCUS_ROOT/services/help.sh"
+
+wants_help "$@" && show_help report
 
 db_ensure
 
@@ -11,11 +15,14 @@ _report() {
 
     echo "📊 $label"
     printf '═%.0s' $(seq 1 "${#label}"); echo
-    echo "Period: $(_ts_format "$start" "$DATE_FORMAT") → $(_ts_format "$end" "$DATE_FORMAT")"
+    echo "Period: $(ts_format "$start" "$DATE_FORMAT") → $(ts_format "$end" "$DATE_FORMAT")"
     echo ""
 
     local total=0 sessions=0
-    declare -A proj_dur proj_cnt
+    # The =() initialisers are load-bearing: a bare `declare -A x` leaves the
+    # array unset, so ${#x[@]} on a period with no sessions trips `set -u` and
+    # aborted the whole report.
+    declare -A proj_dur=() proj_cnt=()
 
     while IFS='|' read -r id project start_t end_t dur notes duration_only session_date; do
         total=$(( total + dur ))
@@ -40,11 +47,13 @@ _report() {
         if [[ "$duration_only" == "1" ]]; then
             echo "  [$id] $project — $(fmt_duration "$dur") on $session_date (manual)"
         else
-            s=$(_ts_format "$start_t" "$DATE_SHORT_FORMAT" 2>/dev/null)
-            e=$(_ts_format "$end_t"   "%H:%M"             2>/dev/null)
+            s=$(ts_format "$start_t" "$DATE_SHORT_FORMAT" 2>/dev/null)
+            e=$(ts_format "$end_t"   "%H:%M"             2>/dev/null)
             echo "  [$id] $project — $s–$e ($(fmt_duration "$dur"))"
         fi
-        if [[ -n "$notes" ]]; then echo "       📝 $notes"; fi
+        if [[ -n "$notes" ]]; then
+            notes_block "       📝 " "          " "$(notes_decode "$notes")"
+        fi
     done < <(list_sessions_in_range "$start" "$end")
 }
 
@@ -52,28 +61,28 @@ period="${1:-today}"
 
 case "$period" in
     today)
-        start=$(_iso_days_ago 0)
-        end=$(_now_iso)
+        start=$(iso_days_ago 0)
+        end=$(now_iso)
         _report "Today's Focus" "$start" "$end"
         ;;
     week)
-        start=$(_iso_days_ago 7)
-        end=$(_now_iso)
+        start=$(iso_days_ago 7)
+        end=$(now_iso)
         _report "This Week's Focus" "$start" "$end"
         ;;
     month)
-        start=$(_iso_month_start)
-        end=$(_now_iso)
+        start=$(iso_month_start)
+        end=$(now_iso)
         _report "This Month's Focus" "$start" "$end"
         ;;
     custom)
         days="${2:-7}"
-        [[ ! "$days" =~ ^[0-9]+$ ]] && { echo "Usage: focus report custom <days>" >&2; exit 2; }
-        start=$(_iso_days_ago "$days")
-        end=$(_now_iso)
+        [[ ! "$days" =~ ^[0-9]+$ ]] && usage_error report
+        start=$(iso_days_ago "$days")
+        end=$(now_iso)
         _report "Last ${days}-day Focus" "$start" "$end"
         ;;
     *)
-        echo "Usage: focus report [today|week|month|custom <days>]" >&2; exit 2
+        usage_error report
         ;;
 esac

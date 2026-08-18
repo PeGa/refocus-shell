@@ -1,0 +1,9 @@
+focus help — the manual
+
+  focus help              the command index
+  focus help <command>    detail on one command
+  focus <command> --help  the same text, from wherever you are
+
+Every command answers --help, and prints this same text when you get the
+arguments wrong. There is exactly one description of each command, in
+docs/help/<command>.txt — so what you read here is what the command does.
