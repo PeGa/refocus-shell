@@ -285,6 +285,12 @@ it (CONV-NOTES). The JSON and `.dump` exports are untouched — both formats
 carry newlines correctly on their own.
 
 **Serialization (db_*, storage):**
+- `get_project_totals_in_range <start> <end>` → `project|duration_seconds|session_count`
+  rows, one per project, `GROUP BY project` ordered by duration descending. Same
+  WHERE clause as `list_sessions_in_range` on purpose — the breakdown must count
+  exactly the sessions the raw listing shows. PORT-BASH32: this exists so `focus
+  report` never needs a bash associative array — macOS ships bash 3.2, which
+  has none, and `declare -A` there is not a warning, it's a hard abort.
 - `db_dump_sql` → `.dump` to stdout. `db_load_sql <file>` → restore.
 - `db_export_state_json` → single JSON object. `db_export_sessions_json` → array.
 - `db_import_session_row <7 fields>` — verbatim insert, NULLs preserved.
@@ -439,8 +445,11 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
 - `delete <id>` — confirm, `delete_session`.
 
 ### CMD-REPORT · `focus report <today|week|month|custom N>`
-- compute range, `list_sessions_in_range`, print total + per-project + per-session.
-  `custom` requires numeric N (exit 2). Facts only, no score.
+- compute range, `list_sessions_in_range` for the total and per-session listing,
+  `get_project_totals_in_range` for the per-project breakdown (PORT-BASH32 —
+  never aggregate per-project totals in bash; that means `declare -A`, and
+  `focus report` must run on bash 3.2). `custom` requires numeric N (exit 2).
+  Facts only, no score.
 
 ### CMD-ENABLE · `focus enable`
 - already enabled (`! is_focus_disabled`) → say so, exit 0, touch nothing
@@ -556,9 +565,21 @@ active          1 0 0      paused          0 1 0
 - CONV-NOTES: notes may contain newlines; session reads may not (PORT-NOTES).
   Encode in the adapter, decode with `notes_decode`, render with `notes_block`.
   Never print a note straight from a read.
-- CONV-PORTABLE: the tool targets GNU and BSD userland. `date(1)` is confined to
-  `core/time.sh` (CORE-DATE) and `sed -i` is banned outright — GNU takes a bare
-  `-i`, BSD demands `-i ''`. Write a sibling temp file and rename.
+- CONV-PORTABLE: the tool targets GNU and BSD userland, **and bash 3.2** — macOS
+  ships 3.2 as `/bin/bash` (GPLv3; Apple will not move), and the shebang is
+  `#!/usr/bin/env bash`, so nothing forces a newer one onto PATH. Three concrete
+  bans, each cost a real bug on macOS before it was named here:
+  - `date(1)` is confined to `core/time.sh` (CORE-DATE).
+  - `sed -i` is banned outright — GNU takes a bare `-i`, BSD demands `-i ''`.
+    Write a sibling temp file and rename.
+  - A `t` label in a multi-command `sed` expression must be its own `-e`
+    clause. BSD reads a `;`-terminated label as part of the label name and
+    errors "undefined label"; `sed 's/a/b/;t;s/c/d/'` only works on GNU.
+  - **`declare -A` / associative arrays are banned outright** — bash 3.2 has
+    none, full stop, and the failure is `declare: -A: invalid option`, not a
+    warning. Aggregate in SQL instead (PORT-BASH32) — this is not a style
+    preference, `focus report` had zero working subcommands on macOS until it
+    moved the per-project breakdown into `get_project_totals_in_range`.
 - (CONV-ENVFILE lives in [ENV]; CRON-STRIP / CRON-INTERVAL live in [CRON].)
 
 ---

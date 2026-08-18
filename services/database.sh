@@ -199,6 +199,26 @@ list_sessions_in_range() {
             ORDER BY COALESCE(end_time, session_date) DESC;"
 }
 
+get_project_totals_in_range() {
+    # <start> <end> -> project|duration_seconds|session_count, one row per
+    # project, ordered by duration_seconds descending.
+    #
+    # Same WHERE clause as list_sessions_in_range on purpose: report's
+    # per-project breakdown must count exactly the sessions the raw listing
+    # shows. Aggregating here rather than in bash means `focus report` has no
+    # associative-array dependency — macOS ships bash 3.2, which has none.
+    local start="$1" end="$2"
+    _query "SELECT project, SUM(duration_seconds), COUNT(*)
+            FROM sessions
+            WHERE (
+                (duration_only=0 AND end_time >= '$(_q "$start")' AND end_time <= '$(_q "$end")')
+                OR
+                (duration_only=1 AND session_date >= date('$(_q "$start")') AND session_date <= date('$(_q "$end")'))
+            )
+            GROUP BY project
+            ORDER BY SUM(duration_seconds) DESC;"
+}
+
 get_session() {
     local id="$1"
     _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),

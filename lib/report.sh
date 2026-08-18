@@ -18,29 +18,24 @@ _report() {
     echo "Period: $(ts_format "$start" "$DATE_FORMAT") → $(ts_format "$end" "$DATE_FORMAT")"
     echo ""
 
+    # No associative array: macOS ships bash 3.2 (no `declare -A` at all), so
+    # the per-project breakdown is aggregated in SQL (get_project_totals_in_range)
+    # instead. This loop only sums scalars, which every bash version supports.
     local total=0 sessions=0
-    # The =() initialisers are load-bearing: a bare `declare -A x` leaves the
-    # array unset, so ${#x[@]} on a period with no sessions trips `set -u` and
-    # aborted the whole report.
-    declare -A proj_dur=() proj_cnt=()
-
     while IFS='|' read -r id project start_t end_t dur notes duration_only session_date; do
         total=$(( total + dur ))
         sessions=$(( sessions + 1 ))
-        proj_dur[$project]=$(( ${proj_dur[$project]:-0} + dur ))
-        proj_cnt[$project]=$(( ${proj_cnt[$project]:-0} + 1 ))
     done < <(list_sessions_in_range "$start" "$end")
 
     echo "Total: $(fmt_duration $total) across $sessions session(s)"
     echo ""
 
-    if [[ ${#proj_dur[@]} -gt 0 ]]; then
-        echo "Projects:"
-        for p in "${!proj_dur[@]}"; do
-            printf "  %-24s %s (%d session(s))\n" "$p" "$(fmt_duration "${proj_dur[$p]}")" "${proj_cnt[$p]}"
-        done
-        echo ""
-    fi
+    local have_projects=0
+    while IFS='|' read -r p pdur pcnt; do
+        [[ $have_projects -eq 0 ]] && { echo "Projects:"; have_projects=1; }
+        printf "  %-24s %s (%d session(s))\n" "$p" "$(fmt_duration "$pdur")" "$pcnt"
+    done < <(get_project_totals_in_range "$start" "$end")
+    [[ $have_projects -eq 1 ]] && echo ""
 
     echo "Sessions:"
     while IFS='|' read -r id project start_t end_t dur notes duration_only session_date; do
