@@ -263,6 +263,7 @@ named functions with these contracts. Output of reads is pipe-separated.
 - `record_duration_session <project> <dur> <date> [notes]` — `duration_only=1`.
 - `update_session <id> <project> <start> <end> <dur>` — timestamped edit.
 - `update_duration_session <id> <project> <dur>` — never touches timestamps (CONV-DURONLY).
+- `update_session_notes <id> <notes>` — notes only; legal on either kind of row.
 - `delete_session <id>`.
 
 **Session reads** (all 8-field rows: `id|project|start|end|dur|notes|duration_only|session_date`):
@@ -274,6 +275,15 @@ named functions with these contracts. Output of reads is pipe-separated.
 - `get_last_session` → `project|end_time|duration_seconds` of most recent.
 - `get_last_project` → most recent project name.
 
+**PORT-NOTES:** `notes` is the one free-text column and may contain newlines,
+but a read is one line per row — a raw newline would desynchronise every
+`IFS='|' read` in the codebase. The three session reads encode it on the way
+out via `$_NOTES_ENCODED`: backslash first (so the decode is reversible), then
+LF → `\n` and CR → `\r`, written with `char()` so no backslash enters the SQL
+source. Writes store the text verbatim; `core/text.sh` `notes_decode` reverses
+it (CONV-NOTES). The JSON and `.dump` exports are untouched — both formats
+carry newlines correctly on their own.
+
 **Serialization (db_*, storage):**
 - `db_dump_sql` → `.dump` to stdout. `db_load_sql <file>` → restore.
 - `db_export_state_json` → single JSON object. `db_export_sessions_json` → array.
@@ -284,21 +294,42 @@ named functions with these contracts. Output of reads is pipe-separated.
 
 ---
 
-## [CORE] The domain-helper surface (core/time.sh)
+## [CORE] The domain-helper surface (core/*.sh)
 
 Pure functions. String/int in, string/int out. No SQL, no cron, no state, no
 side effects. Sourced by any layer that needs them; never routable (ARCH-ROUTABLE).
 
+### CORE-TIME · core/time.sh
+
 - `fmt_duration <seconds>` → human string. `"2h 15m"` when hours>0, else `"45m"`.
 - `parse_duration <str>` → seconds on stdout, or `❌`-message to stderr + return 1.
   Accepts exactly: `XhYm`, `Xh`, `Xm` (e.g. `1h30m`, `2h`, `45m`). Nothing else.
-- `parse_time <str>` → ISO-8601 (`date -Iseconds`) on stdout, or `❌` + return 1.
-  Normalises `YYYY/MM/DD-HH:MM` to a `date(1)`-parseable form first, then accepts
-  anything `date(1)` accepts: `HH:MM` (today assumed), `"yesterday 14:00"`,
-  `"2 hours ago"`, etc.
+- `parse_time <str>` → ISO-8601 on stdout, or `❌` + return 1. Normalises
+  `YYYY/MM/DD-HH:MM` first, then `YYYY-MM-DD HH:MM[:SS]` and `HH:MM` (today
+  assumed). Relative English (`"yesterday 14:00"`, `"2 hours ago"`) needs GNU
+  date; on BSD it fails with a message naming `brew install coreutils`.
+- `now_iso` · `now_epoch` · `epoch_to_iso` · `epoch_format` · `iso_to_epoch` ·
+  `ts_format` · `iso_days_ago` · `iso_month_start` · `parse_date_to_fmt` — the
+  portable surface. Public names, no underscore: they are called across files,
+  and `_name` means file-private (NAME).
+- CORE-DATE: **`date(1)` is called nowhere else.** GNU and BSD disagree on
+  `--date`, `-r`, `-v` and strptime formats; `_date` and `_DATE_IS_GNU` (private)
+  absorb the split. Adding a `date` call to a handler is a contract violation,
+  not a shortcut. Same reasoning bans GNU-only `sed -i` everywhere: write a
+  sibling temp file and rename.
 - WHY a separate layer: `parse_duration`/`parse_time` were duplicated inline in
   two `past` branches; one of those copies fed an empty string to `date` and
   silently produced a zero duration (CONV-DURONLY). One definition, one place.
+
+### CORE-TEXT · core/text.sh
+
+- `notes_decode <encoded>` → raw text. Reverses the adapter's newline encoding
+  (PORT-NOTES) in one left-to-right pass via `printf %b`, so an escaped
+  backslash is never re-read as the start of an escape.
+- `notes_block <first-prefix> <cont-prefix> <decoded>` → the note printed one
+  line at a time, so a multi-line note cannot wreck a listing's alignment.
+  Takes **decoded** text: decoding here too would turn a backslash-n the user
+  actually typed into a line break.
 
 ---
 
@@ -390,10 +421,21 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
 - `modify <id> [project] [start] [end]` (timestamped row) — recompute duration.
 - `modify <id> [project] [--duration <D>]` (duration-only row) — rename and/or
   re-duration ONLY; any timestamp arg → exit 2 (CONV-DURONLY).
+- `modify <id> --notes` (either kind of row) — reopen the note in `$EDITOR`,
+  pre-loaded with the existing one, then `update_session_notes`. Legal on
+  duration-only rows: a note bolts no timestamps onto them (CONV-DURONLY).
 - CMD-PAST-ARGS: the leading `[project]` is optional. Detect it as "the next arg
   that is not the `--duration` flag" — never consume `--duration` as the project
   name. So `modify <id> --duration 1h` updates duration and keeps the project;
   `modify <id> newname` renames only; `modify <id> newname --duration 1h` does both.
+  `--notes` is lifted out of the argument list before this split, so it composes
+  with either form.
+- CMD-PAST-ID: `modify`/`delete` validate the id against `^[0-9]+$` **before**
+  calling the adapter, which interpolates it into SQL (CONV-ID). Without that
+  guard `past modify --help` reached `WHERE id=--help`, where `--` opens a SQL
+  comment, and surfaced as `Error: in prepare, incomplete input`.
+- CMD-PAST-NOOP: a `modify` that names no field to change is a usage error
+  (exit 2), not a no-op UPDATE reported as `✅ Session N updated.`
 - `delete <id>` — confirm, `delete_session`.
 
 ### CMD-REPORT · `focus report <today|week|month|custom N>`
@@ -436,6 +478,13 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
 ### CMD-HELP · `focus help [cmd]`
 - pure dispatch: `cat docs/help/<cmd>.txt`; no arg → `global.txt`; missing → exit 2.
   Help text lives only in `docs/help/`, never duplicated in code.
+- Resolution lives in `services/help.sh`, not in `lib/help.sh`, so that *every*
+  handler renders the same text: `show_help <cmd>` (stdout, exit 0) and
+  `usage_error <cmd>` (stderr, exit 2). `lib/help.sh` is the routable wrapper.
+- CMD-HELP-INTERCEPT: every handler calls `wants_help "$@"` before parsing
+  arguments and before `db_ensure`. `--help` must never reach argument parsing —
+  it was being taken for a project name, so `past modify 5 --help` silently
+  renamed session 5 to `--help`.
 
 ---
 
@@ -494,8 +543,22 @@ active          1 0 0      paused          0 1 0
   defensively in scripts must be harmless.
 - CONV-DURONLY: a `duration_only=1` row has no timestamps. Never feed an empty
   date string to `date(1)` (it parses as today-midnight and silently yields a
-  zero/garbage duration — the data-loss bug). `modify` on such a row accepts only
-  rename and `--duration` (see CMD-PAST-ARGS).
+  zero/garbage duration — the data-loss bug). `modify` on such a row accepts
+  rename, `--duration` (see CMD-PAST-ARGS), and `--notes`.
+- CONV-HELP: help is data, never code. A handler that spells its own usage
+  string is a bug — that is how `focus past --help`, `focus past add --help` and
+  `focus past add` came to print three contradictory things while
+  `docs/help/past.txt` said a fourth. Usage errors call `usage_error <cmd>`;
+  `--help` is intercepted by `wants_help` (CMD-HELP-INTERCEPT).
+- CONV-ID: session ids are validated in the handler before reaching the adapter
+  (CMD-PAST-ID). The adapter interpolates ids into SQL unparameterised, so a
+  non-numeric id is a SQL error, not a usage error, unless the handler stops it.
+- CONV-NOTES: notes may contain newlines; session reads may not (PORT-NOTES).
+  Encode in the adapter, decode with `notes_decode`, render with `notes_block`.
+  Never print a note straight from a read.
+- CONV-PORTABLE: the tool targets GNU and BSD userland. `date(1)` is confined to
+  `core/time.sh` (CORE-DATE) and `sed -i` is banned outright — GNU takes a bare
+  `-i`, BSD demands `-i ''`. Write a sibling temp file and rename.
 - (CONV-ENVFILE lives in [ENV]; CRON-STRIP / CRON-INTERVAL live in [CRON].)
 
 ---

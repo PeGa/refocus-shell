@@ -1,9 +1,9 @@
-# CONTRACT_DIGEST.md — refocus-shell
+# START_HERE.md — refocus-shell contract digest
 
 > Load-first primer for an agent working on this codebase. Compressed for a small
 > context window and ordered by *what models get wrong*, not by topic. Every line
-> cites a handle into `CONTRACT.md`; expand the handle when you need the WHY.
-> **This file is a pointer, not the authority.** Authority = `CONTRACT.md` + `tests/`.
+> cites a handle into `MAIN.md`; expand the handle when you need the WHY.
+> **This file is a pointer, not the authority.** Authority = `MAIN.md` + `tests/`.
 
 ---
 
@@ -70,11 +70,13 @@ focus                     dispatcher: sets+exports REFOCUS_ROOT, routes focus <c
 lib/<cmd>.sh              PRIMARY adapter, one per command, routable, drives core via intent calls
 core/<topic>.sh           DOMAIN helpers, pure str/int→str/int, NO sql/cron/state, NOT routable
 services/database.sh      SECONDARY adapter, the ONLY file that speaks SQL (INV-1)
+services/help.sh          SECONDARY adapter, renders docs/help/<cmd>.txt (show_help/usage_error)
+services/editor.sh        SECONDARY adapter, captures notes through $EDITOR
 services/cron.sh          SECONDARY adapter, arms/disarms nudge schedule
 services/focus-function.sh shell integration: prompt hook + focus() wrapper
 env.sh                    config loader, sourced first everywhere, exports DB_PATH etc.
-focus-nudge               self-contained cron payload, sources env.sh + database.sh
-docs/help/<cmd>.txt       help served verbatim by lib/help.sh, never duplicated in code
+focus-nudge               self-contained cron payload, sources env.sh + database.sh + time.sh
+docs/help/<cmd>.txt       help served verbatim by services/help.sh, never duplicated in code
 ```
 
 - Dispatch is **dynamic by filename, no case table**. Adding a command = adding
@@ -129,7 +131,25 @@ wall-time is never counted. `[CMD-CONTINUE]`
 - **`enable` while enabled** is a no-op that says so (don't re-phase cron). `[CONV-IDEMPOTENT-ENABLE]`
 - **duration-only rows** have no timestamps — never feed an empty date to
   `date(1)` (parses as today-midnight → silent zero duration). `modify` on them
-  accepts rename + `--duration` only. `[CONV-DURONLY]`
+  accepts rename + `--duration`, plus `--notes` (a note bolts on no
+  timestamps). `[CONV-DURONLY]`
+- **Help is data, never code.** Every handler calls `wants_help "$@"` *before*
+  parsing arguments or `db_ensure`, and every usage error calls
+  `usage_error <cmd>`. Both render `docs/help/<cmd>.txt` — one on stdout at
+  exit 0, one on stderr at exit 2. A handler that spells its own usage string
+  is a bug: that is how `focus past --help`, `focus past add --help` and
+  `focus past add` came to print three contradictory things, and how `--help`
+  got parsed as a project name and renamed a session. `[CONV-HELP]`
+- **Session ids are validated in the handler** (`^[0-9]+$`) before reaching the
+  adapter, which interpolates them into SQL. `[CONV-ID]`
+- **Notes may contain newlines**, but a session read is one line per row
+  `[PORT]`. The adapter encodes CR/LF/backslash on the way out; `core/text.sh`
+  `notes_decode` reverses it and `notes_block` indents continuation lines.
+  Never print a raw note straight from a read. `[CONV-NOTES]`
+- **`date(1)` is never called outside `core/time.sh`.** GNU and BSD disagree on
+  `--date`, `-r`, `-v` and `-I`; the time layer owns the difference. Same for
+  `sed -i`, which GNU and BSD spell differently — write a sibling temp file and
+  rename instead. `[CONV-PORTABLE]`
 - **`ENV_FILE`** is computed once in `env.sh` and exported; never re-derived
   (split-brain `.env` bug). `[CONV-ENVFILE]`
 - **cron strip** is fixed-string (`grep -vF`), never regex, always against the

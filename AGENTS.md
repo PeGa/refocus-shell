@@ -2,7 +2,7 @@
 
 > Process layer for agentic tooling. Auto-loaded by opencode and compatible agents.
 > Covers HOW to build — task discipline, build order, verification, drift detection.
-> Domain constraints live in `CONTRACT_DIGEST.md`. Load both before acting.
+> Domain constraints live in `CONTRACTS/START_HERE.md`. Load both before acting.
 
 ---
 
@@ -10,10 +10,12 @@
 
 Before any action in a session:
 
-1. Read `CONTRACT_DIGEST.md` in full.
+1. Read `CONTRACTS/START_HERE.md` in full — the digest.
 2. Read this file in full.
-3. Read `TASK_QUEUE.md` to find the current task.
-4. Read only the files named in that task — not the whole repo.
+3. Read only the files named in the current task — not the whole repo.
+
+`CONTRACTS/MAIN.md` is the authority; `CONTRACTS/CONTRACT_INDEX.md` indexes it by
+handle. Expand a handle there when the digest is not enough.
 
 If any of these files is missing, stop and say so. Do not infer their content.
 
@@ -45,6 +47,10 @@ passes `tests/audit.sh`.
  2. env.sh                          no deps; exports DB_PATH, NUDGE_INTERVAL, etc.
  3. services/database.sh            deps: env.sh; the ONLY file that speaks SQL [INV-1]
  4. core/time.sh                    pure functions; no deps; fmt/parse duration+time
+                                    owns the GNU/BSD date(1) split [CONV-PORTABLE]
+ 4b. core/text.sh                   pure functions; decodes/indents stored notes
+ 4c. services/help.sh               renders docs/help/<cmd>.txt [CONV-HELP]
+ 4d. services/editor.sh             captures notes through $EDITOR
  5. services/cron.sh                deps: env.sh
  6. focus (dispatcher)              skeleton: set REFOCUS_ROOT, exec lib/$1.sh $@
  7. lib/enable.sh                   first handler; exercises cron + db boundary
@@ -61,8 +67,8 @@ passes `tests/audit.sh`.
 18. lib/import.sh
 19. lib/export.sh
 20. lib/init.sh
-21. lib/help.sh + docs/help/*.txt
-22. focus-nudge                     self-contained; sources env+db independently
+21. lib/help.sh + docs/help/*.txt   thin wrapper over services/help.sh
+22. focus-nudge                     self-contained; sources env+db+time independently
 23. services/focus-function.sh      prompt hook + focus() wrapper
 24. setup.sh                        install/uninstall; arms cron on fresh install
 25. tests/state-matrix.sh           full behavioral oracle; written after all lib/ exists
@@ -78,7 +84,7 @@ The human provides tasks in this shape. Honour every field:
 Task: implement lib/<name>.sh
 
 Constraints:
-- Read CONTRACT_DIGEST.md §N for relevant invariants.
+- Read CONTRACTS/START_HERE.md §N for relevant invariants.
 - Source order: env.sh → services/database.sh → [core/time.sh if needed] → db_ensure.
 - Calls permitted: [explicit list of intent functions]
 - No sqlite3 calls. No db_* domain calls. [INV-1] [INV-2]
@@ -94,7 +100,7 @@ Do not infer unstated scope.
 
 ---
 
-## 4 · Naming rules (summary — full spec in CONTRACT_DIGEST.md §3 and [NAME])
+## 4 · Naming rules (summary — full spec in CONTRACTS/START_HERE.md §3 and [NAME])
 
 - `db_*` — schema lifecycle and serialization only (`db_init`, `db_dump_sql`, etc.).
   Not for domain work.
@@ -119,6 +125,19 @@ grep -rl sqlite3 lib/ core/ focus focus-nudge services/cron.sh \
 grep -rn "nudging_enabled\|pause_notes\|\bprojects\b\|focus describe\|nudge enable\|nudge disable\|db_flip_flag\|db_nudging_on\|db_is_active\|db_is_paused\|db_is_disabled" \
      lib/ services/ core/ focus focus-nudge 2>/dev/null
 # Expected: no output
+
+# CONV-HELP: help text lives in docs/, never inline in a handler.
+# services/help.sh is exempt — it owns the no-doc-found fallback.
+grep -rn '"Usage:' lib/ focus focus-nudge 2>/dev/null
+# Expected: no output
+
+# CONV-PORTABLE: only core/time.sh calls date(1), and nobody uses GNU-only
+# `sed -i`. Both skip comment lines, so the notes explaining the rule don't
+# trip the check that enforces it.
+grep -rn '^[^#]*\(date --date\|date -d \|date +%s\|date -Iseconds\)' \
+     lib/ services/ focus focus-nudge env.sh 2>/dev/null
+grep -rn '^[^#]*sed -i' lib/ services/ core/ focus focus-nudge setup.sh 2>/dev/null
+# Expected: no output for both
 ```
 
 If either returns output, stop, fix the violation, rerun before proceeding.
@@ -138,7 +157,7 @@ Do not carry drift forward into the next task.
 
 ## 7 · Conflict resolution
 
-If you cannot satisfy `CONTRACT_DIGEST.md` and the acceptance oracle simultaneously:
+If you cannot satisfy `CONTRACTS/START_HERE.md` and the acceptance oracle simultaneously:
 
 1. Stop.
 2. State the exact conflict: which rule, which file, which test assertion.
