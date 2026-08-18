@@ -2,7 +2,9 @@
 set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
+source "$REFOCUS_ROOT/services/editor.sh"
 source "$REFOCUS_ROOT/core/time.sh"
+source "$REFOCUS_ROOT/core/text.sh"
 
 db_ensure
 
@@ -22,7 +24,9 @@ case "$sub" in
                 e=$(ts_format "$end"   "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$end")
             fi
             printf "%-4s %-22s %-19s %-19s %-8s\n" "$id" "$project" "$s" "$e" "$(fmt_duration "$dur")"
-            if [[ -n "$notes" ]]; then echo "     📝 $notes"; fi
+            if [[ -n "$notes" ]]; then
+                notes_block "     📝 " "        " "$(notes_decode "$notes")"
+            fi
         done < <(list_sessions "$limit")
         ;;
 
@@ -39,7 +43,7 @@ case "$sub" in
 
             date_iso=$(parse_date_to_fmt "$date_str" "$DATE_FORMAT") || { echo "❌ Invalid date: $date_str" >&2; exit 2; }
             [[ -z "$date_iso" ]] && { echo "❌ Invalid date: $date_str" >&2; exit 2; }
-            echo -n "📝 Notes (Enter to skip): "; read -r notes
+            echo "📝 Notes (empty to skip)"; notes=$(capture_notes "")
             record_duration_session "$project" "$dur" "$date_iso" "$notes"
             echo "✅ Added: $project ($dur_str on $date_iso)"
 
@@ -55,7 +59,7 @@ case "$sub" in
             [[ $end_ts -le $start_ts ]] && { echo "❌ End must be after start." >&2; exit 2; }
             dur=$(( end_ts - start_ts ))
 
-            echo -n "📝 Notes (Enter to skip): "; read -r notes
+            echo "📝 Notes (empty to skip)"; notes=$(capture_notes "")
             record_session "$project" "$start" "$end" "$dur" "$notes"
             echo "✅ Added: $project ($(fmt_duration "$dur"))"
         fi

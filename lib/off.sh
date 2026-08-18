@@ -2,7 +2,9 @@
 set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
+source "$REFOCUS_ROOT/services/editor.sh"
 source "$REFOCUS_ROOT/core/time.sh"
+source "$REFOCUS_ROOT/core/text.sh"
 
 db_ensure
 
@@ -26,14 +28,15 @@ else
 fi
 
 echo ""
-echo -n "📝 What did you accomplish? (Enter to skip): "
-read -r notes
+echo "📝 What did you accomplish? (empty to skip)"
+notes=$(capture_notes "")
 
 record_session "$project" "$start_time" "$now" "$duration" "$notes"
 end_session "$now"
 
 if [[ -n "$notes" ]]; then
-    echo "✅ Stopped. Notes: $notes"
+    echo "✅ Stopped. Notes:"
+    notes_block "   " "   " "$notes"
 else
     echo "✅ Stopped. No notes recorded."
 fi

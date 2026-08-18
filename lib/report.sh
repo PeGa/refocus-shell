@@ -3,6 +3,7 @@ set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
 source "$REFOCUS_ROOT/core/time.sh"
+source "$REFOCUS_ROOT/core/text.sh"
 
 db_ensure
 
@@ -15,7 +16,10 @@ _report() {
     echo ""
 
     local total=0 sessions=0
-    declare -A proj_dur proj_cnt
+    # The =() initialisers are load-bearing: a bare `declare -A x` leaves the
+    # array unset, so ${#x[@]} on a period with no sessions trips `set -u` and
+    # aborted the whole report.
+    declare -A proj_dur=() proj_cnt=()
 
     while IFS='|' read -r id project start_t end_t dur notes duration_only session_date; do
         total=$(( total + dur ))
@@ -44,7 +48,9 @@ _report() {
             e=$(ts_format "$end_t"   "%H:%M"             2>/dev/null)
             echo "  [$id] $project — $s–$e ($(fmt_duration "$dur"))"
         fi
-        if [[ -n "$notes" ]]; then echo "       📝 $notes"; fi
+        if [[ -n "$notes" ]]; then
+            notes_block "       📝 " "          " "$(notes_decode "$notes")"
+        fi
     done < <(list_sessions_in_range "$start" "$end")
 }
 
