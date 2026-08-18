@@ -131,13 +131,16 @@ grep -rn "nudging_enabled\|pause_notes\|\bprojects\b\|focus describe\|nudge enab
 grep -rn '"Usage:' lib/ focus focus-nudge 2>/dev/null
 # Expected: no output
 
-# CONV-PORTABLE: only core/time.sh calls date(1), and nobody uses GNU-only
-# `sed -i`. Both skip comment lines, so the notes explaining the rule don't
-# trip the check that enforces it.
+# CONV-PORTABLE: only core/time.sh calls date(1), nobody uses GNU-only `sed -i`
+# or a `;`-terminated `t` label, and nobody uses `declare -A` — macOS ships
+# bash 3.2, which has no associative arrays; `focus report` had zero working
+# subcommands on macOS until this was enforced. All three skip comment lines,
+# so the notes explaining a rule don't trip the check that enforces it.
 grep -rn '^[^#]*\(date --date\|date -d \|date +%s\|date -Iseconds\)' \
      lib/ services/ focus focus-nudge env.sh 2>/dev/null
 grep -rn '^[^#]*sed -i' lib/ services/ core/ focus focus-nudge setup.sh 2>/dev/null
-# Expected: no output for both
+grep -rn '^[^#]*declare -A' lib/ services/ core/ focus focus-nudge 2>/dev/null
+# Expected: no output for all three
 ```
 
 If either returns output, stop, fix the violation, rerun before proceeding.

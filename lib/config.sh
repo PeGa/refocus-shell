@@ -18,8 +18,11 @@ _show() {
     echo ""
     if [[ -f "$ENV_FILE" && -s "$ENV_FILE" ]]; then
         echo "Overrides ($ENV_FILE):"
-        # Strip REFOCUS_ prefix for readability
-        sed 's/^REFOCUS_/  /;t;s/^/  /' "$ENV_FILE"
+        # Strip REFOCUS_ prefix for readability. Split into -e clauses: BSD sed
+        # requires a `t` label to end at a newline, and reads a `;`-terminated
+        # label as part of the label name, so `t;s/^/  /` errors as an
+        # "undefined label" on macOS even though GNU sed accepts it inline.
+        sed -e 's/^REFOCUS_/  /' -e t -e 's/^/  /' "$ENV_FILE"
     else
         echo "(no overrides — $ENV_FILE)"
     fi

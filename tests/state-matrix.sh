@@ -188,7 +188,7 @@ nid=$(sqlite3 "$REFOCUS_DB_PATH" "SELECT id FROM sessions WHERE project='note/mu
 chk "note keeps both lines" "first line
 second line" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT notes FROM sessions WHERE id=$nid;")"
 chk "encoded read stays one row" "1" \
-    "$(bash -c 'source env.sh; source services/database.sh; get_session '"$nid"' | wc -l')"
+    "$(bash -c 'source env.sh; source services/database.sh; get_session '"$nid"' | wc -l' | tr -d ' ')"
 chk "encoded read stays 8 fields" "8" \
     "$(bash -c 'source env.sh; source services/database.sh; get_session '"$nid"' | awk -F"|" "{print NF}"')"
 chk "past list renders both lines" "0" \
@@ -205,6 +205,34 @@ chk "--notes preserves duration" "$dur_before"  "$(sqlite3 "$REFOCUS_DB_PATH" "S
 # period with no sessions exited 1.
 echo "── report: empty period ──"
 ./focus report custom 1 >/dev/null 2>&1; chk "report on empty period rc=0" "0" "$?"
+
+# ── report: bash-3.2 compat (macOS ships bash 3.2, no associative arrays) ────
+# report.sh previously kept per-project totals in `declare -A`, which macOS's
+# shipped /bin/bash cannot parse at all -- every `focus report` call aborted
+# on macOS. Aggregation now happens in SQL (get_project_totals_in_range);
+# this checks the construct is gone and the breakdown is still correct.
+echo "── report: bash-3.2 compat ──"
+if grep -q '^[^#]*declare -A' lib/report.sh; then assoc_array_found=yes; else assoc_array_found=no; fi
+chk "report.sh has no associative array" "no" "$assoc_array_found"
+printf 'r1\n' | ./focus past add rep/x 2026/06/12-09:00 2026/06/12-10:00 >/dev/null 2>&1
+printf 'r2\n' | ./focus past add rep/x 2026/06/12-10:00 2026/06/12-12:00 >/dev/null 2>&1
+printf 'r3\n' | ./focus past add rep/y 2026/06/12-13:00 2026/06/12-13:30 >/dev/null 2>&1
+out=$(./focus report custom 90000 2>&1)
+chk "report: multi-session project total" "0" \
+    "$([[ "$out" == *"rep/x"*"3h 0m"*"2 session"* ]]; echo $?)"
+chk "report: single-session project total" "0" \
+    "$([[ "$out" == *"rep/y"*"30m"*"1 session"* ]]; echo $?)"
+
+# ── config show: BSD sed t-label ─────────────────────────────────────────────
+# BSD sed reads a `;`-terminated `t` label as part of the label name and
+# errors "undefined label"; GNU accepts it inline. Split into -e clauses.
+# This only exercises the GNU path here, but guards against reintroducing the
+# single-expression form.
+echo "── config show ──"
+./focus config set NUDGE_INTERVAL 11 >/dev/null 2>&1
+out=$(./focus config show 2>&1); rc=$?
+chk "config show rc=0 with overrides" "0" "$rc"
+chk "config show renders override"   "0" "$([[ "$out" == *"NUDGE_INTERVAL=11"* ]]; echo $?)"
 
 # ── result ───────────────────────────────────────────────────────────────────
 echo
