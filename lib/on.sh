@@ -3,6 +3,9 @@ set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
 source "$REFOCUS_ROOT/core/time.sh"
+source "$REFOCUS_ROOT/services/help.sh"
+
+wants_help "$@" && show_help on
 
 db_ensure
 
@@ -35,7 +38,7 @@ if [[ -z "$project" ]]; then
         fi
         project="$last"
     else
-        echo "Usage: focus on <project>" >&2; exit 2
+        usage_error on
     fi
 else
     if [[ ${#project} -gt $MAX_PROJECT_LENGTH ]]; then

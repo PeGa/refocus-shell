@@ -3,9 +3,12 @@ set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
 source "$REFOCUS_ROOT/services/cron.sh"
+source "$REFOCUS_ROOT/services/help.sh"
+
+wants_help "$@" && show_help import
 
 file="${1:-}"
-[[ -z "$file" ]]    && { echo "Usage: focus import <file.sql|file.json>" >&2; exit 2; }
+[[ -z "$file" ]]    && usage_error import
 [[ -f "$file" ]]    || { echo "❌ File not found: $file" >&2; exit 1; }
 
 # Detect format

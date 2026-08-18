@@ -3,6 +3,9 @@ set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
 source "$REFOCUS_ROOT/services/cron.sh"
+source "$REFOCUS_ROOT/services/help.sh"
+
+wants_help "$@" && show_help reset
 
 db_ensure
 

@@ -4,6 +4,9 @@ source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
 source "$REFOCUS_ROOT/core/time.sh"
 source "$REFOCUS_ROOT/core/text.sh"
+source "$REFOCUS_ROOT/services/help.sh"
+
+wants_help "$@" && show_help report
 
 db_ensure
 
@@ -74,12 +77,12 @@ case "$period" in
         ;;
     custom)
         days="${2:-7}"
-        [[ ! "$days" =~ ^[0-9]+$ ]] && { echo "Usage: focus report custom <days>" >&2; exit 2; }
+        [[ ! "$days" =~ ^[0-9]+$ ]] && usage_error report
         start=$(iso_days_ago "$days")
         end=$(now_iso)
         _report "Last ${days}-day Focus" "$start" "$end"
         ;;
     *)
-        echo "Usage: focus report [today|week|month|custom <days>]" >&2; exit 2
+        usage_error report
         ;;
 esac

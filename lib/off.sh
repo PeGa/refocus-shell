@@ -5,6 +5,9 @@ source "$REFOCUS_ROOT/services/database.sh"
 source "$REFOCUS_ROOT/services/editor.sh"
 source "$REFOCUS_ROOT/core/time.sh"
 source "$REFOCUS_ROOT/core/text.sh"
+source "$REFOCUS_ROOT/services/help.sh"
+
+wants_help "$@" && show_help off
 
 db_ensure
 

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
+source "$REFOCUS_ROOT/services/help.sh"
+
+wants_help "$@" && show_help config
 
 # ENV_FILE is exported by env.sh — no need to re-derive it here.
 
@@ -37,7 +40,7 @@ case "$sub" in
         ;;
     set)
         key="${1:-}"; val="${2:-}"
-        [[ -z "$key" || -z "$val" ]] && { echo "Usage: focus config set <KEY> <value>" >&2; exit 2; }
+        [[ -z "$key" || -z "$val" ]] && usage_error config
         _valid_key "$key" || { echo "❌ Unknown key: $key" >&2
             echo "Valid: NUDGE_INTERVAL MAX_PROJECT_LENGTH DATE_FORMAT DATE_SHORT_FORMAT REPORT_LIMIT DB_PATH" >&2
             exit 2; }
@@ -55,7 +58,7 @@ case "$sub" in
         echo "✅ $key=$val"
         ;;
     unset)
-        key="${1:-}"; [[ -z "$key" ]] && { echo "Usage: focus config unset <KEY>" >&2; exit 2; }
+        key="${1:-}"; [[ -z "$key" ]] && usage_error config
         env_key="REFOCUS_${key}"
         if [[ -f "$ENV_FILE" ]]; then
             tmp=$(mktemp "${ENV_FILE}.XXXXXX")
@@ -64,6 +67,6 @@ case "$sub" in
         echo "✅ Unset $key (reverts to default)"
         ;;
     *)
-        echo "Usage: focus config <show|set|unset>" >&2; exit 2
+        usage_error config
         ;;
 esac

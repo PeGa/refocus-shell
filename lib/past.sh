@@ -3,12 +3,24 @@ set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
 source "$REFOCUS_ROOT/services/editor.sh"
+source "$REFOCUS_ROOT/services/help.sh"
 source "$REFOCUS_ROOT/core/time.sh"
 source "$REFOCUS_ROOT/core/text.sh"
+
+# Before db_ensure and before any parsing: `past modify --help` used to reach
+# SQL and die on `WHERE id=--help`, and `past modify 5 --help` used to take
+# --help for a new project name and rename the session. [#25]
+wants_help "$@" && show_help past
 
 db_ensure
 
 sub="${1:-list}"; shift || true
+
+_require_id() {
+    # Session ids are integers. The adapter interpolates them into SQL, so a
+    # non-numeric id produced a raw sqlite parse error instead of usage. [#25]
+    [[ "$1" =~ ^[0-9]+$ ]] || { echo "❌ Not a session id: $1" >&2; usage_error past; }
+}
 
 case "$sub" in
     list)
@@ -32,7 +44,7 @@ case "$sub" in
 
     add)
         project="${1:-}"; shift || true
-        [[ -z "$project" ]] && { echo "Usage: focus past add <project> <start> <end> [--duration Xh] [--date YYYY/MM/DD]" >&2; exit 2; }
+        [[ -z "$project" ]] && usage_error past
 
         if [[ "${1:-}" == "--duration" ]]; then
             dur_str="${2:-}"; shift 2 || true
@@ -49,7 +61,7 @@ case "$sub" in
 
         else
             start_raw="${1:-}"; end_raw="${2:-}"; shift 2 || true
-            [[ -z "$start_raw" || -z "$end_raw" ]] && { echo "Usage: focus past add <project> <start> <end>" >&2; exit 2; }
+            [[ -z "$start_raw" || -z "$end_raw" ]] && usage_error past
 
             start=$(parse_time "$start_raw") || exit 2
             end=$(parse_time "$end_raw")     || exit 2
@@ -66,12 +78,27 @@ case "$sub" in
         ;;
 
     modify|edit)
-        id="${1:-}"; [[ -z "$id" ]] && { echo "Usage: focus past modify <id> [project] [start] [end]" >&2; exit 2; }
+        id="${1:-}"; [[ -z "$id" ]] && usage_error past
+        _require_id "$id"
         shift
+
+        # --notes is orthogonal to renaming and re-timing, so pull it out of the
+        # argument list before the duration-only/timestamped split rather than
+        # threading it through both. [#25]
+        want_notes=0
+        _args=()
+        for _a in "$@"; do
+            if [[ "$_a" == "--notes" ]]; then want_notes=1; else _args+=("$_a"); fi
+        done
+        set -- ${_args[@]+"${_args[@]}"}
+
+        # A modify that changes nothing used to report "✅ Session N updated."
+        # after a no-op UPDATE. Say what the command can do instead. [#25]
+        [[ $# -eq 0 && $want_notes -eq 0 ]] && { echo "❌ Nothing to change." >&2; usage_error past; }
 
         row=$(get_session "$id")
         [[ -z "$row" ]] && { echo "❌ Session $id not found." >&2; exit 1; }
-        IFS="|" read -r _ cur_proj cur_start cur_end cur_dur _ cur_donly _ <<< "$row"
+        IFS="|" read -r _ cur_proj cur_start cur_end cur_dur cur_notes cur_donly _ <<< "$row"
 
         if [[ "$cur_donly" == "1" ]]; then
             # Leading [project] is optional — only consume $1 as project when it
@@ -86,11 +113,10 @@ case "$sub" in
                 new_dur=$(parse_duration "$dur_str") || exit 2
             elif [[ $# -gt 0 ]]; then
                 echo "❌ Session $id is duration-only. Timestamps cannot be edited." >&2
-                echo "Usage: focus past modify $id [project] [--duration Xh]" >&2
-                exit 2
+                usage_error past
             fi
             update_duration_session "$id" "$new_proj" "$new_dur"
-        else
+        elif [[ $# -gt 0 ]]; then
             new_proj="${1:-$cur_proj}"
             new_start_raw="${2:-}"
             new_end_raw="${3:-}"
@@ -106,11 +132,21 @@ case "$sub" in
 
             update_session "$id" "$new_proj" "$new_start" "$new_end" "$new_dur"
         fi
+
+        # Notes last, and legal on duration-only rows too: a note bolts no
+        # timestamps onto them [CONV-DURONLY]. Pre-loaded with what is there.
+        if [[ $want_notes -eq 1 ]]; then
+            echo "📝 Notes (empty to clear)"
+            new_notes=$(capture_notes "$(notes_decode "$cur_notes")")
+            update_session_notes "$id" "$new_notes"
+        fi
+
         echo "✅ Session $id updated."
         ;;
 
     delete|del|rm)
-        id="${1:-}"; [[ -z "$id" ]] && { echo "Usage: focus past delete <id>" >&2; exit 2; }
+        id="${1:-}"; [[ -z "$id" ]] && usage_error past
+        _require_id "$id"
         row=$(get_session "$id")
         [[ -z "$row" ]] && { echo "❌ Session $id not found." >&2; exit 1; }
         IFS="|" read -r _ project _ _ dur _ <<< "$row"
@@ -122,6 +158,6 @@ case "$sub" in
         ;;
 
     *)
-        echo "Usage: focus past <list|add|modify|delete>" >&2; exit 2
+        usage_error past
         ;;
 esac
