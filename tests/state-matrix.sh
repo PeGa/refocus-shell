@@ -144,6 +144,68 @@ out=$(./focus help disable 2>&1)
 [[ "$out" == *"disable"* ]]; chk "help <cmd>: dispatches to docs/" "0" "$?"
 ./focus help nonexistent >/dev/null 2>&1; chk "help <bad>: rc=2" "2" "$?"
 
+# ── help consistency [#24] ───────────────────────────────────────────────────
+# One text per command, whether you ask for it or get the arguments wrong.
+# These three printed three different strings before.
+echo "── help consistency [#24] ──"
+h_sub=$(./focus past --help 2>&1);      chk "past --help rc=0"      "0" "$?"
+h_add=$(./focus past add --help 2>&1);  chk "past add --help rc=0"  "0" "$?"
+h_err=$(./focus past add 2>&1);         chk "past add: usage rc=2"  "2" "$?"
+chk "past --help == past add --help" "$h_sub" "$h_add"
+chk "past --help == usage on error"  "$h_sub" "$h_err"
+chk "help text comes from docs/"     "0" \
+    "$([[ "$h_sub" == "$(cat docs/help/past.txt)" ]]; echo $?)"
+
+# ── past modify: argument guards [#25] ───────────────────────────────────────
+echo "── past modify guards [#25] ──"
+printf 'note\n' | ./focus past add guard/proj 2026/06/11-10:00 2026/06/11-11:00 >/dev/null 2>&1
+gid=$(sqlite3 "$REFOCUS_DB_PATH" "SELECT id FROM sessions WHERE project='guard/proj';")
+
+# The bug: --help was taken for a new project name and silently renamed the row.
+./focus past modify "$gid" --help >/dev/null 2>&1; chk "modify <id> --help rc=0" "0" "$?"
+chk "modify <id> --help does not rename" "guard/proj" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT project FROM sessions WHERE id=$gid;")"
+
+# The bug: --help reached SQL as `WHERE id=--help`, where -- opens a comment.
+./focus past modify --help >/dev/null 2>&1; chk "modify --help rc=0" "0" "$?"
+err=$(./focus past modify --help 2>&1)
+chk "modify --help: no SQL error" "0" \
+    "$([[ "$err" != *"in prepare"* ]]; echo $?)"
+
+# A modify that changes nothing used to report success after a no-op UPDATE.
+./focus past modify "$gid" >/dev/null 2>&1;    chk "modify <id> no fields rc=2" "2" "$?"
+./focus past delete abc  >/dev/null 2>&1;      chk "delete <non-numeric> rc=2"  "2" "$?"
+err=$(./focus past delete abc 2>&1)
+chk "delete <non-numeric>: no SQL error" "0" \
+    "$([[ "$err" != *"in prepare"* ]]; echo $?)"
+
+# ── notes: multi-line [#23] ──────────────────────────────────────────────────
+# A newline in the note must survive storage and must not break the
+# pipe-separated read contract [PORT].
+echo "── multi-line notes [#23] ──"
+printf 'first line\nsecond line\n' | ./focus past add note/multi 2026/06/11-12:00 2026/06/11-13:00 >/dev/null 2>&1
+nid=$(sqlite3 "$REFOCUS_DB_PATH" "SELECT id FROM sessions WHERE project='note/multi';")
+chk "note keeps both lines" "first line
+second line" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT notes FROM sessions WHERE id=$nid;")"
+chk "encoded read stays one row" "1" \
+    "$(bash -c 'source env.sh; source services/database.sh; get_session '"$nid"' | wc -l')"
+chk "encoded read stays 8 fields" "8" \
+    "$(bash -c 'source env.sh; source services/database.sh; get_session '"$nid"' | awk -F"|" "{print NF}"')"
+chk "past list renders both lines" "0" \
+    "$(out=$(./focus past list 2>&1); [[ "$out" == *"first line"* && "$out" == *"second line"* ]]; echo $?)"
+
+# --notes rewrites the note without touching timing.
+dur_before=$(sqlite3 "$REFOCUS_DB_PATH" "SELECT duration_seconds FROM sessions WHERE id=$nid;")
+printf 'replaced\n' | ./focus past modify "$nid" --notes >/dev/null 2>&1
+chk "--notes rewrites note"      "replaced"     "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT notes FROM sessions WHERE id=$nid;")"
+chk "--notes preserves duration" "$dur_before"  "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT duration_seconds FROM sessions WHERE id=$nid;")"
+
+# ── report: empty period ─────────────────────────────────────────────────────
+# `declare -A` left the array unset, so ${#arr[@]} tripped set -u and any
+# period with no sessions exited 1.
+echo "── report: empty period ──"
+./focus report custom 1 >/dev/null 2>&1; chk "report on empty period rc=0" "0" "$?"
+
 # ── result ───────────────────────────────────────────────────────────────────
 echo
 total=$(( pass + fail ))
