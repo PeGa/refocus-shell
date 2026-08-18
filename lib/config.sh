@@ -44,7 +44,11 @@ case "$sub" in
         env_key="REFOCUS_${key}"
         touch "$ENV_FILE"
         if grep -q "^${env_key}=" "$ENV_FILE" 2>/dev/null; then
-            sed -i "s|^${env_key}=.*|${env_key}=${val}|" "$ENV_FILE"
+            # No `sed -i`: GNU takes a bare -i, BSD demands -i ''. Write a sibling
+            # temp file and rename over the original — same filesystem, atomic,
+            # and identical on both platforms.
+            tmp=$(mktemp "${ENV_FILE}.XXXXXX")
+            sed "s|^${env_key}=.*|${env_key}=${val}|" "$ENV_FILE" > "$tmp" && mv "$tmp" "$ENV_FILE"
         else
             echo "${env_key}=${val}" >> "$ENV_FILE"
         fi
@@ -54,7 +58,8 @@ case "$sub" in
         key="${1:-}"; [[ -z "$key" ]] && { echo "Usage: focus config unset <KEY>" >&2; exit 2; }
         env_key="REFOCUS_${key}"
         if [[ -f "$ENV_FILE" ]]; then
-            sed -i "/^${env_key}=/d" "$ENV_FILE"
+            tmp=$(mktemp "${ENV_FILE}.XXXXXX")
+            sed "/^${env_key}=/d" "$ENV_FILE" > "$tmp" && mv "$tmp" "$ENV_FILE"
         fi
         echo "✅ Unset $key (reverts to default)"
         ;;

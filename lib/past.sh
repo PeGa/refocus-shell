@@ -18,8 +18,8 @@ case "$sub" in
                 s="(manual: $session_date)"
                 e=""
             else
-                s=$(_ts_format "$start" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$start")
-                e=$(_ts_format "$end"   "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$end")
+                s=$(ts_format "$start" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$start")
+                e=$(ts_format "$end"   "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$end")
             fi
             printf "%-4s %-22s %-19s %-19s %-8s\n" "$id" "$project" "$s" "$e" "$(fmt_duration "$dur")"
             if [[ -n "$notes" ]]; then echo "     📝 $notes"; fi
@@ -37,7 +37,7 @@ case "$sub" in
 
             dur=$(parse_duration "$dur_str") || exit 2
 
-            date_iso=$(_parse_date_to_fmt "$date_str" "$DATE_FORMAT") || { echo "❌ Invalid date: $date_str" >&2; exit 2; }
+            date_iso=$(parse_date_to_fmt "$date_str" "$DATE_FORMAT") || { echo "❌ Invalid date: $date_str" >&2; exit 2; }
             [[ -z "$date_iso" ]] && { echo "❌ Invalid date: $date_str" >&2; exit 2; }
             echo -n "📝 Notes (Enter to skip): "; read -r notes
             record_duration_session "$project" "$dur" "$date_iso" "$notes"
@@ -50,8 +50,8 @@ case "$sub" in
             start=$(parse_time "$start_raw") || exit 2
             end=$(parse_time "$end_raw")     || exit 2
 
-            start_ts=$(_iso_to_epoch "$start")
-            end_ts=$(_iso_to_epoch "$end")
+            start_ts=$(iso_to_epoch "$start")
+            end_ts=$(iso_to_epoch "$end")
             [[ $end_ts -le $start_ts ]] && { echo "❌ End must be after start." >&2; exit 2; }
             dur=$(( end_ts - start_ts ))
 
@@ -96,8 +96,8 @@ case "$sub" in
             [[ -n "$new_start_raw" ]] && new_start=$(parse_time "$new_start_raw")
             [[ -n "$new_end_raw"   ]] && new_end=$(parse_time "$new_end_raw")
 
-            s_ts=$(_iso_to_epoch "$new_start")
-            e_ts=$(_iso_to_epoch "$new_end")
+            s_ts=$(iso_to_epoch "$new_start")
+            e_ts=$(iso_to_epoch "$new_end")
             new_dur=$(( e_ts - s_ts ))
 
             update_session "$id" "$new_proj" "$new_start" "$new_end" "$new_dur"

@@ -53,7 +53,7 @@ else
     fi
 fi
 
-start_time=$(_now_iso)
+start_time=$(now_iso)
 start_session "$project" "$start_time"
 
 if [[ ${total_min:-0} -gt 0 ]]; then

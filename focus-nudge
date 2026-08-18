@@ -6,6 +6,7 @@
 REFOCUS_ROOT="${REFOCUS_ROOT:-$HOME/.local/refocus}"
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
+source "$REFOCUS_ROOT/core/time.sh"
 
 [[ -f "$DB_PATH" ]]  || exit 0
 is_focus_disabled    && exit 0
@@ -26,8 +27,8 @@ _notify() {
 }
 
 if [[ "$active" == "1" && -n "$project" ]]; then
-    now_ts=$(date +%s)
-    start_ts=$(date --date="$start_time" +%s)
+    now_ts=$(now_epoch)
+    start_ts=$(iso_to_epoch "$start_time")
     elapsed=$(( (now_ts - start_ts) / 60 ))
     _notify "Refocus" "Focusing on: $project (${elapsed}m)"
 

@@ -17,17 +17,17 @@ else
     _DATE_IS_GNU=0
 fi
 
-_now_iso() {
+now_iso() {
     # current time -> ISO-8601 timestamp
     _date -Iseconds
 }
 
-_now_epoch() {
+now_epoch() {
     # current time -> epoch seconds
     _date +%s
 }
 
-_epoch_to_iso() {
+epoch_to_iso() {
     # epoch seconds -> ISO-8601 timestamp
     local e="$1"
     if [[ "$_DATE_IS_GNU" == "1" ]]; then
@@ -37,7 +37,7 @@ _epoch_to_iso() {
     fi
 }
 
-_epoch_format() {
+epoch_format() {
     # epoch seconds + strftime format -> formatted string
     local e="$1" fmt="$2"
     if [[ "$_DATE_IS_GNU" == "1" ]]; then
@@ -47,7 +47,7 @@ _epoch_format() {
     fi
 }
 
-_iso_to_epoch() {
+iso_to_epoch() {
     # stored ISO (-Iseconds output) or normalised "YYYY-MM-DD HH:MM" -> epoch.
     # Returns non-zero on failure so callers' `|| ...` guards still fire.
     local s="$1"
@@ -60,18 +60,25 @@ _iso_to_epoch() {
     if [[ "$norm" =~ ^(.*[T\ ][0-9]{2}:[0-9]{2}:[0-9]{2})([+-][0-9]{2}):([0-9]{2})$ ]]; then
         norm="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
     fi
-    _date -j -f "%Y-%m-%dT%H:%M:%S%z" "$norm" +%s 2>/dev/null \
-        || _date -j -f "%Y-%m-%d %H:%M" "$s" +%s 2>/dev/null
+    # Offset-bearing form first, against the colon-stripped copy. Everything else
+    # parses from the raw string. "%H:%M" alone is legal: BSD -j -f fills the
+    # unspecified fields from today, which is what `focus past add X 14:30` means.
+    _date -j -f "%Y-%m-%dT%H:%M:%S%z" "$norm" +%s 2>/dev/null && return 0
+    local fmt
+    for fmt in "%Y-%m-%dT%H:%M:%S" "%Y-%m-%d %H:%M:%S" "%Y-%m-%d %H:%M" "%Y-%m-%d" "%H:%M"; do
+        _date -j -f "$fmt" "$s" +%s 2>/dev/null && return 0
+    done
+    return 1
 }
 
-_ts_format() {
+ts_format() {
     # stored ISO -> formatted for display. Non-zero if the timestamp won't parse.
     local iso="$1" fmt="$2" e
-    e=$(_iso_to_epoch "$iso") || return 1
-    _epoch_format "$e" "$fmt"
+    e=$(iso_to_epoch "$iso") || return 1
+    epoch_format "$e" "$fmt"
 }
 
-_iso_days_ago() {
+iso_days_ago() {
     # n days ago at 00:00 -> ISO (n=0 => today 00:00)
     local n="$1"
     if [[ "$_DATE_IS_GNU" == "1" ]]; then
@@ -81,7 +88,7 @@ _iso_days_ago() {
     fi
 }
 
-_iso_month_start() {
+iso_month_start() {
     # 00:00 on the 1st of the current month -> ISO
     if [[ "$_DATE_IS_GNU" == "1" ]]; then
         _date --date="$(_date +%Y-%m-01) 00:00" -Iseconds
@@ -90,7 +97,7 @@ _iso_month_start() {
     fi
 }
 
-_parse_date_to_fmt() {
+parse_date_to_fmt() {
     # `past add --date` value (today | YYYY/MM/DD | YYYY-MM-DD) -> formatted.
     # Non-zero on unparseable input.
     local str="$1" fmt="$2"
@@ -139,9 +146,15 @@ parse_time() {
         raw="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]} ${BASH_REMATCH[4]}"
     fi
     local epoch
-    epoch=$(_iso_to_epoch "$raw") || {
+    epoch=$(iso_to_epoch "$raw") || {
         echo "❌ Cannot parse time: $1" >&2
+        if [[ "$_DATE_IS_GNU" != "1" ]]; then
+            # BSD date has no relative-time parser at all; say so instead of
+            # leaving the user to guess why a documented example failed.
+            echo "   This build of date(1) understands YYYY/MM/DD-HH:MM, YYYY-MM-DD HH:MM and HH:MM." >&2
+            echo "   Relative times ('2 hours ago', 'yesterday 14:00') need GNU date: brew install coreutils" >&2
+        fi
         return 1
     }
-    _epoch_to_iso "$epoch"
+    epoch_to_iso "$epoch"
 }

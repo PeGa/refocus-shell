@@ -11,7 +11,7 @@ _report() {
 
     echo "📊 $label"
     printf '═%.0s' $(seq 1 "${#label}"); echo
-    echo "Period: $(_ts_format "$start" "$DATE_FORMAT") → $(_ts_format "$end" "$DATE_FORMAT")"
+    echo "Period: $(ts_format "$start" "$DATE_FORMAT") → $(ts_format "$end" "$DATE_FORMAT")"
     echo ""
 
     local total=0 sessions=0
@@ -40,8 +40,8 @@ _report() {
         if [[ "$duration_only" == "1" ]]; then
             echo "  [$id] $project — $(fmt_duration "$dur") on $session_date (manual)"
         else
-            s=$(_ts_format "$start_t" "$DATE_SHORT_FORMAT" 2>/dev/null)
-            e=$(_ts_format "$end_t"   "%H:%M"             2>/dev/null)
+            s=$(ts_format "$start_t" "$DATE_SHORT_FORMAT" 2>/dev/null)
+            e=$(ts_format "$end_t"   "%H:%M"             2>/dev/null)
             echo "  [$id] $project — $s–$e ($(fmt_duration "$dur"))"
         fi
         if [[ -n "$notes" ]]; then echo "       📝 $notes"; fi
@@ -52,25 +52,25 @@ period="${1:-today}"
 
 case "$period" in
     today)
-        start=$(_iso_days_ago 0)
-        end=$(_now_iso)
+        start=$(iso_days_ago 0)
+        end=$(now_iso)
         _report "Today's Focus" "$start" "$end"
         ;;
     week)
-        start=$(_iso_days_ago 7)
-        end=$(_now_iso)
+        start=$(iso_days_ago 7)
+        end=$(now_iso)
         _report "This Week's Focus" "$start" "$end"
         ;;
     month)
-        start=$(_iso_month_start)
-        end=$(_now_iso)
+        start=$(iso_month_start)
+        end=$(now_iso)
         _report "This Month's Focus" "$start" "$end"
         ;;
     custom)
         days="${2:-7}"
         [[ ! "$days" =~ ^[0-9]+$ ]] && { echo "Usage: focus report custom <days>" >&2; exit 2; }
-        start=$(_iso_days_ago "$days")
-        end=$(_now_iso)
+        start=$(iso_days_ago "$days")
+        end=$(now_iso)
         _report "Last ${days}-day Focus" "$start" "$end"
         ;;
     *)

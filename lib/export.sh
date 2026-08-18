@@ -18,7 +18,7 @@ echo "✅ SQL:  $sql_file"
 # ── JSON export ───────────────────────────────────────────────────────────────
 {
     echo "{"
-    echo "  \"exported_at\": \"$(_now_iso)\","
+    echo "  \"exported_at\": \"$(now_iso)\","
     echo "  \"db_path\": \"$DB_PATH\","
     echo "  \"state\":"
     db_export_state_json

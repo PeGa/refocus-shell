@@ -11,9 +11,9 @@ if ! is_session_active; then
 fi
 
 IFS='|' read -r _ project start_time _ <<< "$(get_state)"
-now=$(_now_iso)
-now_ts=$(_now_epoch)
-start_ts=$(_iso_to_epoch "$start_time")
+now=$(now_iso)
+now_ts=$(now_epoch)
+start_ts=$(iso_to_epoch "$start_time")
 elapsed=$(( now_ts - start_ts ))
 
 pause_session "$elapsed" "$now"
