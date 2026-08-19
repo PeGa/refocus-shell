@@ -452,6 +452,19 @@ chk "nudge@008: actually installs, minute-stepped by 8" "0" \
     "$(grep 'focus-nudge' "$SANDBOX_CRONTAB" | grep -qE '^[0-9]+-59/8 \* \* \* \*'; echo $?)"
 ./focus config unset NUDGE_INTERVAL >/dev/null 2>&1
 
+# focus-checkin re-reads CHECKIN_INTERVAL fresh from env.sh on every cron
+# fire, independent of whatever cron.sh normalized at install time — so a
+# leading zero broke the `interval * 60` arithmetic there too, even though
+# the interval itself was already validated as legal. Exercise it with no
+# dialog tool on PATH so this can never pop a real window: the arithmetic
+# runs before the tool cascade is even reached, so a clean silent exit here
+# proves the fix without any popup risk.
+./focus config set CHECKIN_INTERVAL 008 >/dev/null 2>&1
+err=$(PATH="$SANDBOX/notool-bin" bash focus-checkin < /dev/null 2>&1)
+chk "focus-checkin@008: no octal-parse crash" "0" \
+    "$([[ "$err" != *"value too great for base"* ]]; echo $?)"
+./focus config set CHECKIN_INTERVAL 60 >/dev/null 2>&1
+
 # ── status: "Last:" must surface duration-only sessions too ────────────────────
 # get_last_session used to filter WHERE end_time IS NOT NULL, so a check-in-
 # logged (or `past add --duration`) session — which never has an end_time —
