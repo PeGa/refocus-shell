@@ -22,12 +22,30 @@ set -uo pipefail
 
 ROOT="${1:-$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../}"
 cd "$ROOT"
-chmod +x focus focus-nudge lib/*.sh services/*.sh core/*.sh 2>/dev/null || true
+chmod +x focus focus-nudge focus-checkin lib/*.sh services/*.sh core/*.sh 2>/dev/null || true
 
 export REFOCUS_ROOT="$ROOT"
 SANDBOX=$(mktemp -d)
 export REFOCUS_DB_PATH="$SANDBOX/refocus.db"
 trap 'rm -rf "$SANDBOX"' EXIT
+
+# This suite calls `focus enable`, which arms real cron entries via
+# services/cron.sh — without a shim, every run of this file writes into the
+# machine's actual crontab. Fake `crontab` backed by a file in $SANDBOX,
+# prepended to PATH so `focus enable`'s own subprocess picks it up too.
+mkdir -p "$SANDBOX/bin"
+cat > "$SANDBOX/bin/crontab" <<'CRONSHIM'
+#!/usr/bin/env bash
+store="${SANDBOX_CRONTAB:-/tmp/state-matrix-fake-crontab}"
+if [[ "$1" == "-l" ]]; then
+    [[ -f "$store" ]] && cat "$store" || exit 1
+else
+    cat "$1" > "$store"
+fi
+CRONSHIM
+chmod +x "$SANDBOX/bin/crontab"
+export SANDBOX_CRONTAB="$SANDBOX/fake-crontab"
+export PATH="$SANDBOX/bin:$PATH"
 
 pass=0; fail=0
 
@@ -322,6 +340,96 @@ chk "JSON import: '|' row doesn't abort the rest" "0" \
 chk "JSON import: bad row sanitized, not dropped" "1" \
     "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT COUNT(*) FROM sessions WHERE project='bad¦name';")"
 chk "JSON import: normalizes state per INV-5" "0|0|1|-" "$(st)"
+
+# ── checkin: cron interval validation ─────────────────────────────────────────
+echo "── checkin: interval validation ──"
+_ci_valid() { bash -c "source env.sh; source services/cron.sh; _cron_validate_checkin_interval '$1'" >/dev/null 2>&1; echo $?; }
+chk "checkin interval 0 valid"       "0" "$(_ci_valid 0)"
+chk "checkin interval 60 valid"      "0" "$(_ci_valid 60)"
+chk "checkin interval 120 valid"     "0" "$(_ci_valid 120)"
+chk "checkin interval 1440 valid"    "0" "$(_ci_valid 1440)"
+chk "checkin interval 90 rejected"   "1" "$(_ci_valid 90)"
+chk "checkin interval 1500 rejected" "1" "$(_ci_valid 1500)"
+chk "checkin interval abc rejected"  "1" "$(_ci_valid abc)"
+
+# ── checkin: cron install/remove ──────────────────────────────────────────────
+# Exercises the actual crontab lines cron_checkin_install writes (via the
+# shim above), not just the exit codes — a wrong minute/hour pattern would
+# still return 0.
+echo "── checkin: cron install/remove ──"
+_ci_reinstall() {
+    ./focus config set CHECKIN_INTERVAL "$1" >/dev/null 2>&1
+    ./focus disable >/dev/null 2>&1
+    ./focus enable  >/dev/null 2>&1
+}
+_ci_entry() { grep 'focus-checkin' "$SANDBOX_CRONTAB" 2>/dev/null; }
+
+_ci_reinstall 60
+chk "checkin@60: one cron entry" "1" "$(_ci_entry | wc -l)"
+chk "checkin@60: minute-stepped" "0" "$(_ci_entry | grep -qE '^[0-9]+-59/60 \* \* \* \*'; echo $?)"
+
+_ci_reinstall 120
+chk "checkin@120: hour-stepped" "0" "$(_ci_entry | grep -qE '^[0-9]+ [0-9]+-23/2 \* \* \*'; echo $?)"
+
+_ci_reinstall 1440
+chk "checkin@1440: once-daily hour-stepped" "0" "$(_ci_entry | grep -qE '^[0-9]+ [0-9]+-23/24 \* \* \*'; echo $?)"
+
+_ci_reinstall 0
+chk "checkin@0: no cron entry" "0" "$(_ci_entry | wc -l)"
+chk "checkin@0: nudge entry untouched" "1" "$(grep -c 'focus-nudge' "$SANDBOX_CRONTAB")"
+
+# An invalid interval must fail closed: disable already removed the old
+# entry, and the failed install must not leave anything stale in its place.
+_ci_reinstall 120
+./focus config set CHECKIN_INTERVAL 90 >/dev/null 2>&1
+./focus disable >/dev/null 2>&1
+out=$(./focus enable 2>&1)
+chk "checkin@90 (invalid): enable still succeeds, warns" "0" \
+    "$([[ "$out" == *"Could not install check-in cron"* ]]; echo $?)"
+chk "checkin@90 (invalid): no stale/bad entry left" "0" "$(_ci_entry | wc -l)"
+chk "checkin@90 (invalid): nudge entry unaffected" "1" "$(grep -c 'focus-nudge' "$SANDBOX_CRONTAB")"
+
+# ── checkin: guard clauses ─────────────────────────────────────────────────────
+# focus-checkin runs standalone (as cron would invoke it) — every guard must
+# be a silent no-op: zero DB writes, no popup attempted.
+echo "── checkin: guard clauses ──"
+./focus config set CHECKIN_INTERVAL 60 >/dev/null 2>&1
+
+before=$(cnt)
+./focus disable >/dev/null 2>&1
+bash focus-checkin >/dev/null 2>&1
+chk "checkin@disabled: silent no-op" "$before" "$(cnt)"
+./focus enable >/dev/null 2>&1
+
+./focus on checkin/guard >/dev/null 2>&1
+before=$(cnt)
+bash focus-checkin >/dev/null 2>&1
+chk "checkin@active: silent no-op" "$before" "$(cnt)"
+printf 'n\n' | ./focus off >/dev/null 2>&1
+
+./focus on checkin/guard >/dev/null 2>&1
+./focus pause >/dev/null 2>&1
+before=$(cnt)
+bash focus-checkin >/dev/null 2>&1
+chk "checkin@paused: silent no-op" "$before" "$(cnt)"
+printf '\n' | ./focus continue >/dev/null 2>&1
+printf 'n\n' | ./focus off >/dev/null 2>&1
+
+./focus config set CHECKIN_INTERVAL 0 >/dev/null 2>&1
+before=$(cnt)
+bash focus-checkin >/dev/null 2>&1
+chk "checkin@interval=0: silent no-op" "$before" "$(cnt)"
+
+# No dialog tool anywhere on PATH (kdialog/zenity/terminal all absent) —
+# must fall all the way through and exit 0 without ever spawning anything.
+./focus config set CHECKIN_INTERVAL 60 >/dev/null 2>&1
+mkdir -p "$SANDBOX/notool-bin"
+for b in bash env awk cat column date dirname grep id mktemp sed sqlite3 tr; do
+    ln -sf "$(command -v "$b")" "$SANDBOX/notool-bin/$b" 2>/dev/null
+done
+before=$(cnt)
+PATH="$SANDBOX/notool-bin" bash focus-checkin >/dev/null 2>&1
+chk "checkin@no-dialog-tool: silent no-op" "$before" "$(cnt)"
 
 # ── result ───────────────────────────────────────────────────────────────────
 echo

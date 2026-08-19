@@ -23,6 +23,10 @@ nudging — the periodic reminder; an external clock for time-blindness
   nudge status    is it on? what's scheduled?
   nudge test      fire a test notification
 
+checking in — asks if you forgot to track, only while idle
+  checkin status  is it on? what's scheduled?
+  checkin test    fire a test popup
+
 setup & data
   config show|set|unset            settings        (focus help config)
   export [name]                    back up to .sql + .json

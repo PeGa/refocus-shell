@@ -1,0 +1,28 @@
+focus checkin — the periodic "did you forget to track?" popup
+
+  focus checkin status   is it on, and what's scheduled
+  focus checkin test     fire a test popup, confirm it lands
+
+Check-in isn't toggled here — it's armed by 'focus enable' and silenced by
+'focus disable', same as the nudge. These two are just diagnostics.
+
+Every CHECKIN_INTERVAL minutes, but only while idle (not while focusing or
+paused — you already know what you're doing then), it asks:
+
+  Did you focus on anything in the last <interval>?
+
+  No / dismissed / cancelled   nothing happens, nothing is saved
+  Yes                          asks for a project, then an optional note,
+                                and logs a duration-only session for the
+                                interval — a rough retroactive entry, not
+                                a claim about exact start/end times
+
+The project prompt won't accept a blank answer — it asks again rather than
+silently dropping a session you said you wanted to log.
+
+CHECKIN_INTERVAL: 0 disables it. 1-60 works like NUDGE_INTERVAL. Above 60
+must be a whole number of hours (120, 180, ..., up to 1440 for once a day).
+
+Popup tool, in order: kdialog, then zenity, then — if neither is
+installed — a spawned terminal running dialog, or a plain prompt if dialog
+isn't installed either. If nothing at all is available, it stays silent.

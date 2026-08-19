@@ -148,16 +148,24 @@ Old DBs may still carry `pause_notes` / `nudging_enabled` columns. Leave them.
   Intent names survive a storage swap; `db_*` correctly signals "this is about
   the database-as-artifact," which domain logic should never reach for.
 
-### INV-3 · Nudging is structural (cron), not a flag
-- RULE: nudging exists iff a cron entry for `focus-nudge` exists. `focus enable`
-  installs it; `focus disable` removes it. `focus_disabled=1` is only a kill
-  switch the payload checks; it is not what "enabled" means.
-- VIOLATION: a `nudging_enabled` flag; gating nudges on a state column instead of
-  cron; `focus on`/`off`/`pause`/`continue` touching cron.
+### INV-3 · Nudging and check-in are structural (cron), not a flag
+- RULE: nudging exists iff a cron entry for `focus-nudge` exists; checking-in
+  exists iff a cron entry for `focus-checkin` exists. `focus enable` installs
+  both; `focus disable` removes both — always together, same lifecycle, no
+  separate toggle for check-in. `focus_disabled=1` is only a kill switch each
+  payload checks; it is not what "enabled" means.
+- VIOLATION: a `nudging_enabled`/`checkin_enabled` flag; gating either on a
+  state column instead of cron; `focus on`/`off`/`pause`/`continue` touching
+  cron; a command that installs/removes one of the two jobs without the other.
 - WHY: a flag drifts from reality. The disable-while-active bug came from state
   saying one thing and the mechanism doing another. The mechanism (cron) is the
   truth; the flag only lets the payload stay silent without uninstalling.
-- CHECK: only `enable`, `disable`, `reset`, `import`, and `setup.sh` touch cron.
+  Check-in reuses this exact lifecycle rather than inventing its own toggle —
+  two independent on/off switches for what is conceptually one "is refocus
+  watching me" state would drift out of sync with each other, the same failure
+  mode INV-3 already exists to prevent.
+- CHECK: only `enable`, `disable`, `reset`, `import`, and `setup.sh` touch cron
+  — and every one of them touches *both* jobs, never just one.
 
 ### INV-4 · Pause is silent
 - RULE: `focus pause` captures nothing — no note, no prompt. The only note in
@@ -422,26 +430,50 @@ dispatcher, by `focus-nudge`, and by the shell hook.
 
 ---
 
-## [CRON] Nudge scheduling (services/cron.sh)
+## [CRON] Nudge and check-in scheduling (services/cron.sh)
 
-The mechanism behind INV-3. Two public functions plus private helpers.
+The mechanism behind INV-3. Two independent job/pair-of-functions, same
+strip-and-rewrite discipline, sharing one crontab.
 
-- `cron_install` — validate interval (CRON-INTERVAL), build the entry, then
-  strip-and-rewrite the live crontab (CRON-STRIP): `crontab -l | grep -vF "$bin"`,
-  append the new entry, install the file.
-- `cron_remove` — same strip, no append.
-- CRON-BIN: the payload path is `"$REFOCUS_ROOT/focus-nudge"`, resolved at call
-  time, never hardcoded to the install dir.
-- CRON-ENV: the entry embeds the runtime env it needs, because cron runs stripped
-  (no `$HOME`, no PATH): `REFOCUS_ROOT=… DISPLAY=… WAYLAND_DISPLAY=… DBUS_SESSION_BUS_ADDRESS=… <bin>`.
-  Schedule fires every `NUDGE_INTERVAL` minutes, phased to the current minute for
-  a stable offset.
-- CRON-STRIP: the strip is **fixed-string** (`grep -vF`), never a regex, and
+- `cron_install` / `cron_remove` — the nudge job. Validate interval
+  (CRON-INTERVAL), build the entry, then strip-and-rewrite the live crontab
+  (CRON-STRIP): `crontab -l | grep -vF "$bin"`, append the new entry, install
+  the file. `cron_remove` is the same strip, no append.
+- `cron_checkin_install` / `cron_checkin_remove` — the check-in job
+  (CRON-CHECKIN). Same strip-and-rewrite shape, own bin path, own interval
+  source (`CHECKIN_INTERVAL`), own validator (CRON-CHECKIN-INTERVAL). The two
+  jobs' strips are independent (`grep -vF` against each job's own bin path),
+  so installing/removing one never disturbs the other's line.
+- CRON-BIN: payload paths are `"$REFOCUS_ROOT/focus-nudge"` and
+  `"$REFOCUS_ROOT/focus-checkin"`, resolved at call time, never hardcoded to
+  the install dir.
+- CRON-ENV: each entry embeds the runtime env it needs, because cron runs
+  stripped (no `$HOME`, no PATH): `REFOCUS_ROOT=… DISPLAY=… WAYLAND_DISPLAY=…
+  DBUS_SESSION_BUS_ADDRESS=… <bin>`. The nudge fires every `NUDGE_INTERVAL`
+  minutes, phased to the current minute for a stable offset.
+- CRON-STRIP: every strip is **fixed-string** (`grep -vF`), never a regex, and
   always against the user's *live* crontab — never a saved backup. WHY: the path
   contains `.` (a regex wildcard); a regex strip can delete unrelated lines, and
   restoring a stale backup clobbers crontab entries added since install.
 - CRON-INTERVAL: reject non-numeric or out-of-range before building a pattern;
-  valid range 1–60.
+  valid range 1–60 for the nudge.
+- CRON-CHECKIN-INTERVAL: `CHECKIN_INTERVAL` has a wider, differently-shaped
+  range than the nudge's — `0` disables it outright (`cron_checkin_install`
+  treats this as `cron_checkin_remove` and returns 0, not an error); 1–60
+  builds the same minute-stepped pattern as the nudge (`<offset>-59/<interval>
+  * * * *`); above 60 must be a whole number of hours (`iv % 60 == 0`, up to
+  1440 = once a day) and steps the **hour** field instead
+  (`<minute> <offset>-23/<hours> * * *`), because cron's minute field cannot
+  express a span past 60 — a 90-minute cadence has no single cron line. A
+  non-whole-hour value above 60 (e.g. 90) is rejected before ever building an
+  entry.
+- CRON-CHECKIN-FAILCLOSED: on an invalid `CHECKIN_INTERVAL`,
+  `cron_checkin_install` returns 1 without writing anything — it neither
+  installs a bad entry nor leaves a stale one from before, since `focus
+  disable` (which always runs before a re-`enable`, see CMD-ENABLE) already
+  stripped the old line. The caller (CMD-ENABLE) only warns; it does not fail
+  the whole `enable`, so a nudge misconfiguration never blocks a checkin one
+  or vice versa.
 
 ---
 
@@ -517,15 +549,29 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
 
 ### CMD-ENABLE · `focus enable`
 - already enabled (`! is_focus_disabled`) → say so, exit 0, touch nothing
-  (CONV-IDEMPOTENT-ENABLE). Else `set_focus_enabled` + `cron_install`.
+  (CONV-IDEMPOTENT-ENABLE). Else `set_focus_enabled` + `cron_install` +
+  `cron_checkin_install`. Each install failure only warns to stderr
+  ("Could not install …cron — check 'focus nudge|checkin test'") — it does not
+  abort the command or roll back the other job's install (CRON-CHECKIN-FAILCLOSED).
 
 ### CMD-DISABLE · `focus disable`
 - active or paused → refuse, "run 'focus off' first" (exit 1) (INV-3 illegal state).
-  Else `set_focus_disabled` + `cron_remove`.
+  Else `set_focus_disabled` + `cron_remove` + `cron_checkin_remove`.
 
 ### CMD-NUDGE · `focus nudge <status|test>`
 - diagnostics only. `status`: enabled? + crontab entry. `test`: fire notify-send,
   run `focus-nudge`, show crontab. No `enable`/`disable` subcommands (DM-DEAD).
+
+### CMD-CHECKIN · `focus checkin <status|test>`
+- diagnostics only, same shape as CMD-NUDGE — no `enable`/`disable`
+  subcommands, armed/silenced only through CMD-ENABLE/CMD-DISABLE (INV-3).
+- `status`: enabled? + `CHECKIN_INTERVAL` + crontab entry + which popup tool
+  would fire, checked in the same order `focus-checkin` itself checks
+  (CHECKIN-CASCADE): kdialog → zenity → spawned terminal running `dialog` →
+  spawned terminal running a plain prompt → "none found, stays silent".
+- `test`: runs `focus-checkin` directly. Same guards as a real cron fire apply
+  (CHECKIN-GUARDS) — it stays silent unless idle and armed; the diagnostic
+  does not bypass them, so "test" only shows a popup when a real fire would too.
 
 ### CMD-CONFIG · `focus config <show|set|unset>`
 - `show`: effective values + overrides from `$ENV_FILE`.
@@ -545,7 +591,8 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
 
 ### CMD-IMPORT · `focus import <file>`
 - detect sql/json by extension then content sniff. Warn if session open. Require
-  literal `yes` (CONV-YES). Back up current DB. `cron_remove`. sql → `db_load_sql`;
+  literal `yes` (CONV-YES). Back up current DB. `cron_remove` +
+  `cron_checkin_remove` (both — INV-3). sql → `db_load_sql`;
   json → `db_init` + per-row `db_import_session_row` (needs `jq`). Then
   `reset_state_post_import` (INV-5). Leaves disabled (CONV-REARM).
 
@@ -553,8 +600,9 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
 - `db_init`; report path. Safe to re-run.
 
 ### CMD-RESET · `focus reset`
-- warn if session open. Require literal `yes` (CONV-YES). `cron_remove`, drop DB,
-  `db_init`, `set_focus_disabled`. Leaves disabled (CONV-REARM).
+- warn if session open. Require literal `yes` (CONV-YES). `cron_remove` +
+  `cron_checkin_remove` (both — INV-3), drop DB, `db_init`,
+  `set_focus_disabled`. Leaves disabled (CONV-REARM).
 
 ### CMD-HELP · `focus help [cmd]`
 - pure dispatch: `cat docs/help/<cmd>.txt`; no arg → `global.txt`; missing → exit 2.
@@ -586,6 +634,55 @@ The thing cron runs. Self-contained — it cannot assume the shell environment.
 - NUDGE-HISTORY: the `desktop-entry:refocus` hint matches a `refocus.desktop`
   entry (see INT) so the notification is logged in the desktop's history rather
   than shown-and-discarded. WHY: a nudge you can't scroll back to didn't happen.
+
+---
+
+## [CHECKIN] The check-in payload (focus-checkin)
+
+The thing cron runs, on the same self-contained footing as `focus-nudge` — but
+where the nudge only informs ("here's what's happening"), check-in asks a
+question and, on "yes", writes data. Reuses `focus enable`/`disable`'s cron
+lifecycle (INV-3) rather than its own toggle; `focus checkin status`/`test`
+are read-only diagnostics (CMD-CHECKIN).
+
+- Resolve `REFOCUS_ROOT`, source `env.sh` + `database.sh` + `core/time.sh`.
+- CHECKIN-GUARDS: four early exits, checked in this order, all silent
+  (exit 0, nothing written, no popup attempted) — `[[ -f "$DB_PATH" ]] ||
+  exit 0`, `is_focus_disabled && exit 0`, `is_session_active && exit 0`,
+  `is_session_paused && exit 0`, then `[[ "$CHECKIN_INTERVAL" == 0 ]] &&
+  exit 0`. WHY fire-only-when-idle: an active or paused session already means
+  the user knows what they're doing — asking again is noise, not a nudge, and
+  writing a check-in session on top of an open one would double-count time.
+- CHECKIN-DURONLY: on "yes", logs via `record_duration_session` — a
+  duration-only session (CHECKIN_INTERVAL × 60 seconds, dated today), never
+  a timestamped one. WHY: the flow never asks the user for an exact start or
+  end time, only "did you focus in the last N minutes" — inventing precise
+  timestamps from an approximate retroactive answer would be a false claim of
+  precision the tool doesn't have. This is the same distinction CMD-PAST's
+  duration-only `add`/`modify` already makes (CONV-DURONLY); check-in is just
+  another producer of that same row shape.
+- CHECKIN-CASCADE: on a "yes", the question/project/note dialogs run through
+  the popup tool cascade — `kdialog` → `zenity` → a spawned terminal
+  (`x-terminal-emulator` then `xterm`) running `dialog` (ncurses), falling
+  back to a plain `read` prompt inside that same terminal if `dialog` isn't
+  installed either. If nothing in the cascade is available (no GUI tool, no
+  terminal emulator), the script exits 0 silently — no error, no fallback
+  beyond that, since there is nothing left to show the question on.
+- CHECKIN-RETRY: the project prompt cannot be submitted blank — every tier
+  loops until a non-empty answer, rather than silently dropping the
+  in-progress "yes". WHY: the user has already said they want to log
+  something; a silent drop at that point discards real, stated intent to
+  track time, unlike a `No` or an outright cancel/dismiss (which are
+  legitimate "nothing to log" answers and exit silently at that step). The
+  note prompt has no such guard — it is explicitly optional, so a blank or
+  cancelled note still logs (with an empty note), only the project is required.
+- CHECKIN-TIER3-HANDOFF: the spawned-terminal tier writes its result to a
+  temp file as two bare lines (project, then note) — never pipe-delimited on
+  one line. WHY: the pipe-transliteration fix (CONV-NOTES) exists precisely
+  because `|` in free text corrupts a pipe-delimited format; reusing that
+  shape here for the same two fields would reopen the identical bug class the
+  moment a note happened to contain a `|`. Both temp files (the inner script
+  and the result file) are cleaned up via `trap ... EXIT`.
 
 ---
 
@@ -683,15 +780,17 @@ and **hand-verified** — the test suite will not catch a regression here.
 
 ### INT-INSTALL · setup.sh
 - `install` → install deps (apt/pacman/dnf); copy `env.sh`, `focus`,
-  `focus-nudge`, `services/`, `lib/`, `core/`, `docs/` to `~/.local/refocus`;
-  symlink `focus` into `~/.local/bin`; add the shell-hook source line to
-  `~/.bashrc`; write the desktop entry (INT-DESKTOP); then **arm tracking**
-  (`db_init` + `set_focus_enabled` + `cron_install`). WHY arm-on-install: a fresh
-  install with `focus_disabled=0` but no cron is the DB-vs-reality mismatch from
-  INV-3; install must leave both consistent.
+  `focus-nudge`, `focus-checkin`, `services/`, `lib/`, `core/`, `docs/` to
+  `~/.local/refocus`; symlink `focus` into `~/.local/bin`; add the shell-hook
+  source line to `~/.bashrc`; write the desktop entry (INT-DESKTOP); then
+  **arm tracking** (`db_init` + `set_focus_enabled` + `cron_install` +
+  `cron_checkin_install`). WHY arm-on-install: a fresh install with
+  `focus_disabled=0` but no cron is the DB-vs-reality mismatch from INV-3;
+  install must leave both jobs consistent with the DB state, not just one.
 - Reinstall preserves the existing `refocus.db` and `.env` (stash, wipe, restore).
-- `uninstall` → `cron_remove`, remove the install dir, the symlink, the desktop
-  entry, and the two `.bashrc` lines (anchored sed, not loose regex).
+- `uninstall` → `cron_remove` + `cron_checkin_remove`, remove the install dir,
+  the symlink, the desktop entry, and the two `.bashrc` lines (anchored sed,
+  not loose regex).
 
 ### INT-DESKTOP · refocus.desktop
 - Written to `~/.local/share/applications/refocus.desktop`: `NoDisplay=true`

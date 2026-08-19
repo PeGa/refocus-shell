@@ -85,9 +85,9 @@ install_files() {
         fi
     fi
 
-    # Strip any stale nudge cron entry before wiping (fixed-string — dots in path are literal)
+    # Strip any stale nudge/checkin cron entries before wiping (fixed-string — dots in path are literal)
     local tmp; tmp=$(mktemp)
-    crontab -l 2>/dev/null | grep -vF "$INSTALL_DIR/focus-nudge" > "$tmp" || true
+    crontab -l 2>/dev/null | grep -vF "$INSTALL_DIR/focus-nudge" | grep -vF "$INSTALL_DIR/focus-checkin" > "$tmp" || true
     crontab "$tmp"
     rm -f "$tmp"
 
@@ -98,6 +98,7 @@ install_files() {
     cp "$SRC_DIR/env.sh"      "$INSTALL_DIR/"
     cp "$SRC_DIR/focus"          "$INSTALL_DIR/"
     cp "$SRC_DIR/focus-nudge"    "$INSTALL_DIR/"
+    cp "$SRC_DIR/focus-checkin"  "$INSTALL_DIR/"
     cp "$SRC_DIR/services/"*.sh  "$INSTALL_DIR/services/"
     cp "$SRC_DIR/lib/"*.sh       "$INSTALL_DIR/lib/"
     cp "$SRC_DIR/core/"*.sh      "$INSTALL_DIR/core/"
@@ -105,6 +106,7 @@ install_files() {
 
     chmod +x "$INSTALL_DIR/focus"
     chmod +x "$INSTALL_DIR/focus-nudge"
+    chmod +x "$INSTALL_DIR/focus-checkin"
     chmod +x "$INSTALL_DIR/lib/"*.sh
     chmod +x "$INSTALL_DIR/services/"*.sh
 
@@ -164,6 +166,7 @@ init_and_enable() {
     db_init                 # INSERT OR IGNORE — no-op on a preserved DB
     set_focus_enabled
     cron_install || _warn "Could not arm cron nudge — run 'focus enable' manually."
+    cron_checkin_install || _warn "Could not arm check-in cron — run 'focus enable' manually."
     _ok "Database ready and nudging armed."
 }
 
@@ -187,6 +190,7 @@ case "${1:-install}" in
             export REFOCUS_ROOT="$INSTALL_DIR"
             source "$INSTALL_DIR/services/cron.sh"
             cron_remove 2>/dev/null || true
+            cron_checkin_remove 2>/dev/null || true
         fi
         rm -rf "$INSTALL_DIR"
         rm -f  "$BIN_DIR/focus"
