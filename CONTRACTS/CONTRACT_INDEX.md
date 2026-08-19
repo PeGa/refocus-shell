@@ -1,6 +1,6 @@
 # CONTRACT_INDEX.md — refocus-shell
 
-> Line-range index into `MAIN.md` (658 lines). Lets an agent load a single
+> Line-range index into `MAIN.md` (676 lines). Lets an agent load a single
 > section or rule by range instead of the whole spec — context budget for small-
 > window models, precise citation for everyone else.
 >
@@ -21,17 +21,17 @@
 | INV    | Invariants                               | 124–179 |
 | NAME   | Naming contract                          | 181–201 |
 | ARCH   | Architecture & layering                  | 203–235 |
-| PORT   | Adapter surface (database.sh)            | 237–301 |
-| CORE   | Domain-helper surface (core/*.sh)        | 303–340 |
-| ENV    | Environment loader (env.sh)              | 342–359 |
-| CRON   | Nudge scheduling (cron.sh)               | 361–382 |
-| CMD    | Command surface (lib/)                   | 384–498 |
-| NUDGE  | Nudge payload (focus-nudge)              | 500–518 |
-| SM     | State machine                            | 520–539 |
-| CONV   | Conventions                              | 541–585 |
-| INT    | Install & shell integration              | 587–620 |
-| BUILD  | Build guardrails                         | 622–639 |
-| ACCEPT | Acceptance                               | 641–658 |
+| PORT   | Adapter surface (database.sh)            | 237–311 |
+| CORE   | Domain-helper surface (core/*.sh)        | 313–350 |
+| ENV    | Environment loader (env.sh)              | 352–369 |
+| CRON   | Nudge scheduling (cron.sh)               | 371–392 |
+| CMD    | Command surface (lib/)                   | 394–516 |
+| NUDGE  | Nudge payload (focus-nudge)              | 518–536 |
+| SM     | State machine                            | 538–557 |
+| CONV   | Conventions                              | 559–603 |
+| INT    | Install & shell integration              | 605–638 |
+| BUILD  | Build guardrails                         | 640–657 |
+| ACCEPT | Acceptance                               | 659–676 |
 
 ---
 
@@ -62,22 +62,22 @@
 
 | Code | Command | Lines |
 |---|---|---|
-| CMD-ON       | focus on [project] | 388–396 |
-| CMD-OFF      | focus off | 398–404 |
-| CMD-PAUSE    | focus pause | 406–408 |
-| CMD-CONTINUE | focus continue | 410–414 |
-| CMD-STATUS   | focus status | 416–419 |
-| CMD-PAST     | focus past <list\|add\|modify\|delete> | 421–445 |
-| CMD-REPORT   | focus report <today\|week\|month\|custom N> | 447–452 |
-| CMD-ENABLE   | focus enable | 454–456 |
-| CMD-DISABLE  | focus disable | 458–460 |
-| CMD-NUDGE    | focus nudge <status\|test> | 462–464 |
-| CMD-CONFIG   | focus config <show\|set\|unset> | 466–469 |
-| CMD-EXPORT   | focus export [basename] | 471–472 |
-| CMD-IMPORT   | focus import <file> | 474–478 |
-| CMD-INIT     | focus init | 480–481 |
-| CMD-RESET    | focus reset | 483–485 |
-| CMD-HELP     | focus help [cmd] | 487–498 |
+| CMD-ON       | focus on [project] | 398–406 |
+| CMD-OFF      | focus off | 408–414 |
+| CMD-PAUSE    | focus pause | 416–418 |
+| CMD-CONTINUE | focus continue | 420–424 |
+| CMD-STATUS   | focus status | 426–429 |
+| CMD-PAST     | focus past <list\|add\|modify\|delete> | 431–455 |
+| CMD-REPORT   | focus report <today\|week\|month\|custom N> | 457–462 |
+| CMD-ENABLE   | focus enable | 464–466 |
+| CMD-DISABLE  | focus disable | 468–470 |
+| CMD-NUDGE    | focus nudge <status\|test> | 472–474 |
+| CMD-CONFIG   | focus config <show\|set\|unset> | 476–487 |
+| CMD-EXPORT   | focus export [basename] | 489–490 |
+| CMD-IMPORT   | focus import <file> | 492–496 |
+| CMD-INIT     | focus init | 498–499 |
+| CMD-RESET    | focus reset | 501–503 |
+| CMD-HELP     | focus help [cmd] | 505–516 |
 
 ---
 
@@ -85,19 +85,19 @@
 
 | Code | Surface | Lines |
 |---|---|---|
-| PORT | database.sh — full intent API | 237–301 |
-| CORE | core/*.sh — time + text helpers | 303–340 |
-| CORE-TIME | core/time.sh — duration/time parsing, GNU-BSD split | 308–328 |
-| CORE-TEXT | core/text.sh — notes decode + block rendering | 330–340 |
-| ENV  | env.sh — loader + exports + precedence | 342–359 |
-| CRON | cron.sh — install/remove + entry format | 361–382 |
-| NUDGE | focus-nudge — the cron payload | 500–518 |
-| INT-INSTALL | setup.sh | 594–604 |
-| INT-DESKTOP | refocus.desktop | 606–609 |
-| INT-SHELL   | focus-function.sh | 611–620 |
+| PORT | database.sh — full intent API | 237–311 |
+| CORE | core/*.sh — time + text helpers | 313–350 |
+| CORE-TIME | core/time.sh — duration/time parsing, GNU-BSD split | 318–338 |
+| CORE-TEXT | core/text.sh — notes decode + block rendering | 340–350 |
+| ENV  | env.sh — loader + exports + precedence | 352–369 |
+| CRON | cron.sh — install/remove + entry format | 371–392 |
+| NUDGE | focus-nudge — the cron payload | 518–536 |
+| INT-INSTALL | setup.sh | 612–622 |
+| INT-DESKTOP | refocus.desktop | 624–627 |
+| INT-SHELL   | focus-function.sh | 629–638 |
 
 Note: `services/help.sh` and `services/editor.sh` have no surface section of
-their own — they are specified where they are used, at CMD-HELP (487–498) and
+their own — they are specified where they are used, at CMD-HELP (505–516) and
 CMD-OFF / CMD-PAST respectively.
 
 ---
@@ -113,34 +113,35 @@ by its bullet in [CONV] and referenced from the commands it governs.
 | ARCH-ROUTABLE          | dispatcher routes only to lib/ | 223 | ARCH |
 | ARCH-ROOT              | REFOCUS_ROOT via realpath(BASH_SOURCE) | 227 | ARCH |
 | ARCH-SOURCE            | handler source order | 232 | ARCH |
-| PORT-NOTES             | notes encode newlines on read | 278 | PORT |
-| PORT-BASH32            | get_project_totals_in_range aggregates in SQL, not bash | 291 | PORT |
-| CORE-DATE              | date(1) confined to core/time.sh | 321 | CORE-TIME |
-| CMD-OFF-RECOVERY       | off ignores focus_disabled | 402 | CMD-OFF |
-| CMD-PAST-ARGS          | optional leading project; don't eat --duration | 433 | CMD-PAST |
-| CMD-PAST-ID            | numeric id guard before the adapter | 439 | CMD-PAST |
-| CMD-PAST-NOOP          | a modify that changes nothing is exit 2 | 443 | CMD-PAST |
-| CMD-HELP-INTERCEPT     | wants_help runs before parsing and db_ensure | 493 | CMD-HELP |
-| NUDGE-HISTORY          | desktop-entry hint → logged in history | 514 | NUDGE |
-| SM-INVARIANT           | disabled ⇒ idle; active+disabled illegal | 529 | SM |
-| CONV-EXIT              | exit codes 0/1/2 | 543 | CONV |
-| CONV-YES               | destructive ops need literal "yes" | 545 | CONV |
-| CONV-REARM             | reset/import leave disabled | 547 | CONV |
-| CONV-IDEMPOTENT-ENABLE | enable-when-enabled is a no-op | 550 | CONV |
-| CONV-DURONLY           | duration-only rows have no timestamps | 553 | CONV |
-| CONV-HELP              | help is data; no inline usage strings | 557 | CONV |
-| CONV-ID                | session ids validated in the handler | 562 | CONV |
-| CONV-NOTES             | encode/decode notes across the read boundary | 565 | CONV |
-| CONV-PORTABLE          | GNU+BSD+bash-3.2; no date(1)/sed -i/sed t;/declare -A | 568 | CONV |
-| CONV-ENVFILE           | ENV_FILE computed once in env.sh | 355 | ENV |
-| CRON-BIN               | payload path resolved at call time | 369 | CRON |
-| CRON-ENV               | entry embeds REFOCUS_ROOT + display env | 371 | CRON |
-| CRON-STRIP             | fixed-string crontab strip, live only | 375 | CRON |
-| CRON-INTERVAL          | validate 1–60 numeric | 379 | CRON |
-| BUILD-NO-REGEN         | no whole-file regen through escaping | 627 | BUILD |
-| BUILD-VERIFY           | run both test scripts after changes | 632 | BUILD |
-| BUILD-UTF8             | shellcheck under LC_ALL=C.UTF-8 | 635 | BUILD |
-| BUILD-SCOPE            | one concern per change | 637 | BUILD |
+| PORT-PROJVALID         | project name validated before every DB write | 245 | PORT |
+| PORT-NOTES             | notes encode newlines on read | 288 | PORT |
+| PORT-BASH32            | get_project_totals_in_range aggregates in SQL, not bash | 301 | PORT |
+| CORE-DATE              | date(1) confined to core/time.sh | 331 | CORE-TIME |
+| CMD-OFF-RECOVERY       | off ignores focus_disabled | 412 | CMD-OFF |
+| CMD-PAST-ARGS          | optional leading project; don't eat --duration | 443 | CMD-PAST |
+| CMD-PAST-ID            | numeric id guard before the adapter | 449 | CMD-PAST |
+| CMD-PAST-NOOP          | a modify that changes nothing is exit 2 | 453 | CMD-PAST |
+| CMD-HELP-INTERCEPT     | wants_help runs before parsing and db_ensure | 511 | CMD-HELP |
+| NUDGE-HISTORY          | desktop-entry hint → logged in history | 532 | NUDGE |
+| SM-INVARIANT           | disabled ⇒ idle; active+disabled illegal | 547 | SM |
+| CONV-EXIT              | exit codes 0/1/2 | 561 | CONV |
+| CONV-YES               | destructive ops need literal "yes" | 563 | CONV |
+| CONV-REARM             | reset/import leave disabled | 565 | CONV |
+| CONV-IDEMPOTENT-ENABLE | enable-when-enabled is a no-op | 568 | CONV |
+| CONV-DURONLY           | duration-only rows have no timestamps | 571 | CONV |
+| CONV-HELP              | help is data; no inline usage strings | 575 | CONV |
+| CONV-ID                | session ids validated in the handler | 580 | CONV |
+| CONV-NOTES             | encode/decode notes across the read boundary | 583 | CONV |
+| CONV-PORTABLE          | GNU+BSD+bash-3.2; no date(1)/sed -i/sed t;/declare -A | 586 | CONV |
+| CONV-ENVFILE           | ENV_FILE computed once in env.sh | 365 | ENV |
+| CRON-BIN               | payload path resolved at call time | 379 | CRON |
+| CRON-ENV               | entry embeds REFOCUS_ROOT + display env | 381 | CRON |
+| CRON-STRIP             | fixed-string crontab strip, live only | 385 | CRON |
+| CRON-INTERVAL          | validate 1–60 numeric | 389 | CRON |
+| BUILD-NO-REGEN         | no whole-file regen through escaping | 645 | BUILD |
+| BUILD-VERIFY           | run both test scripts after changes | 650 | BUILD |
+| BUILD-UTF8             | shellcheck under LC_ALL=C.UTF-8 | 653 | BUILD |
+| BUILD-SCOPE            | one concern per change | 655 | BUILD |
 
 ---
 
@@ -148,7 +149,7 @@ by its bullet in [CONV] and referenced from the commands it governs.
 
 - Rebuilding a single component → load its surface row from *Component surfaces*
   plus every `INV-*` (124–179) and `NAME` (181–201). The invariants bind all of them.
-- Implementing one command → load its `CMD-*` row + `PORT` (237–301) + `CONV` (541–585).
+- Implementing one command → load its `CMD-*` row + `PORT` (237–311) + `CONV` (559–603).
 - Resolving an ambiguity → load the relevant rule's line ± its parent section, and
   decide by the WHY, never by local convenience (READ, 9–37).
-- Checking your work → `ACCEPT` (641–658).
+- Checking your work → `ACCEPT` (659–676).

@@ -29,6 +29,21 @@ _query() {
     sqlite3 -separator '|' "$DB_PATH" "$1"
 }
 
+_validate_project_name() {
+    # Every session read is pipe-separated (_query -separator '|') and every
+    # caller splits on it (IFS='|' read); a project name carrying '|' or a
+    # newline desyncs every field after it. Called by every write path that
+    # takes a project name from a user-controlled arg. db_import_session_row
+    # is exempt on purpose: it is documented as a verbatim reconstruction
+    # path, and guarding it would abort an import partway through.
+    case "$1" in
+        *'|'*|*$'\n'*|*$'\r'*)
+            echo "❌ Invalid character in project name." >&2
+            echo "   Project names cannot contain: | (pipe), newline, carriage return" >&2
+            return 2 ;;
+    esac
+}
+
 # ── Schema lifecycle (db_*: storage-mechanism) ───────────────────────────────
 
 db_init() {
@@ -101,6 +116,7 @@ set_focus_disabled() {
 
 start_session() {
     local project="$1" start_time="$2"
+    _validate_project_name "$project" || return 2
     _exec "UPDATE state SET
         active=1, project='$(_q "$project")', start_time='$(_q "$start_time")',
         paused=0, pause_start_time=NULL, previous_elapsed=0
@@ -138,6 +154,7 @@ resume_session() {
 
 record_session() {
     local project="$1" start_time="$2" end_time="$3" duration="$4" notes="${5:-}"
+    _validate_project_name "$project" || return 2
     _exec "INSERT INTO sessions (project, start_time, end_time, duration_seconds, notes)
            VALUES ('$(_q "$project")', '$(_q "$start_time")', '$(_q "$end_time")',
                    $duration, '$(_q "$notes")');"
@@ -145,12 +162,14 @@ record_session() {
 
 record_duration_session() {
     local project="$1" duration="$2" date="$3" notes="${4:-}"
+    _validate_project_name "$project" || return 2
     _exec "INSERT INTO sessions (project, duration_seconds, notes, duration_only, session_date)
            VALUES ('$(_q "$project")', $duration, '$(_q "$notes")', 1, '$(_q "$date")');"
 }
 
 update_session() {
     local id="$1" project="$2" start_time="$3" end_time="$4" duration="$5"
+    _validate_project_name "$project" || return 2
     _exec "UPDATE sessions SET
         project='$(_q "$project")', start_time='$(_q "$start_time")',
         end_time='$(_q "$end_time")', duration_seconds=$duration
@@ -186,35 +205,38 @@ list_sessions() {
             ORDER BY id DESC LIMIT $limit;"
 }
 
+_range_where() {
+    # <start> <end> -> the WHERE fragment matching sessions in that range,
+    # timestamped or duration-only. Shared so list_sessions_in_range and
+    # get_project_totals_in_range can never drift apart on what "in range"
+    # means — the breakdown must count exactly the sessions the raw listing
+    # shows.
+    local start="$1" end="$2"
+    echo "(
+                (duration_only=0 AND end_time >= '$(_q "$start")' AND end_time <= '$(_q "$end")')
+                OR
+                (duration_only=1 AND session_date >= date('$(_q "$start")') AND session_date <= date('$(_q "$end")'))
+            )"
+}
+
 list_sessions_in_range() {
     local start="$1" end="$2"
     _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
                    duration_seconds, $_NOTES_ENCODED, duration_only, COALESCE(session_date,'')
             FROM sessions
-            WHERE (
-                (duration_only=0 AND end_time >= '$(_q "$start")' AND end_time <= '$(_q "$end")')
-                OR
-                (duration_only=1 AND session_date >= date('$(_q "$start")') AND session_date <= date('$(_q "$end")'))
-            )
+            WHERE $(_range_where "$start" "$end")
             ORDER BY COALESCE(end_time, session_date) DESC;"
 }
 
 get_project_totals_in_range() {
     # <start> <end> -> project|duration_seconds|session_count, one row per
-    # project, ordered by duration_seconds descending.
-    #
-    # Same WHERE clause as list_sessions_in_range on purpose: report's
-    # per-project breakdown must count exactly the sessions the raw listing
-    # shows. Aggregating here rather than in bash means `focus report` has no
-    # associative-array dependency — macOS ships bash 3.2, which has none.
+    # project, ordered by duration_seconds descending. Aggregating in SQL
+    # rather than bash means `focus report` has no associative-array
+    # dependency — macOS ships bash 3.2, which has none.
     local start="$1" end="$2"
     _query "SELECT project, SUM(duration_seconds), COUNT(*)
             FROM sessions
-            WHERE (
-                (duration_only=0 AND end_time >= '$(_q "$start")' AND end_time <= '$(_q "$end")')
-                OR
-                (duration_only=1 AND session_date >= date('$(_q "$start")') AND session_date <= date('$(_q "$end")'))
-            )
+            WHERE $(_range_where "$start" "$end")
             GROUP BY project
             ORDER BY SUM(duration_seconds) DESC;"
 }
@@ -285,6 +307,7 @@ db_import_session_row() {
 update_duration_session() {
     # Rename and/or re-duration a duration-only session. Never touches timestamps.
     local id="$1" project="$2" duration="$3"
+    _validate_project_name "$project" || return 2
     _exec "UPDATE sessions SET project='$(_q "$project")', duration_seconds=$duration WHERE id=$id;"
 }
 

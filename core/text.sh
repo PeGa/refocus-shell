@@ -22,6 +22,11 @@ notes_block() {
     # notes_decode first. Decoding here too would turn a backslash-n the user
     # actually typed into a line break.
     local first="$1" cont="$2" notes="${3:-}" n=0 line
+    # Strip one trailing newline before re-adding exactly one below: without
+    # this, a note that already ends in \n gets a second one appended, and
+    # the read loop sees an extra empty final "line" — a spurious blank
+    # continuation row after the real content.
+    notes="${notes%$'\n'}"
     while IFS= read -r line; do
         if [[ $n -eq 0 ]]; then
             printf '%s%s\n' "$first" "$line"

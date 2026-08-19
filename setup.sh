@@ -192,12 +192,15 @@ case "${1:-install}" in
         rm -f  "$BIN_DIR/focus"
         rm -f  "$HOME/.local/share/applications/refocus.desktop"
         rc="$HOME/.bashrc"
-        # No `sed -i`: GNU takes a bare -i, BSD demands -i ''. Sibling temp + rename
-        # behaves identically on both.
+        # No `sed -i` (GNU takes a bare -i, BSD demands -i ''), and no `mv`
+        # over the original either: that would swap in mktemp's default 0600
+        # mode. Write the result back into the original file instead, so its
+        # permissions survive untouched.
         if [[ -f "$rc" ]]; then
             rc_tmp=$(mktemp "${rc}.XXXXXX")
             sed -e '/# Refocus Shell/d' -e '/focus-function\.sh/d' "$rc" > "$rc_tmp" \
-                && mv "$rc_tmp" "$rc"
+                && cat "$rc_tmp" > "$rc"
+            rm -f "$rc_tmp"
         fi
         _ok "Uninstalled."
         ;;

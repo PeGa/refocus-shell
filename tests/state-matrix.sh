@@ -200,6 +200,11 @@ printf 'replaced\n' | ./focus past modify "$nid" --notes >/dev/null 2>&1
 chk "--notes rewrites note"      "replaced"     "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT notes FROM sessions WHERE id=$nid;")"
 chk "--notes preserves duration" "$dur_before"  "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT duration_seconds FROM sessions WHERE id=$nid;")"
 
+# notes_block must not render a spurious blank line for a note that already
+# ends in a newline (printf '%s\n' would otherwise double it up).
+chk "notes_block: no spurious blank on trailing newline" "2" \
+    "$(bash -c "source core/text.sh; notes_block '' '' \$'a\nb\n'" | wc -l | tr -d ' ')"
+
 # ── report: empty period ─────────────────────────────────────────────────────
 # `declare -A` left the array unset, so ${#arr[@]} tripped set -u and any
 # period with no sessions exited 1.
@@ -233,6 +238,30 @@ echo "── config show ──"
 out=$(./focus config show 2>&1); rc=$?
 chk "config show rc=0 with overrides" "0" "$rc"
 chk "config show renders override"   "0" "$([[ "$out" == *"NUDGE_INTERVAL=11"* ]]; echo $?)"
+
+# ── config set/unset: file mode survives the rewrite ─────────────────────────
+# `mv` over a mktemp file drops ENV_FILE from its real mode to mktemp's
+# default 0600. Writing back into the original file instead of replacing it
+# must leave the mode untouched.
+echo "── config: file mode preserved ──"
+env_file="$SANDBOX/.env"
+./focus config set REPORT_LIMIT 6 >/dev/null 2>&1
+chmod 644 "$env_file"
+./focus config set REPORT_LIMIT 7 >/dev/null 2>&1
+chk "config set preserves 644"   "-rw-r--r--" "$(ls -l "$env_file" | cut -c1-10)"
+./focus config unset REPORT_LIMIT >/dev/null 2>&1
+chk "config unset preserves 644" "-rw-r--r--" "$(ls -l "$env_file" | cut -c1-10)"
+
+# ── project name guard: '|' desyncs every pipe-separated read ───────────────
+# _query uses `sqlite3 -separator '|'` and every caller splits on IFS='|'; a
+# project name containing the separator corrupts every field after it.
+echo "── project name guard ──"
+sessions_before_guard=$(cnt)
+printf 'n\n' | ./focus past add 'evil|project' 2026/06/11-10:00 2026/06/11-11:00 >/dev/null 2>&1
+chk "past add '|' name rc=2"        "2" "$?"
+chk "past add '|' name writes nothing" "$sessions_before_guard" "$(cnt)"
+./focus on 'a|b' >/dev/null 2>&1; chk "on '|' name rc=2" "2" "$?"
+chk "on '|' name leaves state idle" "0|0|0|-" "$(st)"
 
 # ── result ───────────────────────────────────────────────────────────────────
 echo

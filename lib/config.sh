@@ -7,6 +7,17 @@ wants_help "$@" && show_help config
 
 # ENV_FILE is exported by env.sh — no need to re-derive it here.
 
+_rewrite_env() {
+    # <sed-expr> -> apply it to ENV_FILE in place. Writes into the original
+    # file rather than `mv`-replacing it: mktemp defaults to mode 0600, and
+    # `mv` would swap the inode in, silently dropping ENV_FILE's real
+    # permissions to 0600 on every edit.
+    local expr="$1" tmp
+    tmp=$(mktemp "${ENV_FILE}.XXXXXX")
+    sed "$expr" "$ENV_FILE" > "$tmp" && cat "$tmp" > "$ENV_FILE"
+    rm -f "$tmp"
+}
+
 _show() {
     echo "Effective configuration:"
     printf "  %-24s = %s\n" "DB_PATH"            "$DB_PATH"
@@ -50,11 +61,7 @@ case "$sub" in
         env_key="REFOCUS_${key}"
         touch "$ENV_FILE"
         if grep -q "^${env_key}=" "$ENV_FILE" 2>/dev/null; then
-            # No `sed -i`: GNU takes a bare -i, BSD demands -i ''. Write a sibling
-            # temp file and rename over the original — same filesystem, atomic,
-            # and identical on both platforms.
-            tmp=$(mktemp "${ENV_FILE}.XXXXXX")
-            sed "s|^${env_key}=.*|${env_key}=${val}|" "$ENV_FILE" > "$tmp" && mv "$tmp" "$ENV_FILE"
+            _rewrite_env "s|^${env_key}=.*|${env_key}=${val}|"
         else
             echo "${env_key}=${val}" >> "$ENV_FILE"
         fi
@@ -63,10 +70,7 @@ case "$sub" in
     unset)
         key="${1:-}"; [[ -z "$key" ]] && usage_error config
         env_key="REFOCUS_${key}"
-        if [[ -f "$ENV_FILE" ]]; then
-            tmp=$(mktemp "${ENV_FILE}.XXXXXX")
-            sed "/^${env_key}=/d" "$ENV_FILE" > "$tmp" && mv "$tmp" "$ENV_FILE"
-        fi
+        [[ -f "$ENV_FILE" ]] && _rewrite_env "/^${env_key}=/d"
         echo "✅ Unset $key (reverts to default)"
         ;;
     *)

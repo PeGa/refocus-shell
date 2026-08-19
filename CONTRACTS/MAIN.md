@@ -240,7 +240,17 @@ The exact intent API the core calls through. A rebuild must expose equivalently
 named functions with these contracts. Output of reads is pipe-separated.
 
 **Engine (private):** `_q` (escape single quotes), `_exec` (write, dies loud),
-`_query` (read, `-separator '|'`).
+`_query` (read, `-separator '|'`), `_validate_project_name` (PORT-PROJVALID).
+
+**PORT-PROJVALID:** every write function that takes a project name calls
+`_validate_project_name` first and propagates its failure (exit 2, CONV-EXIT).
+Reads are pipe-separated (`_query -separator '|'`) and every caller splits on
+`IFS='|' read`; a project name containing `|`, `\n`, or `\r` desyncs every
+field after it in that row. Called from `start_session`, `record_session`,
+`record_duration_session`, `update_session`, `update_duration_session`.
+**Not** called from `db_import_session_row` — that path is documented
+verbatim reconstruction (see Serialization below), and guarding it would
+abort an import partway through rather than reject cleanly up front.
 
 **Schema (db_*, storage):**
 - `db_init` — create tables if absent; `INSERT OR IGNORE` the singleton state row.
@@ -467,6 +477,14 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
 - `show`: effective values + overrides from `$ENV_FILE`.
 - `set <KEY> <VAL>`: validate KEY against the known set; write `REFOCUS_<KEY>` to
   `$ENV_FILE`. `unset`: remove the line. `$ENV_FILE` from env.sh (CONV-ENVFILE).
+- Both edits go through `_rewrite_env` (CONV-PORTABLE): `sed` into a temp file,
+  then `cat` the temp file's contents back into `$ENV_FILE` — never `mv` the
+  temp file over it. `mv` swaps the inode in, and mktemp's default mode is
+  0600, so a plain rename silently drops `$ENV_FILE`'s real permissions on
+  every edit. `setup.sh`'s uninstall rewrite of `~/.bashrc` follows the same
+  rule with its own inline copy — it runs standalone before install and
+  doesn't source `lib/`, so sharing `_rewrite_env` isn't worth a cross-layer
+  dependency for three lines.
 
 ### CMD-EXPORT · `focus export [basename]`
 - write `<base>.sql` (`db_dump_sql`) and `<base>.json`. Read-only on live data.
