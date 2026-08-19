@@ -234,6 +234,19 @@ out=$(./focus config show 2>&1); rc=$?
 chk "config show rc=0 with overrides" "0" "$rc"
 chk "config show renders override"   "0" "$([[ "$out" == *"NUDGE_INTERVAL=11"* ]]; echo $?)"
 
+# ── config set/unset: file mode survives the rewrite ─────────────────────────
+# `mv` over a mktemp file drops ENV_FILE from its real mode to mktemp's
+# default 0600. Writing back into the original file instead of replacing it
+# must leave the mode untouched.
+echo "── config: file mode preserved ──"
+env_file="$SANDBOX/.env"
+./focus config set REPORT_LIMIT 6 >/dev/null 2>&1
+chmod 644 "$env_file"
+./focus config set REPORT_LIMIT 7 >/dev/null 2>&1
+chk "config set preserves 644"   "-rw-r--r--" "$(ls -l "$env_file" | cut -c1-10)"
+./focus config unset REPORT_LIMIT >/dev/null 2>&1
+chk "config unset preserves 644" "-rw-r--r--" "$(ls -l "$env_file" | cut -c1-10)"
+
 # ── project name guard: '|' desyncs every pipe-separated read ───────────────
 # _query uses `sqlite3 -separator '|'` and every caller splits on IFS='|'; a
 # project name containing the separator corrupts every field after it.
