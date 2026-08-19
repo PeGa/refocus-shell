@@ -234,6 +234,17 @@ out=$(./focus config show 2>&1); rc=$?
 chk "config show rc=0 with overrides" "0" "$rc"
 chk "config show renders override"   "0" "$([[ "$out" == *"NUDGE_INTERVAL=11"* ]]; echo $?)"
 
+# ── project name guard: '|' desyncs every pipe-separated read ───────────────
+# _query uses `sqlite3 -separator '|'` and every caller splits on IFS='|'; a
+# project name containing the separator corrupts every field after it.
+echo "── project name guard ──"
+sessions_before_guard=$(cnt)
+printf 'n\n' | ./focus past add 'evil|project' 2026/06/11-10:00 2026/06/11-11:00 >/dev/null 2>&1
+chk "past add '|' name rc=2"        "2" "$?"
+chk "past add '|' name writes nothing" "$sessions_before_guard" "$(cnt)"
+./focus on 'a|b' >/dev/null 2>&1; chk "on '|' name rc=2" "2" "$?"
+chk "on '|' name leaves state idle" "0|0|0|-" "$(st)"
+
 # ── result ───────────────────────────────────────────────────────────────────
 echo
 total=$(( pass + fail ))

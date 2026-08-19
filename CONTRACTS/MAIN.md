@@ -240,7 +240,17 @@ The exact intent API the core calls through. A rebuild must expose equivalently
 named functions with these contracts. Output of reads is pipe-separated.
 
 **Engine (private):** `_q` (escape single quotes), `_exec` (write, dies loud),
-`_query` (read, `-separator '|'`).
+`_query` (read, `-separator '|'`), `_validate_project_name` (PORT-PROJVALID).
+
+**PORT-PROJVALID:** every write function that takes a project name calls
+`_validate_project_name` first and propagates its failure (exit 2, CONV-EXIT).
+Reads are pipe-separated (`_query -separator '|'`) and every caller splits on
+`IFS='|' read`; a project name containing `|`, `\n`, or `\r` desyncs every
+field after it in that row. Called from `start_session`, `record_session`,
+`record_duration_session`, `update_session`, `update_duration_session`.
+**Not** called from `db_import_session_row` — that path is documented
+verbatim reconstruction (see Serialization below), and guarding it would
+abort an import partway through rather than reject cleanly up front.
 
 **Schema (db_*, storage):**
 - `db_init` — create tables if absent; `INSERT OR IGNORE` the singleton state row.
