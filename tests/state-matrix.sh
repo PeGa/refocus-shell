@@ -267,16 +267,28 @@ chk "config set preserves 644"   "-rw-r--r--" "$(ls -l "$env_file" | cut -c1-10)
 ./focus config unset REPORT_LIMIT >/dev/null 2>&1
 chk "config unset preserves 644" "-rw-r--r--" "$(ls -l "$env_file" | cut -c1-10)"
 
-# ── project name guard: '|' desyncs every pipe-separated read ───────────────
+# ── project name sanitization: '|' desyncs every pipe-separated read ────────
 # _query uses `sqlite3 -separator '|'` and every caller splits on IFS='|'; a
 # project name containing the separator corrupts every field after it.
-echo "── project name guard ──"
-sessions_before_guard=$(cnt)
+# Rather than rejecting it, every input path transliterates '|' -> '¦'
+# (U+00A6) before it ever reaches storage, so the character that breaks the
+# format never gets there in the first place.
+echo "── project name sanitization ──"
 printf 'n\n' | ./focus past add 'evil|project' 2026/06/11-10:00 2026/06/11-11:00 >/dev/null 2>&1
-chk "past add '|' name rc=2"        "2" "$?"
-chk "past add '|' name writes nothing" "$sessions_before_guard" "$(cnt)"
-./focus on 'a|b' >/dev/null 2>&1; chk "on '|' name rc=2" "2" "$?"
-chk "on '|' name leaves state idle" "0|0|0|-" "$(st)"
+chk "past add '|' name rc=0"      "0" "$?"
+chk "past add '|' name stored as ¦" "1" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT COUNT(*) FROM sessions WHERE project='evil¦project';")"
+
+./focus on 'a|b' >/dev/null 2>&1; chk "on '|' name rc=0" "0" "$?"
+chk "on '|' name active, stored as ¦" "1|0|0|a¦b" "$(st)"
+printf 'n\n' | ./focus off >/dev/null 2>&1
+
+# A second 'on' with the same raw name must find the total the first one
+# logged under the sanitized name, not 0m under a key nothing was stored as.
+sqlite3 "$REFOCUS_DB_PATH" "UPDATE sessions SET duration_seconds=7200 WHERE project='a¦b';"
+out=$(printf 'n\n' | ./focus on 'a|b' 2>&1)
+chk "on '|' name: total-time lookup matches sanitized key" "0" \
+    "$([[ "$out" == *"120m logged"* ]]; echo $?)"
 
 # The bash-side guard is a friendly front door; the schema CHECK is the
 # actual backstop for anything that bypasses it (db_import_session_row is
@@ -284,6 +296,32 @@ chk "on '|' name leaves state idle" "0|0|0|-" "$(st)"
 sessions_before_check=$(cnt)
 bash -c 'source env.sh; source services/database.sh; db_import_session_row "bad|import" "" "" 3600 "" 0 "2026-06-11"' >/dev/null 2>&1
 chk "DB-level CHECK blocks '|' bypassing the bash guard" "$sessions_before_check" "$(cnt)"
+
+# A '|' in a NOTE must round-trip as the exact original byte, not get
+# transliterated (notes are free text; encode-on-read via _NOTES_ENCODED
+# preserves it, unlike project names which are short identifiers).
+printf 'Fixed the a|b parser bug\n' | ./focus past add note/pipe 2026/06/11-16:00 2026/06/11-17:00 >/dev/null 2>&1
+out=$(./focus past list 2>&1)
+chk "note with '|' round-trips exactly, not transliterated" "0" \
+    "$([[ "$out" == *"Fixed the a|b parser bug"* ]]; echo $?)"
+
+# JSON import: a '|' in one row's project must not abort the rest of the
+# import (the earlier bash-side rejection + schema CHECK both used to kill
+# the while-loop under set -e partway through; sanitizing at capture removes
+# the trigger, so every row after the bad one still lands).
+cat > "$SANDBOX/pipe-import.json" <<EOF
+{"sessions": [
+  {"project": "GoodOne", "start_time": "2026-06-11T10:00:00-03:00", "end_time": "2026-06-11T11:00:00-03:00", "duration_seconds": 3600, "notes": "", "duration_only": 0, "session_date": ""},
+  {"project": "bad|name", "start_time": "2026-06-11T12:00:00-03:00", "end_time": "2026-06-11T13:00:00-03:00", "duration_seconds": 3600, "notes": "", "duration_only": 0, "session_date": ""},
+  {"project": "GoodTwo", "start_time": "2026-06-11T14:00:00-03:00", "end_time": "2026-06-11T15:00:00-03:00", "duration_seconds": 3600, "notes": "", "duration_only": 0, "session_date": ""}
+]}
+EOF
+printf 'yes\n' | ./focus import "$SANDBOX/pipe-import.json" >/dev/null 2>&1
+chk "JSON import: '|' row doesn't abort the rest" "0" \
+    "$([[ "$(cnt)" -eq 3 ]]; echo $?)"
+chk "JSON import: bad row sanitized, not dropped" "1" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT COUNT(*) FROM sessions WHERE project='bad¦name';")"
+chk "JSON import: normalizes state per INV-5" "0|0|1|-" "$(st)"
 
 # ── result ───────────────────────────────────────────────────────────────────
 echo

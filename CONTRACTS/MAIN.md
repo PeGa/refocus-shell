@@ -240,34 +240,71 @@ The exact intent API the core calls through. A rebuild must expose equivalently
 named functions with these contracts. Output of reads is pipe-separated.
 
 **Engine (private):** `_q` (escape single quotes), `_exec` (write, dies loud),
-`_query` (read, `-separator '|'`), `_validate_project_name` (PORT-PROJVALID).
+`_query` (read, `-separator '|'`). **Engine (public, called across files):**
+`sanitize_pipe`, `_validate_project_name` (PORT-PROJVALID).
 
-**PORT-PROJVALID:** every write function that takes a project name calls
-`_validate_project_name` first and propagates its failure (exit 2, CONV-EXIT).
-Reads are pipe-separated (`_query -separator '|'`) and every caller splits on
-`IFS='|' read`; a project name containing `|`, `\n`, or `\r` desyncs every
-field after it in that row. Called from `start_session`, `record_session`,
-`record_duration_session`, `update_session`, `update_duration_session`.
-**Not** called from `db_import_session_row` — that path is documented
-verbatim reconstruction (see Serialization below), and guarding it would
-abort an import partway through rather than reject cleanly up front.
+**PORT-PROJVALID:** reads are pipe-separated (`_query -separator '|'`) and
+every caller splits on `IFS='|' read`; a literal `|` in stored data desyncs
+every field after it in that row — reachable through project names, notes,
+or import.
 
-The bash guard is a friendly front door, not the only line of defense:
-`db_init`'s `CREATE TABLE` puts the same check directly on the `project`
-column (`CHECK (instr(project, '|') = 0 AND instr(project, char(10)) = 0
-AND instr(project, char(13)) = 0)`, both `state` and `sessions`), so SQLite
-itself rejects a bad write regardless of path — including
-`db_import_session_row`, a raw `sqlite3` edit, or any future write path
-that forgets to call the bash guard. This is the actual fix for the case
-that mattered: an import-tainted `|` in a project name doesn't just
-misdisplay, it desyncs `get_session`'s own read and drives `past modify`
-into misreading its own arguments, corrupting the row further on the next
-command that touches it. **Existing databases are not retrofitted** —
-SQLite can't `ALTER TABLE` a `CHECK` onto a column that already exists
-without a create-copy-swap `db_migrate` doesn't do, and this constraint
-was deliberately scoped to new databases only. A pre-existing DB with a
-tainted row is fixed by hand via `sqlite3`, same as any other legacy data
-issue.
+Two different mechanisms, one per field type, because the fields have
+different needs:
+
+- **Project names (short identifiers) — transliterate, don't preserve.**
+  `sanitize_pipe` replaces `|` with the visually similar U+00A6 (`¦`) and
+  is called at every point a project name is captured from user input, not
+  just at the final write: `lib/on.sh` and `lib/past.sh`'s `add` case
+  sanitize immediately after reading the raw arg (before any total-time
+  lookup or success message uses it — a second `focus on 'a|b'` must find
+  the total the first one logged under the sanitized name, and the message
+  echoed back must match what's actually stored), and the five adapter
+  write functions (`start_session`, `record_session`,
+  `record_duration_session`, `update_session`, `update_duration_session`)
+  sanitize again on the way in as a second, redundant layer.
+  `_validate_project_name` runs after sanitizing and rejects only `\n`/`\r`
+  outright (exit 2, CONV-EXIT) — a multi-line project name has no sensible
+  meaning for a short identifier, unlike a pipe character, which is
+  ordinary text a person might reasonably type.
+- **Notes (free text) — encode on read, preserve exactly.** See CONV-NOTES;
+  `|` joined `\n`/`\r`/`\\` in `_NOTES_ENCODED`'s escape set. Unlike project
+  names, a note's exact bytes matter, and notes already had a working
+  encode/decode round-trip for other unsafe characters — extending it costs
+  nothing and loses nothing, where transliterating a note would silently
+  change what the user typed.
+
+**`db_import_session_row` sanitizes neither** — it is documented verbatim
+reconstruction (see Serialization below), and guarding it in the adapter
+would abort an import partway through rather than reject cleanly. JSON
+import (`lib/import.sh`) sanitizes the extracted `project` field itself,
+before calling it, so a bad row never reaches this function in practice;
+notes need no import-side handling since they're protected on read
+regardless of how they entered.
+
+**The schema `CHECK` constraint is the backstop behind all of this, not the
+primary mechanism.** `db_init`'s `CREATE TABLE` puts
+`CHECK (instr(project, '|') = 0 AND instr(project, char(10)) = 0 AND
+instr(project, char(13)) = 0)` on `project` in both `state` and `sessions`,
+so SQLite itself rejects a bad write regardless of path — a raw `sqlite3`
+edit, or any future write path that forgets to sanitize. Verified live: a
+direct call to `db_import_session_row` with a raw `|`, bypassing every
+bash-side layer, is still rejected at the SQL layer. **Existing databases
+are not retrofitted** — SQLite can't `ALTER TABLE` a `CHECK` onto a column
+that already exists without a create-copy-swap `db_migrate` doesn't do, and
+this constraint was deliberately scoped to new databases only. A
+pre-existing DB with a tainted row is fixed by hand via `sqlite3`, same as
+any other legacy data issue.
+
+**Why sanitize instead of only relying on the `CHECK`:** an earlier version
+of this fix left `db_import_session_row` unguarded and let the `CHECK`
+reject bad rows outright. That reintroduced the exact "abort an import
+partway through, half-imported DB" failure this exemption exists to avoid
+— verified live, a 3-row JSON import with a bad `|` in the middle row lost
+the row after it entirely, since the per-row `while` loop runs under
+`set -e` and dies at the first `CHECK` failure. Sanitizing at capture time
+means the trigger for that failure mode never occurs during normal
+operation; the `CHECK` stays purely as defense-in-depth for paths nothing
+here controls.
 
 **Schema (db_*, storage):**
 - `db_init` — create tables if absent; `INSERT OR IGNORE` the singleton state row.
@@ -597,9 +634,13 @@ active          1 0 0      paused          0 1 0
 - CONV-ID: session ids are validated in the handler before reaching the adapter
   (CMD-PAST-ID). The adapter interpolates ids into SQL unparameterised, so a
   non-numeric id is a SQL error, not a usage error, unless the handler stops it.
-- CONV-NOTES: notes may contain newlines; session reads may not (PORT-NOTES).
-  Encode in the adapter, decode with `notes_decode`, render with `notes_block`.
-  Never print a note straight from a read.
+- CONV-NOTES: notes may contain newlines or pipes; session reads may not
+  (PORT-NOTES). Encode in the adapter (`_NOTES_ENCODED`: backslash, `\n`,
+  `\r`, then `|` as the hex escape `\x7c` — in that order, backslash first
+  so later steps' own backslashes never get re-escaped), decode with
+  `notes_decode` (`printf %b`, which understands `\x7c` natively — no
+  decoder change needed when `|` was added to the encode side). Render with
+  `notes_block`. Never print a note straight from a read.
 - CONV-NOTES-CLEAR: clearing an existing note is only ever a deliberate act
   done through `$EDITOR` — open it, delete everything, save. `capture_notes`
   (services/editor.sh) never infers "clear" from silence, in either

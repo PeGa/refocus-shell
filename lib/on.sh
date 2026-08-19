@@ -44,6 +44,12 @@ else
     if [[ ${#project} -gt $MAX_PROJECT_LENGTH ]]; then
         echo "❌ Project name too long (max $MAX_PROJECT_LENGTH chars)." >&2; exit 2
     fi
+    # Sanitize before the total-time lookup, not just before start_session:
+    # start_session sanitizes internally too, but doing it here first keeps
+    # the lookup, the prompts below, and the stored row all looking at the
+    # same name — a second `focus on 'a|b'` must find the same total the
+    # first one logged, not 0m under a name nothing was ever stored as.
+    project="${project//|/¦}"
     total=$(get_total_time "$project")
     total_min=$(( total / 60 ))
     if [[ $total_min -gt 0 ]]; then
