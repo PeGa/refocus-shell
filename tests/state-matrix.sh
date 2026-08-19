@@ -200,6 +200,11 @@ printf 'replaced\n' | ./focus past modify "$nid" --notes >/dev/null 2>&1
 chk "--notes rewrites note"      "replaced"     "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT notes FROM sessions WHERE id=$nid;")"
 chk "--notes preserves duration" "$dur_before"  "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT duration_seconds FROM sessions WHERE id=$nid;")"
 
+# notes_block must not render a spurious blank line for a note that already
+# ends in a newline (printf '%s\n' would otherwise double it up).
+chk "notes_block: no spurious blank on trailing newline" "2" \
+    "$(bash -c "source core/text.sh; notes_block '' '' \$'a\nb\n'" | wc -l | tr -d ' ')"
+
 # ── report: empty period ─────────────────────────────────────────────────────
 # `declare -A` left the array unset, so ${#arr[@]} tripped set -u and any
 # period with no sessions exited 1.
