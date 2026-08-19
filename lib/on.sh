@@ -41,7 +41,9 @@ if [[ -z "$project" ]]; then
         usage_error on
     fi
 else
-    if [[ ${#project} -gt $MAX_PROJECT_LENGTH ]]; then
+    # 10# forces base-10: a leading-zero MAX_PROJECT_LENGTH ("080") would
+    # otherwise be read as octal and crash this comparison (see cron.sh).
+    if [[ ${#project} -gt $((10#$MAX_PROJECT_LENGTH)) ]]; then
         echo "❌ Project name too long (max $MAX_PROJECT_LENGTH chars)." >&2; exit 2
     fi
     # Sanitize before the total-time lookup, not just before start_session:

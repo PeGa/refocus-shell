@@ -7,6 +7,28 @@ wants_help "$@" && show_help config
 
 # ENV_FILE is exported by env.sh — no need to re-derive it here.
 
+_sed_escape() {
+    # Escape backslash, '&', and our own '|' delimiter so a config value
+    # containing any of them (e.g. a custom DATE_SHORT_FORMAT using '|' as a
+    # separator) lands in ENV_FILE literally instead of breaking the sed
+    # substitution or being replaced with the whole matched line ('&').
+    printf '%s' "$1" | sed 's/[\&|]/\\&/g'
+}
+
+_shell_quote() {
+    # ENV_FILE is sourced verbatim by env.sh (KEY=VALUE, real shell syntax) —
+    # an unquoted value containing a space or shell metacharacter is not just
+    # stored wrong, it changes what every future `focus` invocation runs.
+    # DATE_SHORT_FORMAT's own documented default ("%Y-%m-%d %H:%M") has a
+    # space: writing it bare split into `KEY=%Y-%m-%d %H:%M`, which sourced
+    # as "run %H:%M with KEY set" — everything after failed with
+    # "%H:%M: command not found" (or worse: fg: no job control, since bash
+    # reads a bare %-word as a job-control spec). Single-quote the value and
+    # escape any embedded single quote the standard way: close, escaped quote,
+    # reopen.
+    printf "'%s'" "${1//\'/\'\\\'\'}"
+}
+
 _rewrite_env() {
     # <sed-expr> -> apply it to ENV_FILE in place. Writes into the original
     # file rather than `mv`-replacing it: mktemp defaults to mode 0600, and
@@ -60,11 +82,12 @@ case "$sub" in
             echo "Valid: NUDGE_INTERVAL CHECKIN_INTERVAL MAX_PROJECT_LENGTH DATE_FORMAT DATE_SHORT_FORMAT REPORT_LIMIT DB_PATH" >&2
             exit 2; }
         env_key="REFOCUS_${key}"
+        quoted=$(_shell_quote "$val")
         touch "$ENV_FILE"
         if grep -q "^${env_key}=" "$ENV_FILE" 2>/dev/null; then
-            _rewrite_env "s|^${env_key}=.*|${env_key}=${val}|"
+            _rewrite_env "s|^${env_key}=.*|${env_key}=$(_sed_escape "$quoted")|"
         else
-            echo "${env_key}=${val}" >> "$ENV_FILE"
+            echo "${env_key}=${quoted}" >> "$ENV_FILE"
         fi
         echo "✅ $key=$val"
         ;;

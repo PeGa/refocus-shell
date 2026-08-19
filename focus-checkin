@@ -21,6 +21,11 @@ is_session_paused   && exit 0
 
 interval="${CHECKIN_INTERVAL:-60}"
 [[ "$interval" == "0" ]] && exit 0
+# Base-10: cron.sh normalizes this at install time, but this script re-reads
+# CHECKIN_INTERVAL fresh from env.sh on every fire, independent of whatever
+# was installed — a leading zero ("008") is otherwise read as octal and
+# breaks the arithmetic below.
+interval=$((10#$interval))
 
 question="Did you focus on anything in the last $(fmt_duration $(( interval * 60 )))?"
 

@@ -231,11 +231,20 @@ _range_where() {
     # get_project_totals_in_range can never drift apart on what "in range"
     # means — the breakdown must count exactly the sessions the raw listing
     # shows.
+    #
+    # start/end are always full ISO-8601 (core/time.sh), and the local
+    # calendar date is already correct in their first 10 characters — that's
+    # the whole point of computing them via `date`/`gdate` in the first
+    # place. Using sqlite's date() here converted the string to UTC first,
+    # which shifted the boundary by a day for any positive UTC offset (e.g.
+    # local midnight "...T00:00:00+10:00" -> UTC "...(prev day)T14:00:00Z" ->
+    # date() = yesterday). substr just reads the date already written in the
+    # string, no timezone interpretation involved.
     local start="$1" end="$2"
     echo "(
                 (duration_only=0 AND end_time >= '$(_q "$start")' AND end_time <= '$(_q "$end")')
                 OR
-                (duration_only=1 AND session_date >= date('$(_q "$start")') AND session_date <= date('$(_q "$end")'))
+                (duration_only=1 AND session_date >= substr('$(_q "$start")', 1, 10) AND session_date <= substr('$(_q "$end")', 1, 10))
             )"
 }
 
@@ -275,10 +284,13 @@ get_total_time() {
 }
 
 get_last_session() {
-    # Returns: project|end_time|duration_seconds
-    _query "SELECT project, COALESCE(end_time,''), duration_seconds
-            FROM sessions WHERE end_time IS NOT NULL
-            ORDER BY end_time DESC LIMIT 1;"
+    # Returns: project|end_time-or-session_date|duration_seconds
+    # A duration-only row (past add --duration, check-in) has no end_time —
+    # order by whichever of the two it has, same fallback list_sessions_in_range
+    # already uses, so a check-in-logged session isn't invisible to `focus status`.
+    _query "SELECT project, COALESCE(end_time, session_date, ''), duration_seconds
+            FROM sessions
+            ORDER BY COALESCE(end_time, session_date) DESC LIMIT 1;"
 }
 
 get_last_project() {
