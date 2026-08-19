@@ -583,6 +583,20 @@ active          1 0 0      paused          0 1 0
 - CONV-NOTES: notes may contain newlines; session reads may not (PORT-NOTES).
   Encode in the adapter, decode with `notes_decode`, render with `notes_block`.
   Never print a note straight from a read.
+- CONV-NOTES-CLEAR: clearing an existing note is only ever a deliberate act
+  done through `$EDITOR` — open it, delete everything, save. `capture_notes`
+  (services/editor.sh) never infers "clear" from silence, in either
+  non-editor path:
+  - Non-interactive (piped/redirected stdin): empty input while re-editing an
+    existing note (`initial` non-empty) is a **usage error, exit 2**
+    (CONV-EXIT) — not "keep", not "clear". `focus past modify <id> --notes
+    </dev/null` refuses rather than guessing. A *fresh* note (off/add,
+    `initial` empty) is unaffected: empty input there still just means no
+    note, as it always has.
+  - Interactive with no editor found (`_resolve_editor` returns empty):
+    bare Enter leaves the existing note untouched — "Enter to skip" means
+    skip, not wipe. Typing text replaces it. This degraded fallback cannot
+    clear a note at all; that always requires a real editor.
 - CONV-PORTABLE: the tool targets GNU and BSD userland, **and bash 3.2** — macOS
   ships 3.2 as `/bin/bash` (GPLv3; Apple will not move), and the shebang is
   `#!/usr/bin/env bash`, so nothing forces a newer one onto PATH. Three concrete
