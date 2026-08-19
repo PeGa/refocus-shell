@@ -502,6 +502,23 @@ chk "JSON import: newline in project doesn't abort the rest" "3" "$(cnt)"
 chk "JSON import: newline sanitized to a space, not dropped" "1" \
     "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT COUNT(*) FROM sessions WHERE project='bad name';")"
 
+# ── report range: session_date boundary, positive UTC offset ───────────────────
+# _range_where used to wrap session_date in sqlite's date(), which converts
+# its argument to UTC first. For a timezone ahead of UTC, local midnight
+# ("...T00:00:00+10:00") becomes UTC the PREVIOUS day ("...T14:00:00Z"), so
+# date() returned yesterday — shifting the whole "today" boundary back a day
+# and leaking yesterday's duration-only session into it. substr just reads
+# the date already written in the string; no timezone interpretation.
+echo "── report range: session_date boundary (positive UTC offset) ──"
+bash -c "source env.sh; source services/database.sh; record_duration_session 'range-today' 3600 '2026-08-19' ''" >/dev/null
+bash -c "source env.sh; source services/database.sh; record_duration_session 'range-yesterday' 3600 '2026-08-18' ''" >/dev/null
+out=$(bash -c "
+    source env.sh; source services/database.sh
+    _query \"SELECT project FROM sessions WHERE \$(_range_where '2026-08-19T00:00:00+10:00' '2026-08-19T23:59:59+10:00');\"
+")
+chk "range@+10:00: today's session included"    "0" "$([[ "$out" == *"range-today"*     ]]; echo $?)"
+chk "range@+10:00: yesterday's session excluded" "0" "$([[ "$out" != *"range-yesterday"* ]]; echo $?)"
+
 # ── result ───────────────────────────────────────────────────────────────────
 echo
 total=$(( pass + fail ))
