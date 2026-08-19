@@ -29,17 +29,29 @@ _query() {
     sqlite3 -separator '|' "$DB_PATH" "$1"
 }
 
-_validate_project_name() {
+sanitize_pipe() {
     # Every session read is pipe-separated (_query -separator '|') and every
-    # caller splits on it (IFS='|' read); a project name carrying '|' or a
-    # newline desyncs every field after it. Called by every write path that
-    # takes a project name from a user-controlled arg. db_import_session_row
-    # is exempt on purpose: it is documented as a verbatim reconstruction
-    # path, and guarding it would abort an import partway through.
+    # caller splits on it (IFS='|' read); a literal '|' in stored data
+    # desyncs every field after it — reachable through project names, notes,
+    # or import. Rather than rejecting it, transliterate to the visually
+    # similar U+00A6 (broken bar) at every input boundary, so the character
+    # that breaks the format simply never reaches storage. Lossy by design;
+    # applied before validation/storage, not on read.
+    printf '%s' "${1//|/¦}"
+}
+
+_validate_project_name() {
+    # '|' is handled by sanitize_pipe before this ever runs. Newline/CR are
+    # rejected outright instead — a multi-line project name has no sensible
+    # meaning for a short identifier, unlike a pipe character which is
+    # ordinary text. Called by every write path that takes a project name
+    # from a user-controlled arg. db_import_session_row is exempt on
+    # purpose: it is documented as a verbatim reconstruction path, and
+    # guarding it would abort an import partway through.
     case "$1" in
-        *'|'*|*$'\n'*|*$'\r'*)
+        *$'\n'*|*$'\r'*)
             echo "❌ Invalid character in project name." >&2
-            echo "   Project names cannot contain: | (pipe), newline, carriage return" >&2
+            echo "   Project names cannot contain newlines or carriage returns." >&2
             return 2 ;;
     esac
 }
@@ -115,7 +127,8 @@ set_focus_disabled() {
 }
 
 start_session() {
-    local project="$1" start_time="$2"
+    local start_time="$2"
+    local project; project=$(sanitize_pipe "$1")
     _validate_project_name "$project" || return 2
     _exec "UPDATE state SET
         active=1, project='$(_q "$project")', start_time='$(_q "$start_time")',
@@ -153,7 +166,8 @@ resume_session() {
 # ── Sessions: writes ─────────────────────────────────────────────────────────
 
 record_session() {
-    local project="$1" start_time="$2" end_time="$3" duration="$4" notes="${5:-}"
+    local start_time="$2" end_time="$3" duration="$4" notes="${5:-}"
+    local project; project=$(sanitize_pipe "$1")
     _validate_project_name "$project" || return 2
     _exec "INSERT INTO sessions (project, start_time, end_time, duration_seconds, notes)
            VALUES ('$(_q "$project")', '$(_q "$start_time")', '$(_q "$end_time")',
@@ -161,14 +175,16 @@ record_session() {
 }
 
 record_duration_session() {
-    local project="$1" duration="$2" date="$3" notes="${4:-}"
+    local duration="$2" date="$3" notes="${4:-}"
+    local project; project=$(sanitize_pipe "$1")
     _validate_project_name "$project" || return 2
     _exec "INSERT INTO sessions (project, duration_seconds, notes, duration_only, session_date)
            VALUES ('$(_q "$project")', $duration, '$(_q "$notes")', 1, '$(_q "$date")');"
 }
 
 update_session() {
-    local id="$1" project="$2" start_time="$3" end_time="$4" duration="$5"
+    local id="$1" start_time="$3" end_time="$4" duration="$5"
+    local project; project=$(sanitize_pipe "$2")
     _validate_project_name "$project" || return 2
     _exec "UPDATE sessions SET
         project='$(_q "$project")', start_time='$(_q "$start_time")',
@@ -191,11 +207,15 @@ delete_session() {
 
 # ── Sessions: reads ──────────────────────────────────────────────────────────
 
-# Notes are the only free-text column and may hold newlines, but every session
-# read must stay one line per row [PORT]. Encode backslashes first so the decode
-# is reversible, then the line breaks; core/text.sh notes_decode reverses it.
-# char() keeps backslashes out of the SQL source entirely.
-_NOTES_ENCODED="REPLACE(REPLACE(REPLACE(COALESCE(notes,''), char(92), char(92,92)), char(10), char(92,110)), char(13), char(92,114))"
+# Notes are the only free-text column and may hold newlines or pipes, but
+# every session read must stay one line per row [PORT]. Encode backslashes
+# first so the decode is reversible, then everything else; core/text.sh
+# notes_decode reverses it in one pass. char() keeps backslashes (and the
+# literal pipe) out of the SQL source entirely. '|' encodes as the hex escape
+# \x7c rather than a project-name-style transliteration: notes are free text,
+# so the exact byte a user typed should survive the round trip, not get
+# silently substituted.
+_NOTES_ENCODED="REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(notes,''), char(92), char(92,92)), char(10), char(92,110)), char(13), char(92,114)), char(124), char(92,120,55,99))"
 
 list_sessions() {
     local limit="${1:-$REPORT_LIMIT}"
@@ -306,7 +326,8 @@ db_import_session_row() {
 
 update_duration_session() {
     # Rename and/or re-duration a duration-only session. Never touches timestamps.
-    local id="$1" project="$2" duration="$3"
+    local id="$1" duration="$3"
+    local project; project=$(sanitize_pipe "$2")
     _validate_project_name "$project" || return 2
     _exec "UPDATE sessions SET project='$(_q "$project")', duration_seconds=$duration WHERE id=$id;"
 }

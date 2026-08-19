@@ -64,6 +64,7 @@ db_init
 # that's from the dead model and silently ignored by the '[]?' optional iterator.
 jq -c '.sessions[]?' "$file" | while IFS= read -r row; do
     project=$(jq -r '.project'            <<< "$row")
+    project="${project//|/¦}"
     start=$(  jq -r '.start_time  // ""'  <<< "$row")
     end=$(    jq -r '.end_time    // ""'  <<< "$row")
     dur=$(    jq -r '.duration_seconds'   <<< "$row")

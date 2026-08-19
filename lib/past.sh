@@ -45,6 +45,10 @@ case "$sub" in
     add)
         project="${1:-}"; shift || true
         [[ -z "$project" ]] && usage_error past
+        # Sanitize here, not just inside record_session/record_duration_session:
+        # both echo "$project" back to the user below, and it must match what
+        # actually gets stored.
+        project="${project//|/¦}"
 
         if [[ "${1:-}" == "--duration" ]]; then
             dur_str="${2:-}"; shift 2 || true
