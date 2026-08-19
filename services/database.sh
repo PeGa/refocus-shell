@@ -52,7 +52,7 @@ db_init() {
         CREATE TABLE IF NOT EXISTS state (
             id               INTEGER PRIMARY KEY CHECK (id = 1),
             active           INTEGER NOT NULL DEFAULT 0,
-            project          TEXT,
+            project          TEXT CHECK (instr(project, '|') = 0 AND instr(project, char(10)) = 0 AND instr(project, char(13)) = 0),
             start_time       TEXT,
             paused           INTEGER NOT NULL DEFAULT 0,
             pause_start_time TEXT,
@@ -62,7 +62,7 @@ db_init() {
         );
         CREATE TABLE IF NOT EXISTS sessions (
             id               INTEGER PRIMARY KEY AUTOINCREMENT,
-            project          TEXT NOT NULL,
+            project          TEXT NOT NULL CHECK (instr(project, '|') = 0 AND instr(project, char(10)) = 0 AND instr(project, char(13)) = 0),
             start_time       TEXT,
             end_time         TEXT,
             duration_seconds INTEGER NOT NULL,

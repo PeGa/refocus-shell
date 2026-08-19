@@ -252,6 +252,23 @@ field after it in that row. Called from `start_session`, `record_session`,
 verbatim reconstruction (see Serialization below), and guarding it would
 abort an import partway through rather than reject cleanly up front.
 
+The bash guard is a friendly front door, not the only line of defense:
+`db_init`'s `CREATE TABLE` puts the same check directly on the `project`
+column (`CHECK (instr(project, '|') = 0 AND instr(project, char(10)) = 0
+AND instr(project, char(13)) = 0)`, both `state` and `sessions`), so SQLite
+itself rejects a bad write regardless of path — including
+`db_import_session_row`, a raw `sqlite3` edit, or any future write path
+that forgets to call the bash guard. This is the actual fix for the case
+that mattered: an import-tainted `|` in a project name doesn't just
+misdisplay, it desyncs `get_session`'s own read and drives `past modify`
+into misreading its own arguments, corrupting the row further on the next
+command that touches it. **Existing databases are not retrofitted** —
+SQLite can't `ALTER TABLE` a `CHECK` onto a column that already exists
+without a create-copy-swap `db_migrate` doesn't do, and this constraint
+was deliberately scoped to new databases only. A pre-existing DB with a
+tainted row is fixed by hand via `sqlite3`, same as any other legacy data
+issue.
+
 **Schema (db_*, storage):**
 - `db_init` — create tables if absent; `INSERT OR IGNORE` the singleton state row.
 - `db_migrate` — additive-only column adds; never drops (DM-DEAD).

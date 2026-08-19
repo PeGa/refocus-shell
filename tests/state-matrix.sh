@@ -217,6 +217,8 @@ chk "empty pipe on a fresh note rc=0" "0" "$?"
 # ends in a newline (printf '%s\n' would otherwise double it up).
 chk "notes_block: no spurious blank on trailing newline" "2" \
     "$(bash -c "source core/text.sh; notes_block '' '' \$'a\nb\n'" | wc -l | tr -d ' ')"
+chk "notes_block: no spurious blank on multiple trailing newlines" "2" \
+    "$(bash -c "source core/text.sh; notes_block '' '' \$'a\nb\n\n\n'" | wc -l | tr -d ' ')"
 
 # ── report: empty period ─────────────────────────────────────────────────────
 # `declare -A` left the array unset, so ${#arr[@]} tripped set -u and any
@@ -275,6 +277,13 @@ chk "past add '|' name rc=2"        "2" "$?"
 chk "past add '|' name writes nothing" "$sessions_before_guard" "$(cnt)"
 ./focus on 'a|b' >/dev/null 2>&1; chk "on '|' name rc=2" "2" "$?"
 chk "on '|' name leaves state idle" "0|0|0|-" "$(st)"
+
+# The bash-side guard is a friendly front door; the schema CHECK is the
+# actual backstop for anything that bypasses it (db_import_session_row is
+# deliberately exempt from the bash guard, per its own comment).
+sessions_before_check=$(cnt)
+bash -c 'source env.sh; source services/database.sh; db_import_session_row "bad|import" "" "" 3600 "" 0 "2026-06-11"' >/dev/null 2>&1
+chk "DB-level CHECK blocks '|' bypassing the bash guard" "$sessions_before_check" "$(cnt)"
 
 # ── result ───────────────────────────────────────────────────────────────────
 echo
