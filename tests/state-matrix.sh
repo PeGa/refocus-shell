@@ -270,7 +270,7 @@ echo "── config show ──"
 ./focus config set NUDGE_INTERVAL 11 >/dev/null 2>&1
 out=$(./focus config show 2>&1); rc=$?
 chk "config show rc=0 with overrides" "0" "$rc"
-chk "config show renders override"   "0" "$([[ "$out" == *"NUDGE_INTERVAL=11"* ]]; echo $?)"
+chk "config show renders override"   "0" "$([[ "$out" == *"NUDGE_INTERVAL='11'"* ]]; echo $?)"
 
 # ── config set/unset: file mode survives the rewrite ─────────────────────────
 # `mv` over a mktemp file drops ENV_FILE from its real mode to mktemp's
@@ -430,6 +430,77 @@ done
 before=$(cnt)
 PATH="$SANDBOX/notool-bin" bash focus-checkin >/dev/null 2>&1
 chk "checkin@no-dialog-tool: silent no-op" "$before" "$(cnt)"
+
+# ── config: leading-zero interval values (bash reads them as octal) ────────────
+# "090"/"008" aren't valid octal digits — an unguarded `[[ $iv -gt N ]]` throws
+# "value too great for base", and because that's an if-condition, set -e never
+# sees it as a failure: the bad value used to sail through as "valid", and
+# cron_checkin_install would then silently write nothing while `enable` still
+# reported success.
+echo "── config: leading-zero intervals ──"
+_iv_valid()  { bash -c "source env.sh; source services/cron.sh; _cron_validate_interval '$1'"         >/dev/null 2>&1; echo $?; }
+_civ_valid() { bash -c "source env.sh; source services/cron.sh; _cron_validate_checkin_interval '$1'" >/dev/null 2>&1; echo $?; }
+chk "nudge interval '008' -> valid (normalizes to 8)"     "0" "$(_iv_valid 008)"
+chk "nudge interval '090' -> rejected (normalizes to 90)" "1" "$(_iv_valid 090)"
+chk "checkin interval '090' -> rejected, not an hour multiple" "1" "$(_civ_valid 090)"
+chk "checkin interval '0120' -> valid (normalizes to 120)"     "0" "$(_civ_valid 0120)"
+
+./focus config set NUDGE_INTERVAL 008 >/dev/null 2>&1
+./focus disable >/dev/null 2>&1
+./focus enable  >/dev/null 2>&1
+chk "nudge@008: actually installs, minute-stepped by 8" "0" \
+    "$(grep 'focus-nudge' "$SANDBOX_CRONTAB" | grep -qE '^[0-9]+-59/8 \* \* \* \*'; echo $?)"
+./focus config unset NUDGE_INTERVAL >/dev/null 2>&1
+
+# ── status: "Last:" must surface duration-only sessions too ────────────────────
+# get_last_session used to filter WHERE end_time IS NOT NULL, so a check-in-
+# logged (or `past add --duration`) session — which never has an end_time —
+# was invisible to `focus status` even though `focus report` showed it fine.
+echo "── status: last session includes duration-only ──"
+# A bare session_date sorts as a string, so a same-day duration-only row can
+# lose to an earlier-today timestamped fixture from elsewhere in this suite
+# (their end_time has extra trailing chars: "2026-08-19T..." > "2026-08-19").
+# Use a far-future date so this assertion is deterministic regardless of what
+# else ran today, without changing what the fix actually does.
+bash -c "source env.sh; source services/database.sh; record_duration_session 'status-check-in' 3600 '2099-01-01' ''" >/dev/null
+out=$(./focus status 2>&1)
+chk "status shows Last: for a duration-only session" "0" \
+    "$([[ "$out" == *"Last: status-check-in"* ]]; echo $?)"
+
+# ── config: values with spaces/shell-metacharacters must round-trip safely ─────
+# ENV_FILE is sourced verbatim as shell — an unquoted value with a space
+# split into two words on source, so setting DATE_SHORT_FORMAT to its own
+# documented default ("%Y-%m-%d %H:%M") broke every subsequent command
+# ("%H:%M: command not found", or "fg: no job control" — bash read the bare
+# %-word as a job-control spec).
+echo "── config: value quoting ──"
+./focus config set DATE_SHORT_FORMAT '%Y-%m-%d %H:%M' >/dev/null 2>&1
+out=$(./focus status 2>&1)
+chk "config set with a space doesn't break subsequent commands" "0" \
+    "$([[ "$out" != *"command not found"* && "$out" != *"job control"* ]]; echo $?)"
+./focus config set DATE_SHORT_FORMAT '%Y-%m-%d | %H:%M & extra' >/dev/null 2>&1
+chk "config set with '|' and '&' round-trips exactly" \
+    "REFOCUS_DATE_SHORT_FORMAT='%Y-%m-%d | %H:%M & extra'" \
+    "$(grep '^REFOCUS_DATE_SHORT_FORMAT=' "$SANDBOX/.env")"
+./focus config unset DATE_SHORT_FORMAT >/dev/null 2>&1
+
+# ── JSON import: newline in a project name must not abort the rest ─────────────
+# db_import_session_row deliberately skips _validate_project_name (a bad row
+# must not kill the import loop) — but the DB's own CHECK constraint still
+# rejected a bare newline, which did exactly that under set -e. Sanitize it
+# the same way '|' already is.
+echo "── JSON import: newline in project name ──"
+cat > "$SANDBOX/newline-import.json" <<'EOF'
+{"sessions": [
+  {"project": "Good", "start_time": "2026-06-11T10:00:00-03:00", "end_time": "2026-06-11T11:00:00-03:00", "duration_seconds": 3600, "notes": "", "duration_only": 0, "session_date": ""},
+  {"project": "bad\nname", "start_time": "2026-06-11T12:00:00-03:00", "end_time": "2026-06-11T13:00:00-03:00", "duration_seconds": 3600, "notes": "", "duration_only": 0, "session_date": ""},
+  {"project": "GoodTwo", "start_time": "2026-06-11T14:00:00-03:00", "end_time": "2026-06-11T15:00:00-03:00", "duration_seconds": 3600, "notes": "", "duration_only": 0, "session_date": ""}
+]}
+EOF
+printf 'yes\n' | ./focus import "$SANDBOX/newline-import.json" >/dev/null 2>&1
+chk "JSON import: newline in project doesn't abort the rest" "3" "$(cnt)"
+chk "JSON import: newline sanitized to a space, not dropped" "1" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT COUNT(*) FROM sessions WHERE project='bad name';")"
 
 # ── result ───────────────────────────────────────────────────────────────────
 echo

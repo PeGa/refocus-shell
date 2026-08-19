@@ -66,6 +66,13 @@ db_init
 jq -c '.sessions[]?' "$file" | while IFS= read -r row; do
     project=$(jq -r '.project'            <<< "$row")
     project="${project//|/¦}"
+    # db_import_session_row skips _validate_project_name on purpose (a bad
+    # row must not abort the rest of the import) — but the DB's own CHECK
+    # constraint still rejects a newline/CR, which would do exactly that.
+    # Sanitize here too, same as '|' above, rather than let a hand-edited
+    # import file take down every row after it.
+    project="${project//$'\n'/ }"
+    project="${project//$'\r'/ }"
     start=$(  jq -r '.start_time  // ""'  <<< "$row")
     end=$(    jq -r '.end_time    // ""'  <<< "$row")
     dur=$(    jq -r '.duration_seconds'   <<< "$row")

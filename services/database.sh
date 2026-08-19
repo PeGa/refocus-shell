@@ -275,10 +275,13 @@ get_total_time() {
 }
 
 get_last_session() {
-    # Returns: project|end_time|duration_seconds
-    _query "SELECT project, COALESCE(end_time,''), duration_seconds
-            FROM sessions WHERE end_time IS NOT NULL
-            ORDER BY end_time DESC LIMIT 1;"
+    # Returns: project|end_time-or-session_date|duration_seconds
+    # A duration-only row (past add --duration, check-in) has no end_time —
+    # order by whichever of the two it has, same fallback list_sessions_in_range
+    # already uses, so a check-in-logged session isn't invisible to `focus status`.
+    _query "SELECT project, COALESCE(end_time, session_date, ''), duration_seconds
+            FROM sessions
+            ORDER BY COALESCE(end_time, session_date) DESC LIMIT 1;"
 }
 
 get_last_project() {
