@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# Refocus Shell - Check-in script (executed by cron, not by the user)
+# Self-contained: sources config and database from known install location.
+#
+# Fires only when enabled AND idle — an active or paused session means you
+# already know what you're doing; asking again is noise, not a nudge.
+#
+# Asks "did you focus on anything?" and, on yes, logs a duration-only
+# session (CHECKIN_INTERVAL is the duration) — this is a rough retroactive
+# log, not a claim about exact start/end times, so it never asks for those.
+
+REFOCUS_ROOT="${REFOCUS_ROOT:-$HOME/.local/refocus}"
+source "$REFOCUS_ROOT/env.sh"
+source "$REFOCUS_ROOT/services/database.sh"
+source "$REFOCUS_ROOT/core/time.sh"
+
+[[ -f "$DB_PATH" ]] || exit 0
+is_focus_disabled  && exit 0
+is_session_active   && exit 0
+is_session_paused   && exit 0
+
+interval="${CHECKIN_INTERVAL:-60}"
+[[ "$interval" == "0" ]] && exit 0
+
+question="Did you focus on anything in the last $(fmt_duration $(( interval * 60 )))?"
+
+_log_checkin() {
+    # <project> <note> -> record it as a duration-only session dated today.
+    local project="$1" note="$2"
+    record_duration_session "$project" $(( interval * 60 )) "$(date +%Y-%m-%d)" "$note"
+}
+
+# ── Tier 1: kdialog ───────────────────────────────────────────────────────
+if command -v kdialog >/dev/null 2>&1; then
+    kdialog --title Refocus --yesno "$question" || exit 0
+    project=""
+    while true; do
+        project=$(kdialog --title Refocus --inputbox "What project?") || exit 0
+        [[ -n "$project" ]] && break
+    done
+    note=$(kdialog --title Refocus --inputbox "Any notes? (optional)") || note=""
+    _log_checkin "$project" "$note"
+    exit 0
+fi
+
+# ── Tier 2: zenity ────────────────────────────────────────────────────────
+if command -v zenity >/dev/null 2>&1; then
+    zenity --question --title=Refocus --text="$question" || exit 0
+    project=""
+    while true; do
+        project=$(zenity --entry --title=Refocus --text="What project?") || exit 0
+        [[ -n "$project" ]] && break
+    done
+    note=$(zenity --entry --title=Refocus --text="Any notes? (optional)") || note=""
+    _log_checkin "$project" "$note"
+    exit 0
+fi
+
+# ── Tier 3: no GUI dialog tool — spawn a terminal ──────────────────────────
+# Inside it: try `dialog` (ncurses) first, else a plain read prompt — same
+# fallback shape as everything else in this tool, just one level deeper
+# since we need a terminal to run either one in at all.
+term=""
+for cand in x-terminal-emulator xterm; do
+    command -v "$cand" >/dev/null 2>&1 && { term="$cand"; break; }
+done
+[[ -z "$term" ]] && exit 0   # nothing we can show this on; skip silently
+
+result=$(mktemp)
+inner=$(mktemp)
+trap 'rm -f "$result" "$inner"' EXIT
+
+cat > "$inner" <<INNER
+#!/usr/bin/env bash
+if command -v dialog >/dev/null 2>&1; then
+    dialog --title Refocus --yesno "$question" 8 60
+    ans=\$?
+    clear
+    [[ \$ans -ne 0 ]] && exit 0
+    project=""
+    while true; do
+        if ! project=\$(dialog --title Refocus --inputbox "What project?" 8 60 3>&1 1>&2 2>&3); then
+            clear; exit 0
+        fi
+        [[ -n "\$project" ]] && break
+    done
+    note=\$(dialog --title Refocus --inputbox "Any notes? (optional)" 8 60 3>&1 1>&2 2>&3) || note=""
+    clear
+else
+    printf '%s (y/N): ' "$question"
+    read -r ans
+    [[ "\$ans" =~ ^[Yy] ]] || exit 0
+    project=""
+    while true; do
+        printf 'What project? '
+        read -r project
+        [[ -n "\$project" ]] && break
+        echo "(can't be blank)"
+    done
+    printf 'Any notes? (Enter to skip): '
+    read -r note
+fi
+printf '%s\n%s\n' "\$project" "\$note" > "$result"
+INNER
+chmod +x "$inner"
+
+"$term" -e "$inner"
+
+if [[ -s "$result" ]]; then
+    project=$(sed -n '1p' "$result")
+    note=$(sed -n '2p' "$result")
+    [[ -n "$project" ]] && _log_checkin "$project" "$note"
+fi

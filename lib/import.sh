@@ -42,6 +42,7 @@ if [[ -f "$DB_PATH" ]]; then
 fi
 
 cron_remove 2>/dev/null || true
+cron_checkin_remove 2>/dev/null || true
 
 # ── SQL import ────────────────────────────────────────────────────────────────
 if [[ "$fmt" == "sql" ]]; then

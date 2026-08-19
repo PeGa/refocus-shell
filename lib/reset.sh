@@ -22,6 +22,7 @@ read -r ans
 [[ "$ans" == "yes" ]] || { echo "Cancelled."; exit 0; }
 
 cron_remove 2>/dev/null || true
+cron_checkin_remove 2>/dev/null || true
 rm -f "$DB_PATH"
 db_init
 set_focus_disabled

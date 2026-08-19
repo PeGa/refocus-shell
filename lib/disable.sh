@@ -16,4 +16,5 @@ fi
 
 set_focus_disabled
 cron_remove 2>/dev/null || true
+cron_checkin_remove 2>/dev/null || true
 echo "🚫 Refocus disabled."

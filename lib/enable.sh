@@ -13,4 +13,5 @@ if ! is_focus_disabled; then
 fi
 set_focus_enabled
 cron_install || echo "⚠  Could not install cron nudge — check 'focus nudge test'" >&2
+cron_checkin_install || echo "⚠  Could not install check-in cron — check 'focus checkin test'" >&2
 echo "✅ Refocus enabled."
