@@ -1,6 +1,6 @@
 # CONTRACT_INDEX.md — refocus-shell
 
-> Line-range index into `MAIN.md` (676 lines). Lets an agent load a single
+> Line-range index into `MAIN.md` (690 lines). Lets an agent load a single
 > section or rule by range instead of the whole spec — context budget for small-
 > window models, precise citation for everyone else.
 >
@@ -28,10 +28,10 @@
 | CMD    | Command surface (lib/)                   | 394–516 |
 | NUDGE  | Nudge payload (focus-nudge)              | 518–536 |
 | SM     | State machine                            | 538–557 |
-| CONV   | Conventions                              | 559–603 |
-| INT    | Install & shell integration              | 605–638 |
-| BUILD  | Build guardrails                         | 640–657 |
-| ACCEPT | Acceptance                               | 659–676 |
+| CONV   | Conventions                              | 559–617 |
+| INT    | Install & shell integration              | 619–652 |
+| BUILD  | Build guardrails                         | 654–671 |
+| ACCEPT | Acceptance                               | 673–690 |
 
 ---
 
@@ -92,9 +92,9 @@
 | ENV  | env.sh — loader + exports + precedence | 352–369 |
 | CRON | cron.sh — install/remove + entry format | 371–392 |
 | NUDGE | focus-nudge — the cron payload | 518–536 |
-| INT-INSTALL | setup.sh | 612–622 |
-| INT-DESKTOP | refocus.desktop | 624–627 |
-| INT-SHELL   | focus-function.sh | 629–638 |
+| INT-INSTALL | setup.sh | 626–636 |
+| INT-DESKTOP | refocus.desktop | 638–641 |
+| INT-SHELL   | focus-function.sh | 643–652 |
 
 Note: `services/help.sh` and `services/editor.sh` have no surface section of
 their own — they are specified where they are used, at CMD-HELP (505–516) and
@@ -132,16 +132,17 @@ by its bullet in [CONV] and referenced from the commands it governs.
 | CONV-HELP              | help is data; no inline usage strings | 575 | CONV |
 | CONV-ID                | session ids validated in the handler | 580 | CONV |
 | CONV-NOTES             | encode/decode notes across the read boundary | 583 | CONV |
-| CONV-PORTABLE          | GNU+BSD+bash-3.2; no date(1)/sed -i/sed t;/declare -A | 586 | CONV |
+| CONV-NOTES-CLEAR       | clearing a note requires $EDITOR; never inferred from silence | 586 | CONV |
+| CONV-PORTABLE          | GNU+BSD+bash-3.2; no date(1)/sed -i/sed t;/declare -A | 600 | CONV |
 | CONV-ENVFILE           | ENV_FILE computed once in env.sh | 365 | ENV |
 | CRON-BIN               | payload path resolved at call time | 379 | CRON |
 | CRON-ENV               | entry embeds REFOCUS_ROOT + display env | 381 | CRON |
 | CRON-STRIP             | fixed-string crontab strip, live only | 385 | CRON |
 | CRON-INTERVAL          | validate 1–60 numeric | 389 | CRON |
-| BUILD-NO-REGEN         | no whole-file regen through escaping | 645 | BUILD |
-| BUILD-VERIFY           | run both test scripts after changes | 650 | BUILD |
-| BUILD-UTF8             | shellcheck under LC_ALL=C.UTF-8 | 653 | BUILD |
-| BUILD-SCOPE            | one concern per change | 655 | BUILD |
+| BUILD-NO-REGEN         | no whole-file regen through escaping | 659 | BUILD |
+| BUILD-VERIFY           | run both test scripts after changes | 664 | BUILD |
+| BUILD-UTF8             | shellcheck under LC_ALL=C.UTF-8 | 667 | BUILD |
+| BUILD-SCOPE            | one concern per change | 669 | BUILD |
 
 ---
 
@@ -149,7 +150,7 @@ by its bullet in [CONV] and referenced from the commands it governs.
 
 - Rebuilding a single component → load its surface row from *Component surfaces*
   plus every `INV-*` (124–179) and `NAME` (181–201). The invariants bind all of them.
-- Implementing one command → load its `CMD-*` row + `PORT` (237–311) + `CONV` (559–603).
+- Implementing one command → load its `CMD-*` row + `PORT` (237–311) + `CONV` (559–617).
 - Resolving an ambiguity → load the relevant rule's line ± its parent section, and
   decide by the WHY, never by local convenience (READ, 9–37).
-- Checking your work → `ACCEPT` (659–676).
+- Checking your work → `ACCEPT` (673–690).

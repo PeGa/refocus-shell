@@ -136,7 +136,7 @@ case "$sub" in
         # Notes last, and legal on duration-only rows too: a note bolts no
         # timestamps onto them [CONV-DURONLY]. Pre-loaded with what is there.
         if [[ $want_notes -eq 1 ]]; then
-            echo "📝 Notes (empty to clear)"
+            echo "📝 Notes (edit; delete everything and save to clear)"
             new_notes=$(capture_notes "$(notes_decode "$cur_notes")")
             update_session_notes "$id" "$new_notes"
         fi

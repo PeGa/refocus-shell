@@ -20,5 +20,9 @@ note carries no timestamps. list shows the most recent first.
 Notes open in $EDITOR, so they can run to several lines. Piped input works too:
   echo "shipped the parser" | focus past add refactor 14:00 15:30
 
+To clear an existing note, edit it and save an empty file. Piping nothing to
+`modify --notes` on a session that already has a note is a usage error, not
+a silent clear — say what you mean.
+
 times       YYYY/MM/DD-HH:MM   14:30   "yesterday 14:00"   "2 hours ago"
 durations   1h30m   2h   45m

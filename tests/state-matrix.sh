@@ -200,6 +200,19 @@ printf 'replaced\n' | ./focus past modify "$nid" --notes >/dev/null 2>&1
 chk "--notes rewrites note"      "replaced"     "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT notes FROM sessions WHERE id=$nid;")"
 chk "--notes preserves duration" "$dur_before"  "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT duration_seconds FROM sessions WHERE id=$nid;")"
 
+# --notes piped with nothing on stdin, against an existing note, is a usage
+# error rather than a silent guess at "keep" or "clear" — clearing is only
+# ever a deliberate act done through $EDITOR.
+printf '' | ./focus past modify "$nid" --notes >/dev/null 2>&1
+chk "--notes empty pipe on existing note rc=2" "2" "$?"
+chk "--notes empty pipe leaves note unchanged" "replaced" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT notes FROM sessions WHERE id=$nid;")"
+
+# A fresh note (no existing content — off/add) keeps meaning "no note" on
+# empty input; the usage-error path above only applies to re-editing.
+printf '' | ./focus past add note/fresh 2026/06/11-16:00 2026/06/11-16:30 >/dev/null 2>&1
+chk "empty pipe on a fresh note rc=0" "0" "$?"
+
 # notes_block must not render a spurious blank line for a note that already
 # ends in a newline (printf '%s\n' would otherwise double it up).
 chk "notes_block: no spurious blank on trailing newline" "2" \
