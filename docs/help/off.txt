@@ -8,4 +8,10 @@ re-entry anchor for next time — for you, not a status report. Enter to skip.
   active    duration = start → now
   paused    duration = the time before you paused (pause time isn't counted)
 
+If a session already carries this project name, off offers to append to it
+instead of adding a second entry: your note opens with the original's text
+loaded, the two durations add up, and the timestamps the merge drops are
+written to the end of the note. Declining cancels the stop — the clock keeps
+running, so you can answer it properly next time.
+
 Always available, even from a stuck state — it's the way out.

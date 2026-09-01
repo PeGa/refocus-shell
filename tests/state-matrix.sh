@@ -112,7 +112,7 @@ chk "enable: not disabled" "0" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT focus_disab
 
 # ── on guard: already active ─────────────────────────────────────────────────
 echo "── on guard: already active ──"
-./focus on fyc/work >/dev/null 2>&1
+./focus on fyc/guard >/dev/null 2>&1
 ./focus on fyc/other >/dev/null 2>&1; chk "on@active rc=1" "1" "$?"
 printf 'done\n' | ./focus off >/dev/null 2>&1
 
@@ -253,7 +253,12 @@ echo "── report: bash-3.2 compat ──"
 if grep -q '^[^#]*declare -A' lib/report.sh; then assoc_array_found=yes; else assoc_array_found=no; fi
 chk "report.sh has no associative array" "no" "$assoc_array_found"
 printf 'r1\n' | ./focus past add rep/x 2026/06/12-09:00 2026/06/12-10:00 >/dev/null 2>&1
-printf 'r2\n' | ./focus past add rep/x 2026/06/12-10:00 2026/06/12-12:00 >/dev/null 2>&1
+# Two rows under one project name: `past add` now folds a same-named session
+# into the original instead [#36], so the second row is seeded directly. The
+# aggregation still has to work for rows that arrived before the rule, or
+# through import.
+sqlite3 "$REFOCUS_DB_PATH" "INSERT INTO sessions (project, start_time, end_time, duration_seconds, notes, duration_only)
+    VALUES ('rep/x', '2026-06-12T10:00:00-03:00', '2026-06-12T12:00:00-03:00', 7200, 'r2', 0);"
 printf 'r3\n' | ./focus past add rep/y 2026/06/12-13:00 2026/06/12-13:30 >/dev/null 2>&1
 out=$(./focus report custom 90000 2>&1)
 chk "report: multi-session project total" "0" \
@@ -407,7 +412,7 @@ bash focus-checkin >/dev/null 2>&1
 chk "checkin@active: silent no-op" "$before" "$(cnt)"
 printf 'n\n' | ./focus off >/dev/null 2>&1
 
-./focus on checkin/guard >/dev/null 2>&1
+./focus on checkin/guard-paused >/dev/null 2>&1
 ./focus pause >/dev/null 2>&1
 before=$(cnt)
 bash focus-checkin >/dev/null 2>&1
@@ -531,6 +536,106 @@ out=$(bash -c "
 ")
 chk "range@+10:00: today's session included"    "0" "$([[ "$out" == *"range-today"*     ]]; echo $?)"
 chk "range@+10:00: yesterday's session excluded" "0" "$([[ "$out" != *"range-yesterday"* ]]; echo $?)"
+
+# ── duplicate sessions: one project name, one row [#36] ───────────────────────
+# Two rows with the same project name and overlapping clock times are
+# indistinguishable in a report. Every write path now offers to fold the new
+# time into the row that already holds the name instead of adding a second one.
+echo "── duplicates: fold into the original [#36] ──"
+./focus enable >/dev/null 2>&1 || true
+
+_notes_of() { sqlite3 "$REFOCUS_DB_PATH" "SELECT notes FROM sessions WHERE project='$1';"; }
+_rows_of()  { sqlite3 "$REFOCUS_DB_PATH" "SELECT COUNT(*) FROM sessions WHERE project='$1';"; }
+
+printf 'first\n' | ./focus past add dup/add 2026/06/20-10:00 2026/06/20-11:00 >/dev/null 2>&1
+
+# Declining writes nothing at all.
+printf 'n\n' | ./focus past add dup/add 2026/06/20-12:00 2026/06/20-13:00 >/dev/null 2>&1
+chk "add@dup declined: rc=0"        "0"    "$?"
+chk "add@dup declined: no new row"  "1"    "$(_rows_of dup/add)"
+chk "add@dup declined: dur untouched" "3600" "$(dur dup/add)"
+
+# Accepting folds: one row, summed duration, and the timestamps the fold drops
+# are written into the note instead.
+printf 'y\nsecond\n' | ./focus past add dup/add 2026/06/20-12:00 2026/06/20-13:00 >/dev/null 2>&1
+chk "add@dup folded: still one row"  "1"    "$(_rows_of dup/add)"
+chk "add@dup folded: durations sum"  "7200" "$(dur dup/add)"
+chk "add@dup folded: now duration-only" "1" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT duration_only FROM sessions WHERE project='dup/add';")"
+chk "add@dup folded: note carries both spans" "second
+
+Original start time: 2026-06-20 10:00
+Original stop time: 2026-06-20 11:00
+New start time: 2026-06-20 12:00
+New stop time: 2026-06-20 13:00" "$(_notes_of dup/add)"
+
+# A second fold has no "Original" pair left to preserve — that row gave its
+# timestamps up on the first one — so only the incoming span is appended.
+printf 'y\nthird\n' | ./focus past add dup/add 2026/06/21-08:00 2026/06/21-09:30 >/dev/null 2>&1
+chk "add@dup refolded: durations sum" "12600" "$(dur dup/add)"
+chk "add@dup refolded: only the new span appended" "third
+
+New start time: 2026-06-21 08:00
+New stop time: 2026-06-21 09:30" "$(_notes_of dup/add)"
+
+# `past add --duration` has no timestamps to contribute; it folds its length in
+# and leaves the trail alone.
+printf 'dur-first\n' | ./focus past add dup/duronly --duration 1h --date 2026/06/20 >/dev/null 2>&1
+printf 'y\ndur-second\n' | ./focus past add dup/duronly --duration 30m --date 2026/06/21 >/dev/null 2>&1
+chk "add --duration@dup: one row"       "1"    "$(_rows_of dup/duronly)"
+chk "add --duration@dup: durations sum" "5400" "$(dur dup/duronly)"
+chk "add --duration@dup: no timestamp trail" "dur-second" "$(_notes_of dup/duronly)"
+
+# focus off: declining leaves the clock running — the name was fixed at
+# `focus on`, so there is nothing else to correct here.
+./focus on dup/live >/dev/null 2>&1
+printf 'live one\n' | ./focus off >/dev/null 2>&1
+./focus on dup/live >/dev/null 2>&1
+printf 'n\n' | ./focus off >/dev/null 2>&1
+chk "off@dup declined: rc=0"           "0" "$?"
+chk "off@dup declined: still active"   "1|0|0|dup/live" "$(st)"
+chk "off@dup declined: no second row"  "1" "$(_rows_of dup/live)"
+
+printf 'y\nlive two\n' | ./focus off >/dev/null 2>&1
+chk "off@dup accepted: idle"           "0|0|0|-" "$(st)"
+chk "off@dup accepted: still one row"  "1" "$(_rows_of dup/live)"
+
+# past modify renaming onto a name another row holds folds the two together
+# and removes the row being edited.
+printf 'to-merge\n' | ./focus past add dup/source 2026/06/22-10:00 2026/06/22-12:00 >/dev/null 2>&1
+sid=$(sqlite3 "$REFOCUS_DB_PATH" "SELECT id FROM sessions WHERE project='dup/source';")
+printf 'y\nmerged\n' | ./focus past modify "$sid" dup/add >/dev/null 2>&1
+chk "modify@dup: rc=0"                "0" "$?"
+chk "modify@dup: source row removed"  "0" "$(_rows_of dup/source)"
+chk "modify@dup: target absorbed it"  "19800" "$(dur dup/add)"
+
+printf 'keep-me\n' | ./focus past add dup/keep 2026/06/22-14:00 2026/06/22-15:00 >/dev/null 2>&1
+kid=$(sqlite3 "$REFOCUS_DB_PATH" "SELECT id FROM sessions WHERE project='dup/keep';")
+printf 'n\n' | ./focus past modify "$kid" dup/add >/dev/null 2>&1
+chk "modify@dup declined: rc=0"       "0" "$?"
+chk "modify@dup declined: row intact" "1" "$(_rows_of dup/keep)"
+chk "modify@dup declined: target untouched" "19800" "$(dur dup/add)"
+
+# A bare `modify <id> --notes` changes neither name nor timing, so it must not
+# ask about duplicates — even when the name really is duplicated (rows that
+# predate the rule, or arrived by import).
+sqlite3 "$REFOCUS_DB_PATH" "INSERT INTO sessions (project, start_time, end_time, duration_seconds, notes, duration_only)
+    VALUES ('dup/legacy', '2026-06-23T10:00:00-03:00', '2026-06-23T11:00:00-03:00', 3600, 'a', 0),
+           ('dup/legacy', '2026-06-23T12:00:00-03:00', '2026-06-23T13:00:00-03:00', 3600, 'b', 0);"
+lid=$(sqlite3 "$REFOCUS_DB_PATH" "SELECT MIN(id) FROM sessions WHERE project='dup/legacy';")
+printf 'rewritten\n' | ./focus past modify "$lid" --notes >/dev/null 2>&1
+chk "modify --notes@dup: rc=0"          "0" "$?"
+chk "modify --notes@dup: no fold"       "2" "$(_rows_of dup/legacy)"
+chk "modify --notes@dup: note rewritten" "rewritten" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT notes FROM sessions WHERE id=$lid;")"
+
+# notes_merge_trail is pure string work: empty timestamps drop out entirely, so
+# a fold with nothing to preserve returns the note untouched.
+chk "notes_merge_trail: no timestamps, note unchanged" "just a note" \
+    "$(bash -c "source core/text.sh; notes_merge_trail 'just a note' '' '' '' ''")"
+chk "notes_merge_trail: empty note keeps no leading blank line" "New start time: A
+New stop time: B" \
+    "$(bash -c "source core/text.sh; notes_merge_trail '' '' '' 'A' 'B'")"
 
 # ── result ───────────────────────────────────────────────────────────────────
 echo

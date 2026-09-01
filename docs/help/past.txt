@@ -17,6 +17,14 @@ A duration-only session has no timestamps: modify can rename it or change its
 length, but won't bolt fake times onto it. --notes works on either kind — a
 note carries no timestamps. list shows the most recent first.
 
+One project name, one row. add — and modify, when it renames onto a name
+another session already holds — offers to append to that original instead of
+creating a second entry: the durations add up, your note opens with the
+original's text loaded, and the timestamps the merge drops are written to the
+end of the note. modify also deletes the row it folded in. Declining writes
+nothing. `modify <id> --notes` touches neither name nor timing, so it never
+asks.
+
 Notes open in $EDITOR, so they can run to several lines. Piped input works too:
   echo "shipped the parser" | focus past add refactor 14:00 15:30
 

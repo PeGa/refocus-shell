@@ -6,6 +6,7 @@ source "$REFOCUS_ROOT/services/editor.sh"
 source "$REFOCUS_ROOT/core/time.sh"
 source "$REFOCUS_ROOT/core/text.sh"
 source "$REFOCUS_ROOT/services/help.sh"
+source "$REFOCUS_ROOT/services/merge.sh"
 
 wants_help "$@" && show_help off
 
@@ -31,6 +32,23 @@ else
 fi
 
 echo ""
+
+# A project already on a session row gets its time folded into that row rather
+# than a second one beside it [#36]. Declining cancels the stop — the name was
+# fixed at `focus on`, so there is nothing to correct here; the clock keeps
+# running and `focus off` can be answered properly next time.
+merge_rc=0
+merge_duplicate_session "$project" "$duration" "$start_time" "$now" || merge_rc=$?
+if [[ $merge_rc -eq 2 ]]; then
+    echo "Cancelled — the session is still running."
+    exit 0
+fi
+if [[ $merge_rc -eq 0 ]]; then
+    end_session "$now"
+    notify-send "Refocus" "Stopped: $project ($(( duration / 60 ))m)" 2>/dev/null || true
+    exit 0
+fi
+
 echo "📝 What did you accomplish? (empty to skip)"
 notes=$(capture_notes "")
 
