@@ -6,6 +6,7 @@ source "$REFOCUS_ROOT/services/editor.sh"
 source "$REFOCUS_ROOT/services/help.sh"
 source "$REFOCUS_ROOT/core/time.sh"
 source "$REFOCUS_ROOT/core/text.sh"
+source "$REFOCUS_ROOT/services/merge.sh"
 
 # Before db_ensure and before any parsing: `past modify --help` used to reach
 # SQL and die on `WHERE id=--help`, and `past modify 5 --help` used to take
@@ -15,6 +16,22 @@ wants_help "$@" && show_help past
 db_ensure
 
 sub="${1:-list}"; shift || true
+
+_merge_or_exit() {
+    # modify's half of the duplicate rule [#36]: <project> <seconds> <start>
+    # <end> <id>. A rename onto a name another row already holds folds this row
+    # into that one and deletes it, so the two never coexist. Returns only when
+    # there is no duplicate and the caller should carry on with its UPDATE.
+    local id="$5" rc=0
+    merge_duplicate_session "$1" "$2" "$3" "$4" "$id" || rc=$?
+    if [[ $rc -eq 0 ]]; then
+        delete_session "$id"
+        echo "✅ Session $id folded in and removed."
+        exit 0
+    fi
+    [[ $rc -eq 2 ]] && { echo "Cancelled — session $id is unchanged."; exit 0; }
+    return 0
+}
 
 _require_id() {
     # Session ids are integers. The adapter interpolates them into SQL, so a
@@ -59,6 +76,13 @@ case "$sub" in
 
             date_iso=$(parse_date_to_fmt "$date_str" "$DATE_FORMAT") || { echo "❌ Invalid date: $date_str" >&2; exit 2; }
             [[ -z "$date_iso" ]] && { echo "❌ Invalid date: $date_str" >&2; exit 2; }
+            # A duration-only add carries no timestamps, so it contributes no
+            # times to the merged row's note — only its length [#36].
+            merge_rc=0
+            merge_duplicate_session "$project" "$dur" "" "" || merge_rc=$?
+            [[ $merge_rc -eq 0 ]] && exit 0
+            [[ $merge_rc -eq 2 ]] && { echo "Cancelled — nothing was added."; exit 0; }
+
             echo "📝 Notes (empty to skip)"; notes=$(capture_notes "")
             record_duration_session "$project" "$dur" "$date_iso" "$notes"
             echo "✅ Added: $project ($dur_str on $date_iso)"
@@ -74,6 +98,11 @@ case "$sub" in
             end_ts=$(iso_to_epoch "$end")
             [[ $end_ts -le $start_ts ]] && { echo "❌ End must be after start." >&2; exit 2; }
             dur=$(( end_ts - start_ts ))
+
+            merge_rc=0
+            merge_duplicate_session "$project" "$dur" "$start" "$end" || merge_rc=$?
+            [[ $merge_rc -eq 0 ]] && exit 0
+            [[ $merge_rc -eq 2 ]] && { echo "Cancelled — nothing was added."; exit 0; }
 
             echo "📝 Notes (empty to skip)"; notes=$(capture_notes "")
             record_session "$project" "$start" "$end" "$dur" "$notes"
@@ -100,6 +129,11 @@ case "$sub" in
         # after a no-op UPDATE. Say what the command can do instead. [#25]
         [[ $# -eq 0 && $want_notes -eq 0 ]] && { echo "❌ Nothing to change." >&2; usage_error past; }
 
+        # Recorded before the branches below consume it with `shift`. A bare
+        # `modify <id> --notes` touches neither the name nor the timing, so it
+        # never needs the duplicate check [#36].
+        _had_args=$#
+
         row=$(get_session "$id")
         [[ -z "$row" ]] && { echo "❌ Session $id not found." >&2; exit 1; }
         IFS="|" read -r _ cur_proj cur_start cur_end cur_dur cur_notes cur_donly _ <<< "$row"
@@ -119,6 +153,9 @@ case "$sub" in
                 echo "❌ Session $id is duration-only. Timestamps cannot be edited." >&2
                 usage_error past
             fi
+            if [[ $_had_args -gt 0 ]]; then
+                _merge_or_exit "$new_proj" "$new_dur" "" "" "$id"
+            fi
             update_duration_session "$id" "$new_proj" "$new_dur"
         elif [[ $# -gt 0 ]]; then
             new_proj="${1:-$cur_proj}"
@@ -134,6 +171,7 @@ case "$sub" in
             e_ts=$(iso_to_epoch "$new_end")
             new_dur=$(( e_ts - s_ts ))
 
+            _merge_or_exit "$new_proj" "$new_dur" "$new_start" "$new_end" "$id"
             update_session "$id" "$new_proj" "$new_start" "$new_end" "$new_dur"
         fi
 

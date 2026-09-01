@@ -36,3 +36,37 @@ notes_block() {
         n=$(( n + 1 ))
     done < <(printf '%s\n' "$notes")
 }
+
+notes_merge_trail() {
+    # <note> <orig-start> <orig-stop> <new-start> <new-stop> -> the note with
+    # the timestamps a merge is about to destroy appended to it [#36].
+    #
+    # Folding a second session into an existing row turns it duration-only, so
+    # its start/end are dropped. Recording them in the note keeps the merge
+    # non-lossy. Empty arguments are skipped, which is what makes the second
+    # merge onto the same row read the way it should: the row is already
+    # duration-only by then, so it has no "Original" pair left to contribute
+    # and only the incoming session's pair gets appended.
+    local note="${1:-}" ofrom="${2:-}" oto="${3:-}" nfrom="${4:-}" nto="${5:-}"
+    local trail=""
+    [[ -n "$ofrom" ]] && trail="${trail}Original start time: $ofrom"$'\n'
+    [[ -n "$oto"   ]] && trail="${trail}Original stop time: $oto"$'\n'
+    [[ -n "$nfrom" ]] && trail="${trail}New start time: $nfrom"$'\n'
+    [[ -n "$nto"   ]] && trail="${trail}New stop time: $nto"$'\n'
+
+    if [[ -z "$trail" ]]; then
+        printf '%s' "$note"
+        return 0
+    fi
+    trail="${trail%$'\n'}"
+
+    # Same trailing-newline discipline notes_block uses: strip what's there so
+    # the blank line between the note and the trail is exactly one, however
+    # many newlines $EDITOR left behind.
+    while [[ "$note" == *$'\n' ]]; do note="${note%$'\n'}"; done
+    if [[ -n "$note" ]]; then
+        printf '%s\n\n%s' "$note" "$trail"
+    else
+        printf '%s' "$trail"
+    fi
+}

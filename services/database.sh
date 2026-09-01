@@ -200,6 +200,21 @@ update_session_notes() {
     _exec "UPDATE sessions SET notes='$(_q "$notes")' WHERE id=$id;"
 }
 
+fold_session_into() {
+    # <id> <total-seconds> <session-date> <notes> -> collapse a second session
+    # for the same project into the row that already holds that name [#36].
+    # The row stops describing one contiguous span the moment two of them share
+    # it, so it becomes duration-only and drops its timestamps [CONV-DURONLY];
+    # the caller writes the dropped times into the note first, which is the
+    # only record of them that survives.
+    local id="$1" duration="$2" date="$3" notes="${4:-}"
+    _exec "UPDATE sessions SET
+        duration_seconds=$duration, notes='$(_q "$notes")',
+        duration_only=1, session_date='$(_q "$date")',
+        start_time=NULL, end_time=NULL
+        WHERE id=$id;"
+}
+
 delete_session() {
     local id="$1"
     _exec "DELETE FROM sessions WHERE id=$id;"
@@ -275,6 +290,22 @@ get_session() {
     _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
                    duration_seconds, $_NOTES_ENCODED, duration_only, COALESCE(session_date,'')
             FROM sessions WHERE id=$id;"
+}
+
+get_session_by_project() {
+    # <project> [exclude-id] -> the ORIGINAL session carrying that exact project
+    # name (lowest id wins), as an 8-field row like get_session, or empty when
+    # nothing holds the name. Every write path checks this before adding a row,
+    # so a project name never ends up split across duplicate entries [#36].
+    # The name is sanitized the same way the write paths sanitize it, or the
+    # lookup would miss the row it is about to duplicate.
+    local project; project=$(sanitize_pipe "$1")
+    local exclude="${2:-}" where
+    where="project='$(_q "$project")'"
+    [[ -n "$exclude" ]] && where="$where AND id<>$exclude"
+    _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
+                   duration_seconds, $_NOTES_ENCODED, duration_only, COALESCE(session_date,'')
+            FROM sessions WHERE $where ORDER BY id ASC LIMIT 1;"
 }
 
 get_total_time() {
