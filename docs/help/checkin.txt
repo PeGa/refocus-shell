@@ -26,3 +26,11 @@ must be a whole number of hours (120, 180, ..., up to 1440 for once a day).
 Popup tool, in order: kdialog, then zenity, then — if neither is
 installed — a spawned terminal running dialog, or a plain prompt if dialog
 isn't installed either. If nothing at all is available, it stays silent.
+
+All of them need a graphical session, and cron doesn't get one: it runs with
+the environment stripped. The cron entry carries what's needed back, and the
+check-in rebuilds anything missing from it at fire time. If it still can't
+find a session it stays silent rather than launching a dialog — kdialog
+answers a missing session by aborting and dumping core, not by returning an
+error. 'checkin status' says which tool it would reach, or that it can't
+reach one.

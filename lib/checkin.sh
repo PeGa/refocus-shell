@@ -3,6 +3,7 @@ set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
 source "$REFOCUS_ROOT/services/help.sh"
+source "$REFOCUS_ROOT/services/desktop.sh"
 
 wants_help "$@" && show_help checkin
 
@@ -23,8 +24,13 @@ case "$sub" in
         echo "Crontab:"
         crontab -l 2>/dev/null | grep "focus-checkin" || echo "  (no cron entry — run 'focus enable')"
         echo ""
-        # Same order focus-checkin itself checks in.
-        if command -v kdialog >/dev/null 2>&1; then
+        # Same order focus-checkin itself checks in — including the question
+        # it asks first. A dialog tool being installed says nothing about it
+        # being able to run [#35].
+        desktop_session_env
+        if ! has_desktop_display; then
+            echo "Popup tool: none reachable — no graphical session here, so check-in stays silent."
+        elif command -v kdialog >/dev/null 2>&1; then
             echo "Popup tool: kdialog"
         elif command -v zenity >/dev/null 2>&1; then
             echo "Popup tool: zenity"

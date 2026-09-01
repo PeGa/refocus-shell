@@ -637,6 +637,79 @@ chk "notes_merge_trail: empty note keeps no leading blank line" "New start time:
 New stop time: B" \
     "$(bash -c "source core/text.sh; notes_merge_trail '' '' '' 'A' 'B'")"
 
+# ── desktop session: cron has no path back to the display [#35] ───────────────
+# kdialog does not fail politely when it cannot reach a session: Qt calls
+# qFatal() and the process dies on SIGABRT, dumping core. Every check-in fire
+# left a coredump and no popup. Nothing here may spawn a GUI tool — these
+# exercise the predicate and the cron entry that feeds it.
+echo "── desktop session guards [#35] ──"
+
+_disp() {
+    # <env assignments...> -> 0/1 from has_desktop_display, with NO session
+    # reconstruction: the predicate is asked exactly what the caller set.
+    env -i HOME="$HOME" PATH="$PATH" "$@" \
+        bash -c "cd '$ROOT' && source services/desktop.sh && has_desktop_display" >/dev/null 2>&1
+    echo $?
+}
+
+chk "display: nothing set at all"            "1" "$(_disp XDG_RUNTIME_DIR=/nonexistent)"
+chk "display: X socket that isn't there"     "1" "$(_disp XDG_RUNTIME_DIR="$SANDBOX" DISPLAY=:9)"
+chk "display: wayland socket that isn't there" "1" \
+    "$(_disp XDG_RUNTIME_DIR="$SANDBOX" WAYLAND_DISPLAY=wayland-0)"
+# A host-qualified DISPLAY is someone else's X server — nothing local to stat,
+# so it is taken at its word.
+chk "display: remote X is taken on faith"    "0" "$(_disp XDG_RUNTIME_DIR="$SANDBOX" DISPLAY=box:0)"
+
+# Qt refuses to start without a usable XDG_RUNTIME_DIR and says so through
+# qFatal(), however good the DISPLAY is — that is the crash in #35, and the
+# only reason the popup never appeared. Only enforced where the platform has
+# the concept: macOS has no /run/user and its GUI tools don't want one.
+if [[ -d /run/user ]]; then xdg_expected="1"; else xdg_expected="0"; fi
+chk "display: invalid XDG_RUNTIME_DIR vetoes a good DISPLAY" "$xdg_expected" \
+    "$(_disp DISPLAY=box:0 XDG_RUNTIME_DIR=/nonexistent)"
+
+# An empty variable is worse than an unset one: an empty DISPLAY names a
+# display server called "" and suppresses every fallback. desktop_session_env
+# must never leave one behind.
+chk "session env: empty DISPLAY is cleared, never left empty" "0" \
+    "$(env -i HOME="$HOME" PATH="$PATH" DISPLAY= WAYLAND_DISPLAY= XDG_RUNTIME_DIR= \
+        bash -c "cd '$ROOT' && source services/desktop.sh && desktop_session_env
+                 [[ -z \"\${DISPLAY+set}\" || -n \"\$DISPLAY\" ]] &&
+                 [[ -z \"\${WAYLAND_DISPLAY+set}\" || -n \"\$WAYLAND_DISPLAY\" ]] &&
+                 [[ -z \"\${XDG_RUNTIME_DIR+set}\" || -n \"\$XDG_RUNTIME_DIR\" ]]" >/dev/null 2>&1; echo $?)"
+
+# The cron entry is where the bug actually lived: WAYLAND_DISPLAY is a socket
+# NAME resolved against XDG_RUNTIME_DIR, and the entry carried the name
+# without the directory.
+_prefix() {
+    env -i HOME="$HOME" PATH="$PATH" REFOCUS_ROOT=/x "$@" \
+        bash -c "cd '$ROOT' && source env.sh && source services/cron.sh && _cron_env_prefix"
+}
+chk "cron prefix: carries XDG_RUNTIME_DIR" "0" \
+    "$([[ "$(_prefix DISPLAY=:1 WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000)" \
+        == *"XDG_RUNTIME_DIR=/run/user/1000"* ]]; echo $?)"
+chk "cron prefix: omits empty vars entirely" "REFOCUS_ROOT=/x" \
+    "$(_prefix DISPLAY= WAYLAND_DISPLAY= XDG_RUNTIME_DIR= DBUS_SESSION_BUS_ADDRESS=)"
+
+# End to end: the entry `focus enable` actually installs must carry it.
+DISPLAY=:1 WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 \
+    ./focus config set CHECKIN_INTERVAL 60 >/dev/null 2>&1
+./focus disable >/dev/null 2>&1
+DISPLAY=:1 WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 \
+    ./focus enable >/dev/null 2>&1
+chk "installed checkin entry carries XDG_RUNTIME_DIR" "0" \
+    "$(grep 'focus-checkin' "$SANDBOX_CRONTAB" | grep -q 'XDG_RUNTIME_DIR=/run/user/1000'; echo $?)"
+chk "installed nudge entry carries XDG_RUNTIME_DIR" "0" \
+    "$(grep 'focus-nudge' "$SANDBOX_CRONTAB" | grep -q 'XDG_RUNTIME_DIR=/run/user/1000'; echo $?)"
+
+# focus-checkin itself: with no session to draw on it must exit silently and
+# write nothing, the same as every other guard in that script.
+before=$(cnt)
+env -i HOME="$HOME" PATH="$PATH" REFOCUS_ROOT="$ROOT" REFOCUS_DB_PATH="$REFOCUS_DB_PATH" \
+    XDG_RUNTIME_DIR=/nonexistent DISPLAY=:9 bash focus-checkin >/dev/null 2>&1
+chk "checkin@no-display: rc=0"        "0" "$?"
+chk "checkin@no-display: silent no-op" "$before" "$(cnt)"
+
 # ── result ───────────────────────────────────────────────────────────────────
 echo
 total=$(( pass + fail ))
