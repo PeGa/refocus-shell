@@ -13,6 +13,25 @@ _cron_checkin_bin() {
     echo "${REFOCUS_ROOT:-$HOME/.local/refocus}/focus-checkin"
 }
 
+_cron_env_prefix() {
+    # cron strips the environment; the payloads need enough of it back to
+    # reach the desktop session. Two rules, both learned from #35:
+    #
+    #   - XDG_RUNTIME_DIR goes in. WAYLAND_DISPLAY is a socket NAME resolved
+    #     against it, so an entry carrying "WAYLAND_DISPLAY=wayland-0" and
+    #     nothing else points Qt at a compositor it cannot locate — kdialog
+    #     aborts on SIGABRT and dumps core instead of failing politely.
+    #   - Empty variables are omitted entirely. "DISPLAY=" is not a harmless
+    #     no-op: it names a display server called "", which suppresses every
+    #     fallback the tool would otherwise have.
+    local root="${REFOCUS_ROOT:-$HOME/.local/refocus}"
+    local prefix="REFOCUS_ROOT=$root" v
+    for v in DISPLAY WAYLAND_DISPLAY XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS; do
+        [[ -n "${!v:-}" ]] && prefix="$prefix $v=${!v}"
+    done
+    printf '%s' "$prefix"
+}
+
 _cron_validate_interval() {
     local iv="$1"
     if ! [[ "$iv" =~ ^[0-9]+$ ]]; then
@@ -57,13 +76,13 @@ cron_install() {
     interval=$((10#$interval))
 
     local nudge_bin; nudge_bin=$(_cron_nudge_bin)
-    local root="${REFOCUS_ROOT:-$HOME/.local/refocus}"
+    local env_prefix; env_prefix=$(_cron_env_prefix)
 
     local start_min; start_min=$(date +%M)
     local ones=$(( 10#$start_min % interval ))
     local pattern="${ones}-59/${interval}"
 
-    local entry="$pattern * * * * REFOCUS_ROOT=$root DISPLAY=${DISPLAY:-} WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-} DBUS_SESSION_BUS_ADDRESS=${DBUS_SESSION_BUS_ADDRESS:-} $nudge_bin"
+    local entry="$pattern * * * * $env_prefix $nudge_bin"
 
     local tmp; tmp=$(mktemp)
     crontab -l 2>/dev/null | grep -vF "$nudge_bin" > "$tmp" || true
@@ -88,8 +107,7 @@ cron_checkin_install() {
     interval=$((10#$interval))
 
     local checkin_bin; checkin_bin=$(_cron_checkin_bin)
-    local root="${REFOCUS_ROOT:-$HOME/.local/refocus}"
-    local env_prefix="REFOCUS_ROOT=$root DISPLAY=${DISPLAY:-} WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-} DBUS_SESSION_BUS_ADDRESS=${DBUS_SESSION_BUS_ADDRESS:-}"
+    local env_prefix; env_prefix=$(_cron_env_prefix)
     local entry
 
     if [[ $interval -le 60 ]]; then

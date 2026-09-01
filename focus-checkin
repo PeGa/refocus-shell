@@ -13,6 +13,7 @@ REFOCUS_ROOT="${REFOCUS_ROOT:-$HOME/.local/refocus}"
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
 source "$REFOCUS_ROOT/core/time.sh"
+source "$REFOCUS_ROOT/services/desktop.sh"
 
 [[ -f "$DB_PATH" ]] || exit 0
 is_focus_disabled  && exit 0
@@ -34,6 +35,16 @@ _log_checkin() {
     local project="$1" note="$2"
     record_duration_session "$project" $(( interval * 60 )) "$(date +%Y-%m-%d)" "$note"
 }
+
+# ── Can we reach the user at all? ─────────────────────────────────────────
+# Every tier below needs a graphical session — the terminal tiers just need
+# one to open a terminal in. Rebuild what cron dropped, then refuse to launch
+# anything if there is still nothing to draw on: kdialog answers a missing
+# session with qFatal() and a coredump, not an error code, so this has to be
+# decided before the tool runs rather than after it fails [#35]. Silent, like
+# every other guard here — a cron job with nowhere to talk stays quiet.
+desktop_session_env
+has_desktop_display || exit 0
 
 # ── Tier 1: kdialog ───────────────────────────────────────────────────────
 if command -v kdialog >/dev/null 2>&1; then
