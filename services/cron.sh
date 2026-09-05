@@ -32,6 +32,29 @@ _cron_env_prefix() {
     printf '%s' "$prefix"
 }
 
+_cron_minute_field() {
+    # <first-minute> <interval> -> the minute field for a sub-hourly schedule.
+    #
+    # A stepped range only makes sense while the step can land inside it twice.
+    # A 60-minute interval produced "5-59/60" — a range stepped further than the
+    # range is wide — which cron accepts, fires once at minute 5, and complains
+    # about on every single install:
+    #
+    #   Warning: Step size 60 higher than possible maximum of 54
+    #
+    # cron warns whenever step > (59 - first), which is exactly the case where
+    # the range holds one firing time. So when that is true, name the minute
+    # instead of describing a range around it. Identical schedule, no warning.
+    # CHECKIN_INTERVAL defaults to 60, so this fired for everyone, at any
+    # install minute — 0 included ("maximum of 59").
+    local first="$1" interval="$2"
+    if [[ $(( first + interval )) -gt 59 ]]; then
+        printf '%s' "$first"
+    else
+        printf '%s-59/%s' "$first" "$interval"
+    fi
+}
+
 _cron_validate_interval() {
     local iv="$1"
     if ! [[ "$iv" =~ ^[0-9]+$ ]]; then
@@ -80,7 +103,7 @@ cron_install() {
 
     local start_min; start_min=$(date +%M)
     local ones=$(( 10#$start_min % interval ))
-    local pattern="${ones}-59/${interval}"
+    local pattern; pattern=$(_cron_minute_field "$ones" "$interval")
 
     local entry="$pattern * * * * $env_prefix $nudge_bin"
 
@@ -115,7 +138,7 @@ cron_checkin_install() {
         # whatever minute this was installed at.
         local start_min; start_min=$(date +%M)
         local ones=$(( 10#$start_min % interval ))
-        entry="${ones}-59/${interval} * * * * $env_prefix $checkin_bin"
+        entry="$(_cron_minute_field "$ones" "$interval") * * * * $env_prefix $checkin_bin"
     else
         # A whole number of hours (enforced by the validator above): step
         # the hour field instead, fire once at the current minute within
