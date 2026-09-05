@@ -10,3 +10,11 @@ Plain facts — no score attached.
   month    last 30 days            custom   last <days>
 
 Duration-only sessions are included by their date.
+
+Output is markdown on stdout — a period line, a project table, then every
+session as its own section. Redirect it to keep one:
+
+  focus report custom 14 > report.md
+
+Notes are printed exactly as you wrote them, so markdown in a note stays
+markdown in the report.

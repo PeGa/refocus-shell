@@ -149,9 +149,12 @@ focus report today
 focus report week
 focus report month
 focus report custom 14      # last 14 days
+focus report custom 14 > report.md
 ```
 
 Total time, a per-project breakdown, and every session with its notes. Plain facts about where your attention went. No score attached.
+
+Reports come out as markdown on stdout: a period line, a project table, then each session as its own section. Notes are printed exactly as written, so if you write markdown in a note it stays markdown in the report — redirect it to a file and it's ready to share.
 
 ### The nudge
 
