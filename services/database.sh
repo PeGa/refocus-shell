@@ -96,8 +96,27 @@ db_migrate() {
     # pause_notes, nudging_enabled: removed from model; stale columns in old DBs are harmless.
 }
 
+db_has_schema() {
+    # Both tables actually present? A file existing is not the same as a
+    # database existing: an interrupted import, a truncated copy or a stray
+    # `touch` all leave a file with no tables in it.
+    local n
+    n=$(_query "SELECT COUNT(*) FROM sqlite_master
+                WHERE type='table' AND name IN ('state','sessions');" 2>/dev/null) || return 1
+    [[ "$n" == "2" ]]
+}
+
 db_ensure() {
-    [[ -f "$DB_PATH" ]] || db_init
+    # The file test alone used to decide this, so a file with no tables was
+    # taken for a working database: db_migrate then ALTERed tables that were
+    # not there and every command died on "no such table: sessions" with no
+    # way back short of deleting the file by hand. db_init is idempotent
+    # (CREATE TABLE IF NOT EXISTS, INSERT OR IGNORE) and never drops, so
+    # re-running it is the cheapest repair — whatever tables survived keep
+    # their rows.
+    if [[ ! -f "$DB_PATH" ]] || ! db_has_schema; then
+        db_init
+    fi
     db_migrate
 }
 

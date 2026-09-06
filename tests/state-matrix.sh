@@ -386,6 +386,56 @@ chk "JSON import: bad row sanitized, not dropped" "1" \
     "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT COUNT(*) FROM sessions WHERE project='bad¦name';")"
 chk "JSON import: normalizes state per INV-5" "0|0|1|-" "$(st)"
 
+# ── import: a bad file must cost nothing ──────────────────────────────────────
+# Import used to delete the database first and find out whether the input was
+# usable afterwards. Unparseable JSON, or a dump truncated by an interrupted
+# export or a full disk, left no database at all — and because a file still
+# existed, db_ensure took it for one, so every later command died on
+# "no such table: sessions" with no way back but deleting the file by hand.
+echo "── import: bad input leaves the database alone ──"
+# An ordinary date on purpose: the "status shows Last:" assertion later in this
+# file pins itself to a far-future row (2099-01-01) to stay deterministic, and
+# a later fixture date here would outrank it and break that test.
+bash -c "source env.sh; source services/database.sh; record_duration_session 'import/guard' 3600 '2026-06-14' ''" >/dev/null
+before_rows=$(cnt)
+( cd "$SANDBOX" && "$ROOT/focus" export goodsnap >/dev/null 2>&1 )
+
+printf '{ "sessions": [ {"project": "x"  BROKEN\n' > "$SANDBOX/bad.json"
+printf 'yes\n' | ./focus import "$SANDBOX/bad.json" >/dev/null 2>&1
+chk "import@bad JSON: rc=1 not jq's 5"   "1" "$?"
+chk "import@bad JSON: rows untouched"    "$before_rows" "$(cnt)"
+
+head -3 "$SANDBOX/goodsnap.sql" > "$SANDBOX/partial.sql"
+printf 'yes\n' | ./focus import "$SANDBOX/partial.sql" >/dev/null 2>&1
+chk "import@truncated SQL: rc=1"         "1" "$?"
+chk "import@truncated SQL: rows untouched" "$before_rows" "$(cnt)"
+chk "import@truncated SQL: tool still runs" "0" \
+    "$(./focus status >/dev/null 2>&1; echo $?)"
+chk "import@bad input: no .incoming temp left behind" "0" \
+    "$(find "$SANDBOX" -name '*.incoming.*' | wc -l | tr -d ' ')"
+
+# A file that exists but holds no tables is not a database. db_init is
+# idempotent and never drops, so re-running it is the repair; rows in whatever
+# tables did survive are kept.
+: > "$SANDBOX/hollow.db"
+chk "db_ensure@empty file: recovers instead of dying" "0" \
+    "$(REFOCUS_DB_PATH="$SANDBOX/hollow.db" ./focus status >/dev/null 2>&1; echo $?)"
+chk "db_ensure@empty file: schema built" "2" \
+    "$(sqlite3 "$SANDBOX/hollow.db" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('state','sessions');")"
+
+sqlite3 "$SANDBOX/halfdb.db" "CREATE TABLE state (id INTEGER PRIMARY KEY CHECK (id=1), active INTEGER NOT NULL DEFAULT 0, project TEXT, start_time TEXT, paused INTEGER NOT NULL DEFAULT 0, pause_start_time TEXT, previous_elapsed INTEGER NOT NULL DEFAULT 0, focus_disabled INTEGER NOT NULL DEFAULT 0, last_off_time TEXT); INSERT INTO state (id, project) VALUES (1, 'survivor');"
+REFOCUS_DB_PATH="$SANDBOX/halfdb.db" ./focus status >/dev/null 2>&1
+chk "db_ensure@half schema: rc=0"            "0" "$?"
+chk "db_ensure@half schema: missing table built" "1" \
+    "$(sqlite3 "$SANDBOX/halfdb.db" "SELECT COUNT(*) FROM sqlite_master WHERE name='sessions';")"
+chk "db_ensure@half schema: surviving row kept" "survivor" \
+    "$(sqlite3 "$SANDBOX/halfdb.db" "SELECT project FROM state WHERE id=1;")"
+
+# The good path must still work after all that.
+printf 'yes\n' | ./focus import "$SANDBOX/goodsnap.sql" >/dev/null 2>&1
+chk "import@valid SQL: still succeeds" "0" "$?"
+chk "import@valid SQL: rows restored"  "$before_rows" "$(cnt)"
+
 # ── checkin: cron interval validation ─────────────────────────────────────────
 echo "── checkin: interval validation ──"
 _ci_valid() { bash -c "source env.sh; source services/cron.sh; _cron_validate_checkin_interval '$1'" >/dev/null 2>&1; echo $?; }
@@ -411,13 +461,54 @@ _ci_entry() { grep 'focus-checkin' "$SANDBOX_CRONTAB" 2>/dev/null; }
 
 _ci_reinstall 60
 chk "checkin@60: one cron entry" "1" "$(_ci_entry | wc -l)"
-chk "checkin@60: minute-stepped" "0" "$(_ci_entry | grep -qE '^[0-9]+-59/60 \* \* \* \*'; echo $?)"
+# A 60-minute interval is one firing time per hour, so the minute field names
+# that minute. It used to describe a range stepped wider than itself
+# ("5-59/60"), which cron accepted while warning on every install:
+# "Warning: Step size 60 higher than possible maximum of 54".
+chk "checkin@60: single minute, not a range" "0" \
+    "$(_ci_entry | grep -qE '^[0-9]+ \* \* \* \*'; echo $?)"
+chk "checkin@60: no degenerate step" "1" \
+    "$(_ci_entry | grep -qF -- '-59/60'; echo $?)"
 
 _ci_reinstall 120
 chk "checkin@120: hour-stepped" "0" "$(_ci_entry | grep -qE '^[0-9]+ [0-9]+-23/2 \* \* \*'; echo $?)"
 
 _ci_reinstall 1440
 chk "checkin@1440: once-daily hour-stepped" "0" "$(_ci_entry | grep -qE '^[0-9]+ [0-9]+-23/24 \* \* \*'; echo $?)"
+
+# _cron_minute_field decides range-vs-single. Exercise every install minute,
+# not just whichever one the clock happened to land on during this run: at 60
+# no minute may produce a range, at 10 every minute must.
+_mf() { bash -c "source env.sh; source services/cron.sh; _cron_minute_field '$1' '$2'"; }
+ranges_at_60=0; singles_at_10=0; wrong_minute=0
+for m in $(seq 0 59); do
+    [[ "$(_mf "$m" 60)" == *-* ]] && ranges_at_60=$(( ranges_at_60 + 1 ))
+    [[ "$(_mf "$m" 60)" != "$m" ]] && wrong_minute=$(( wrong_minute + 1 ))
+    [[ "$(_mf $(( m % 10 )) 10)" != *-59/10 ]] && singles_at_10=$(( singles_at_10 + 1 ))
+done
+chk "minute field@60: never a range, any install minute" "0" "$ranges_at_60"
+chk "minute field@60: keeps the install minute"          "0" "$wrong_minute"
+chk "minute field@10: always a stepped range"            "0" "$singles_at_10"
+# The boundary: a step that still lands twice inside the hour stays a range.
+chk "minute field: 0/59 still a range (fires at 0 and 59)" "0-59/59" "$(_mf 0 59)"
+chk "minute field: 30/59 collapses (would only fire once)" "30"      "$(_mf 30 59)"
+
+# Strongest check available: hand the generated line to real cron's own syntax
+# checker. -n is a dry run — it validates and bails out, never installing.
+# Skipped where crontab has no -n (macOS).
+printf '* * * * * /bin/true\n' > "$SANDBOX/cron-probe.txt"
+if /usr/bin/crontab -n "$SANDBOX/cron-probe.txt" >/dev/null 2>&1; then
+    _ci_reinstall 60
+    _ci_entry > "$SANDBOX/cron-probe.txt"
+    chk "checkin@60: real cron parses it silently" "0" \
+        "$(/usr/bin/crontab -n "$SANDBOX/cron-probe.txt" 2>&1 | grep -c 'Warning')"
+    ./focus config set NUDGE_INTERVAL 60 >/dev/null 2>&1
+    ./focus disable >/dev/null 2>&1; ./focus enable >/dev/null 2>&1
+    grep 'focus-nudge' "$SANDBOX_CRONTAB" > "$SANDBOX/cron-probe.txt"
+    chk "nudge@60: real cron parses it silently" "0" \
+        "$(/usr/bin/crontab -n "$SANDBOX/cron-probe.txt" 2>&1 | grep -c 'Warning')"
+    ./focus config unset NUDGE_INTERVAL >/dev/null 2>&1
+fi
 
 _ci_reinstall 0
 chk "checkin@0: no cron entry" "0" "$(_ci_entry | wc -l)"
