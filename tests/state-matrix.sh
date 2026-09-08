@@ -841,6 +841,160 @@ env -i HOME="$HOME" PATH="$PATH" REFOCUS_ROOT="$ROOT" REFOCUS_DB_PATH="$REFOCUS_
 chk "checkin@no-display: rc=0"        "0" "$?"
 chk "checkin@no-display: silent no-op" "$before" "$(cnt)"
 
+# ── focus cycle: period markers ───────────────────────────────────────────────
+# A cycle break is an ordinary session row whose project reads a particular way.
+# Nothing in the schema says "cycle" — the project string is the whole of it, so
+# these assertions check the row shape and the recognition, not a new table.
+echo "── focus cycle ──"
+
+_cyc_rows()  { sqlite3 "$REFOCUS_DB_PATH" "SELECT COUNT(*) FROM sessions WHERE project LIKE 'Cycle break. Period:%';"; }
+_cyc_last()  { sqlite3 "$REFOCUS_DB_PATH" "SELECT MAX(id) FROM sessions WHERE project LIKE 'Cycle break. Period:%';"; }
+
+# core/text.sh is pure string work — exercise it directly.
+chk "cycle_label: shape"        "Cycle break. Period: Beginning to 2026-09-05 12:00" \
+    "$(bash -c "source core/text.sh; cycle_label 'Beginning' '2026-09-05 12:00'")"
+chk "is_cycle_label: match"     "0" "$(bash -c "source core/text.sh; is_cycle_label 'Cycle break. Period: a to b'"; echo $?)"
+chk "is_cycle_label: near miss" "1" "$(bash -c "source core/text.sh; is_cycle_label 'Break cycle. Period: a to b'"; echo $?)"
+chk "is_cycle_label: not a marker" "1" "$(bash -c "source core/text.sh; is_cycle_label 'fyc/real-work'"; echo $?)"
+
+# First break has no predecessor, so the period opens at "Beginning".
+before_cyc=$(_cyc_rows)
+./focus cycle add >/dev/null 2>&1
+chk "cycle add: rc=0"        "0" "$?"
+chk "cycle add: one new row" "$(( before_cyc + 1 ))" "$(_cyc_rows)"
+cid=$(_cyc_last)
+chk "cycle add: opens at Beginning" "0" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT project FROM sessions WHERE id=$cid;" | grep -qF 'Period: Beginning to '; echo $?)"
+chk "cycle add: zero duration"      "0" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT duration_seconds FROM sessions WHERE id=$cid;")"
+chk "cycle add: not duration-only"  "0" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT duration_only FROM sessions WHERE id=$cid;")"
+chk "cycle add: start equals end"   "1" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT start_time=end_time FROM sessions WHERE id=$cid;")"
+chk "cycle add: placeholder note"   "0" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT notes FROM sessions WHERE id=$cid;" | grep -qF 'focus cycle modify --edit-notes'; echo $?)"
+
+# The next break closes the period the previous one opened.
+sqlite3 "$REFOCUS_DB_PATH" "UPDATE sessions SET end_time='2026-09-04T18:00:00-03:00' WHERE id=$cid;"
+./focus cycle add >/dev/null 2>&1
+chk "cycle add: period starts at the previous break" "0" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT project FROM sessions WHERE id=$(_cyc_last);" | grep -qF 'Period: 2026-09-04 18:00 to '; echo $?)"
+
+# A break marks a boundary between periods, so it waits for the session to end.
+./focus on cycle/guard >/dev/null 2>&1
+rows_before=$(_cyc_rows)
+./focus cycle add >/dev/null 2>&1
+chk "cycle add@active: rc=1"         "1" "$?"
+chk "cycle add@active: nothing written" "$rows_before" "$(_cyc_rows)"
+./focus pause >/dev/null 2>&1
+./focus cycle add >/dev/null 2>&1
+chk "cycle add@paused: rc=1"         "1" "$?"
+chk "cycle add@paused: nothing written" "$rows_before" "$(_cyc_rows)"
+printf 'y\nguard done\n' | ./focus off >/dev/null 2>&1
+
+# Disabled is not focusing, so a break is fine there.
+./focus disable >/dev/null 2>&1
+./focus cycle add >/dev/null 2>&1
+chk "cycle add@disabled: rc=0" "0" "$?"
+./focus enable >/dev/null 2>&1 || true
+
+# Two breaks inside one label-resolution render the same name. Coarsening the
+# format makes that collision deterministic instead of a race with the clock.
+./focus config set DATE_SHORT_FORMAT '%Y' >/dev/null 2>&1
+./focus cycle add >/dev/null 2>&1
+rows_before=$(_cyc_rows); id_before=$(_cyc_last)
+printf 'n\n' | ./focus cycle add >/dev/null 2>&1
+chk "cycle add@collision declined: rc=0"    "0" "$?"
+chk "cycle add@collision declined: no new row" "$rows_before" "$(_cyc_rows)"
+chk "cycle add@collision declined: row kept"   "$id_before"   "$(_cyc_last)"
+printf 'y\n' | ./focus cycle add >/dev/null 2>&1
+chk "cycle add@collision replaced: still one row" "$rows_before" "$(_cyc_rows)"
+chk "cycle add@collision replaced: fresh id" "0" \
+    "$([[ "$(_cyc_last)" -gt "$id_before" ]]; echo $?)"
+chk "cycle add: never two markers with one name" "0" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT COUNT(*)-COUNT(DISTINCT project) FROM sessions WHERE project LIKE 'Cycle break. Period:%';")"
+./focus config unset DATE_SHORT_FORMAT >/dev/null 2>&1
+
+# --edit-notes touches the note and nothing else.
+cid=$(_cyc_last)
+dur_before=$(sqlite3 "$REFOCUS_DB_PATH" "SELECT duration_seconds FROM sessions WHERE id=$cid;")
+proj_before=$(sqlite3 "$REFOCUS_DB_PATH" "SELECT project FROM sessions WHERE id=$cid;")
+printf 'invoice sent\n' | ./focus cycle modify --edit-notes "$cid" >/dev/null 2>&1
+chk "cycle modify: rc=0"              "0" "$?"
+chk "cycle modify: note replaced"     "invoice sent" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT notes FROM sessions WHERE id=$cid;")"
+chk "cycle modify: duration untouched" "$dur_before"  "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT duration_seconds FROM sessions WHERE id=$cid;")"
+chk "cycle modify: project untouched"  "$proj_before" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT project FROM sessions WHERE id=$cid;")"
+
+# cycle commands work on cycle breaks only; ordinary sessions belong to past.
+printf 'ordinary\n' | ./focus past add cycle/notacycle 2026/06/15-10:00 2026/06/15-11:00 >/dev/null 2>&1
+plain=$(sqlite3 "$REFOCUS_DB_PATH" "SELECT id FROM sessions WHERE project='cycle/notacycle';")
+./focus cycle modify --edit-notes "$plain" >/dev/null 2>&1
+chk "cycle modify@non-cycle: rc=1" "1" "$?"
+printf 'y\n' | ./focus cycle delete "$plain" >/dev/null 2>&1
+chk "cycle delete@non-cycle: rc=1" "1" "$?"
+chk "cycle delete@non-cycle: row survives" "1" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT COUNT(*) FROM sessions WHERE id=$plain;")"
+
+./focus cycle delete 999999 >/dev/null 2>&1;  chk "cycle delete@missing id: rc=1" "1" "$?"
+./focus cycle delete abc >/dev/null 2>&1;     chk "cycle delete@non-numeric: rc=2" "2" "$?"
+
+# delete confirms first.
+rows_before=$(_cyc_rows)
+printf 'n\n' | ./focus cycle delete "$cid" >/dev/null 2>&1
+chk "cycle delete declined: rc=0"     "0" "$?"
+chk "cycle delete declined: row kept" "$rows_before" "$(_cyc_rows)"
+printf 'y\n' | ./focus cycle delete "$cid" >/dev/null 2>&1
+chk "cycle delete: rc=0"              "0" "$?"
+chk "cycle delete: row gone"          "$(( rows_before - 1 ))" "$(_cyc_rows)"
+
+# The id printed by `add` must be the row `add` wrote. get_session_by_project
+# answers a different question — lowest id, the "original" for the duplicate
+# fold — so using it here reported a pre-existing row and sent --edit-notes at
+# someone else's note. Replace also has to clear *every* row under the name, or
+# it leaves the duplicate it was called to resolve.
+./focus config set DATE_SHORT_FORMAT '%Y' >/dev/null 2>&1
+./focus cycle add >/dev/null 2>&1
+./focus cycle add >/dev/null 2>&1
+dup_label=$(sqlite3 "$REFOCUS_DB_PATH" "SELECT project FROM sessions WHERE id=$(_cyc_last);")
+bash -c "source env.sh; source services/database.sh; record_session '$dup_label' '2026-01-01T00:00:00-03:00' '2026-01-01T00:00:00-03:00' 0 'pre-existing'" >/dev/null
+reported=$(printf 'y\n' | ./focus cycle add 2>/dev/null | sed -n 's/.*✅ Cycle break \([0-9]*\):.*/\1/p')
+chk "cycle add@duplicates: only one row left under the name" "1" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT COUNT(*) FROM sessions WHERE project='$dup_label';")"
+chk "cycle add@duplicates: reported id is the row it wrote" "$reported" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT id FROM sessions WHERE project='$dup_label';")"
+chk "cycle add@duplicates: that row carries the placeholder" "0" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT notes FROM sessions WHERE id=$reported;" | grep -qF 'focus cycle modify --edit-notes'; echo $?)"
+./focus config unset DATE_SHORT_FORMAT >/dev/null 2>&1
+
+# A '|' in the date format is transliterated on the way into storage, so the
+# label echoed back has to be transliterated too or it advertises a name no
+# lookup will match [past.sh does the same for the same reason].
+./focus config set DATE_SHORT_FORMAT '%Y-%m-%d | %H:%M' >/dev/null 2>&1
+shown=$(./focus cycle add 2>/dev/null | sed -n 's/^✅ Cycle break [0-9]*: //p')
+chk "cycle add: message matches what was stored" "$shown" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT project FROM sessions WHERE id=$(_cyc_last);")"
+./focus config unset DATE_SHORT_FORMAT >/dev/null 2>&1
+
+# A break with no end_time (importable) must not read as "there was no break":
+# the period would then be dated from the beginning of the record.
+nulldb="$SANDBOX/cycle-nullend.db"
+REFOCUS_DB_PATH="$nulldb" ./focus cycle add >/dev/null 2>&1
+REFOCUS_DB_PATH="$nulldb" bash -c "source env.sh; source services/database.sh; db_import_session_row 'Cycle break. Period: Beginning to 2020-01-01 00:00' '' '' 0 '' 0 ''" >/dev/null
+REFOCUS_DB_PATH="$nulldb" ./focus cycle add >/dev/null 2>&1
+chk "cycle add: skips a break with no end_time" "1" \
+    "$(sqlite3 "$nulldb" "SELECT project FROM sessions ORDER BY id DESC LIMIT 1;" | grep -cv 'Period: Beginning to')"
+
+# The command has to be findable: `focus help` prints global.txt.
+chk "cycle: listed in the help index" "0" "$(grep -q '^  cycle add' docs/help/global.txt; echo $?)"
+chk "cycle: no heading collides with the command name" "0" \
+    "$(grep -qv 'the focus cycle' docs/help/global.txt; echo $?)"
+
+# Command surface [CONV-HELP] [CONV-EXIT].
+./focus cycle >/dev/null 2>&1;        chk "cycle: bare is a usage error"    "2" "$?"
+./focus cycle bogus >/dev/null 2>&1;  chk "cycle: unknown sub is usage"     "2" "$?"
+./focus cycle add extra >/dev/null 2>&1; chk "cycle add: extra args rejected" "2" "$?"
+./focus cycle modify "$cid" >/dev/null 2>&1; chk "cycle modify without --edit-notes: usage" "2" "$?"
+./focus cycle --help >/dev/null 2>&1; chk "cycle --help: rc=0"              "0" "$?"
+h_cyc=$(./focus cycle --help 2>&1); h_err=$(./focus cycle 2>&1)
+chk "cycle: usage error prints the same doc" "$h_cyc" "$h_err"
+
 # ── result ───────────────────────────────────────────────────────────────────
 echo
 total=$(( pass + fail ))

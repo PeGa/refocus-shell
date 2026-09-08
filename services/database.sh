@@ -333,6 +333,33 @@ get_total_time() {
             FROM sessions WHERE project='$(_q "$project")';"
 }
 
+list_session_ids_by_project() {
+    # <project> -> every id carrying that exact project name, newest first,
+    # one per line. Deliberately not get_session_by_project, which answers a
+    # different question — "which row is the original" (lowest id), for the
+    # duplicate fold. A caller that wants the row it just wrote needs the
+    # newest, and a caller clearing a name needs all of them.
+    local project; project=$(sanitize_pipe "$1")
+    _query "SELECT id FROM sessions WHERE project='$(_q "$project")' ORDER BY id DESC;"
+}
+
+get_last_cycle_end() {
+    # <marker-prefix> -> end_time of the most recent cycle break that has one,
+    # or empty when there is no such row. The prefix comes from the caller
+    # (core/text.sh owns what a cycle break looks like) so this stays a plain
+    # "newest row whose project starts with X" question and the adapter never
+    # has to know what a cycle is.
+    #
+    # Rows with no end_time are skipped rather than read as "no previous
+    # break": an import can carry one, and treating it as absent would date
+    # the next period from the beginning of the record.
+    local prefix="$1"
+    _query "SELECT end_time FROM sessions
+            WHERE project LIKE '$(_q "$prefix")%'
+              AND end_time IS NOT NULL AND end_time <> ''
+            ORDER BY id DESC LIMIT 1;"
+}
+
 get_last_session() {
     # Returns: project|end_time-or-session_date|duration_seconds
     # A duration-only row (past add --duration, check-in) has no end_time —

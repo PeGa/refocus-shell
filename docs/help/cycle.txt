@@ -1,0 +1,32 @@
+focus cycle — mark where one period of work ends and the next begins
+
+  focus cycle add
+  focus cycle modify --edit-notes <id>
+  focus cycle delete <id>
+
+Sent the invoice? Mark a cycle break. It's the boundary you'll look for the
+next time you ask "when did I last close the books?".
+
+A break is an ordinary session with no duration, stored under a project name
+that reads:
+
+  Cycle break. Period: <last break, or Beginning> to <now>
+
+That name is the whole mechanism — nothing in the database says "cycle". A
+break renamed to something else stops being one, and a session named to match
+becomes one. Visual identification, no bookkeeping.
+
+  add       records the break and prints its id
+  --edit-notes   replaces the placeholder note; timestamps aren't touched
+  delete    asks first
+
+add refuses while a session is focusing or paused: a break marks the boundary
+between periods, and mid-session there isn't one yet. Run 'focus off' first.
+It's fine while Refocus is disabled.
+
+Adding two breaks in the same minute produces the same name, so the second
+offers to replace the first. Replacing writes a fresh row — a note you'd
+already typed does not survive it.
+
+modify and delete work on cycle breaks only. For ordinary sessions use
+'focus past'.

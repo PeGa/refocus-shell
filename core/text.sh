@@ -70,3 +70,30 @@ notes_merge_trail() {
         printf '%s' "$trail"
     fi
 }
+
+# ── Cycle breaks ─────────────────────────────────────────────────────────────
+#
+# A cycle break is a period marker: an ordinary session row whose project reads
+# a particular way. It is deliberately not an entity — nothing in the schema
+# says "cycle", and renaming the project is what stops a row being one. That
+# makes recognising one a pure string question, which is why it lives here
+# rather than in the adapter: `focus cycle` builds these labels and any caller
+# that needs to tell a marker from real work asks the same function.
+
+_CYCLE_PREFIX="Cycle break. Period:"
+
+cycle_prefix() {
+    # The marker text, for callers that need to match on it (a LIKE, a filter).
+    # Handed out rather than duplicated, so the literal exists in one place.
+    printf '%s' "$_CYCLE_PREFIX"
+}
+
+cycle_label() {
+    # <from> <to> -> the project string a cycle break is stored under.
+    printf '%s %s to %s' "$_CYCLE_PREFIX" "${1:-}" "${2:-}"
+}
+
+is_cycle_label() {
+    # <project> -> 0 when that project names a cycle break.
+    [[ "${1:-}" == "$_CYCLE_PREFIX"* ]]
+}
