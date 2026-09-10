@@ -37,7 +37,7 @@ _reject_non_cycle() {
     exit 1
 }
 
-_note_placeholder="Period cycle. Edit with \`focus cycle modify --edit-notes\` and the \`id\` of this cycle."
+_note_placeholder="$(cycle_note_placeholder)"
 
 case "$sub" in
     add)

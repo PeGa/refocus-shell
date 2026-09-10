@@ -15,10 +15,12 @@ however many there are. Give it a count and it shows that many instead,
 across breaks.
 
 Cycle breaks are never listed as sessions — they delimit periods, they aren't
-work. --show-cycles puts them back in, which is how you see where a period
-starts.
+work. --show-cycles puts them back as boundary lines: here starts the new
+count, with the id every cycle command addresses it by. A note you gave the
+break — what the period was — prints under its boundary; the canned one
+doesn't.
 
-  cycles          every break you've recorded, newest first
+  cycles          every break you've recorded, newest first, as boundaries
   cycles show     the current period — everything since the last break
   cycles show -1  the period before it, -2 the one before that
   cycles show <id>  the period that break opened

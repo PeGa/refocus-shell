@@ -42,13 +42,22 @@ _require_id() {
 
 # Rows arrive in the 8-field session shape from every read here, so one
 # renderer serves the plain listing, the period listing and the cycle listing.
-# `show_cycles` decides whether a cycle break is printed; it is never printed
-# by default, which is the whole point of a marker that delimits rather than
-# participates.
+# A cycle break is never a table row: it delimits periods, it isn't work, and
+# its ~50-char label overflows the %-22s project column and smears the row's
+# remaining columns [#46]. With `show_cycles` it renders as the boundary line
+# it is — "here starts the new count" — carrying the id that every cycle
+# subcommand addresses it by, plus its note when the note is the period's own
+# rather than the canned instruction.
 _render_rows() {
     local show_cycles="$1"
     while IFS="|" read -r id project start end dur notes duration_only session_date; do
-        if [[ "$show_cycles" != "1" ]] && is_cycle_label "$project"; then
+        if is_cycle_label "$project"; then
+            [[ "$show_cycles" != "1" ]] && continue
+            echo "──── 🔚 id $id · $project ────"
+            local decoded; decoded="$(notes_decode "$notes")"
+            if [[ -n "$decoded" && "$decoded" != "$(cycle_note_placeholder)" ]]; then
+                notes_block "     📝 " "        " "$decoded"
+            fi
             continue
         fi
         if [[ "$duration_only" == "1" ]]; then
@@ -102,7 +111,8 @@ case "$sub" in
         csub="${1:-list}"; shift || true
         case "$csub" in
             list)
-                _render_header
+                # No table header: every line this prints is a boundary, not a
+                # row, and column names over boundaries are noise.
                 list_cycles "$(cycle_prefix)" | _render_rows 1
                 ;;
             show)

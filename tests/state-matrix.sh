@@ -1005,6 +1005,9 @@ pdb="$SANDBOX/periods.db"
 _p() { REFOCUS_DB_PATH="$pdb" ./focus "$@"; }
 _pmk() { printf '%s\n' "$2" | REFOCUS_DB_PATH="$pdb" ./focus past add "$1" "$3" "$4" >/dev/null 2>&1; }
 _pids() { REFOCUS_DB_PATH="$pdb" ./focus "$@" 2>/dev/null | awk '/^[0-9]/{printf "%s ", $1}'; }
+# Breaks render as boundary lines, not table rows [#46]: `──── 🔚 id N · …`, so
+# _pids never sees them and their ids come off the boundary instead.
+_pseps() { REFOCUS_DB_PATH="$pdb" ./focus "$@" 2>/dev/null | awk '/🔚/{printf "%s ", $4}'; }
 
 _p status >/dev/null 2>&1
 _pmk p/a1 n1 2026/01/01-10:00 2026/01/01-11:00     # id 1
@@ -1019,8 +1022,9 @@ _pmk p/c2 n5 2026/03/02-10:00 2026/03/02-11:00     # id 7
 REFOCUS_DB_PATH="$pdb" bash -c "source env.sh; source services/database.sh; record_duration_session 'p/manual' 1800 '2026-02-01' ''" >/dev/null
 
 chk "past list: full history, cycles hidden"         "8 7 6 4 2 1 "     "$(_pids past list)"
-chk "past list --show-cycles: same history, breaks shown" "8 7 6 5 4 3 2 1 " "$(_pids past list --show-cycles)"
-chk "past cycles: every break, newest first"         "5 3 "     "$(_pids past cycles)"
+chk "past list --show-cycles: same sessions as bare list" "8 7 6 4 2 1 " "$(_pids past list --show-cycles)"
+chk "past list --show-cycles: breaks as boundaries"  "5 3 "     "$(_pseps past list --show-cycles)"
+chk "past cycles: every break, newest first"         "5 3 "     "$(_pseps past cycles)"
 chk "cycles show: the current period"                "8 7 6 "   "$(_pids past cycles show)"
 chk "cycles show 0: same again"                      "8 7 6 "   "$(_pids past cycles show 0)"
 chk "cycles show -1: the period before"              "4 "       "$(_pids past cycles show -1)"
@@ -1043,6 +1047,27 @@ chk "past list n: no break among them"               "0" \
     "$(_p past list 4 2>/dev/null | grep -c 'Cycle break')"
 chk "past list n --show-cycles: breaks count toward n" "1" \
     "$(_p past list 4 --show-cycles 2>/dev/null | grep -c 'Cycle break')"
+
+# The boundary payoff [#46]: the ~50-char label used to overflow the %-22s
+# project column and shove that row's Start/End/Duration right. A break takes
+# no table row at all now, and the canned note stays silent — only a note that
+# says what the period was gets printed.
+chk "no table row carries the break label"           "0" \
+    "$(_p past list --show-cycles 2>/dev/null | grep -c '^[0-9].*Cycle break')"
+chk "break label only on boundary lines"             "2" \
+    "$(_p past list --show-cycles 2>/dev/null | grep -c '^──── 🔚')"
+chk "canned note stays silent"                       "0" \
+    "$(_p past list --show-cycles 2>/dev/null | grep -c 'Edit with')"
+chk "past cycles: no table header over boundaries"   "0" \
+    "$(_p past cycles 2>/dev/null | grep -c 'Duration')"
+
+# A note that replaced the placeholder is the period's own: it prints under
+# its boundary line.
+REFOCUS_DB_PATH="$pdb" bash -c "source env.sh; source core/text.sh; source services/database.sh; update_session_notes 5 'invoice #12 sent'" >/dev/null
+chk "edited note renders under its boundary"         "1" \
+    "$(_p past cycles 2>/dev/null | grep -c 'invoice #12 sent')"
+chk "edited note: canned text gone"                  "0" \
+    "$(_p past cycles 2>/dev/null | grep -c 'Edit with')"
 
 # Selector errors: malformed is usage, well-formed-but-absent is state.
 _p past cycles show -9 >/dev/null 2>&1;  chk "cycles show -9: rc=1"    "1" "$?"

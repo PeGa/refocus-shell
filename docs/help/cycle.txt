@@ -20,6 +20,10 @@ becomes one. Visual identification, no bookkeeping.
   --edit-notes   replaces the placeholder note; timestamps aren't touched
   delete    asks first
 
+The note is what the period was: 'focus past cycles' and 'focus past list
+--show-cycles' print it under the boundary line they render the break as.
+The placeholder itself is never printed.
+
 add refuses while a session is focusing or paused: a break marks the boundary
 between periods, and mid-session there isn't one yet. Run 'focus off' first.
 It's fine while Refocus is disabled.

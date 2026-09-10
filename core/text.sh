@@ -97,3 +97,13 @@ is_cycle_label() {
     # <project> -> 0 when that project names a cycle break.
     [[ "${1:-}" == "$_CYCLE_PREFIX"* ]]
 }
+
+_CYCLE_NOTE="Period cycle. Edit with \`focus cycle modify --edit-notes\` and the \`id\` of this cycle."
+
+cycle_note_placeholder() {
+    # The canned note `focus cycle add` writes. Handed out rather than
+    # duplicated: the writer needs it verbatim, and listings compare against it
+    # to stay quiet — an instruction repeated under every boundary is noise,
+    # while a note that differs is the period's own and gets printed.
+    printf '%s' "$_CYCLE_NOTE"
+}
