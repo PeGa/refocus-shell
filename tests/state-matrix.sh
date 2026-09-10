@@ -1140,6 +1140,68 @@ mst=$(REFOCUS_DB_PATH="$mdb" ./focus status 2>&1)
 chk "status with only markers: no Last line" "0" \
     "$([[ "$mst" != *"Last:"* ]]; echo $?)"
 
+# ── cycle modify --edit-time: moving a marker [#50] ───────────────────────────
+# A break is one instant; the label is a receipt derived from it. Moving the
+# instant regenerates the receipt and the next break's — its `from` is this
+# one's timestamp — while every period window stays put, because windows are
+# ids, not times.
+echo "── cycle edit-time [move a marker] ──"
+
+edb="$SANDBOX/edittime.db"
+_e() { REFOCUS_DB_PATH="$edb" ./focus "$@"; }
+_peel() { sqlite3 "$edb" "SELECT REPLACE(project,'Cycle break. Period: ','') FROM sessions WHERE id=$1;"; }
+_e status >/dev/null 2>&1
+# Three breaks at controlled instants, built through the same gears the
+# handler uses so the stored shape matches a real `cycle add` exactly.
+REFOCUS_DB_PATH="$edb" bash -c '
+    source env.sh; source core/time.sh; source core/text.sh; source services/database.sh
+    t1=$(parse_time 2026/01/01-10:00); t2=$(parse_time 2026/02/01-10:00); t3=$(parse_time 2026/03/01-10:00)
+    l1=$(ts_format "$t1" "$DATE_SHORT_FORMAT"); l2=$(ts_format "$t2" "$DATE_SHORT_FORMAT"); l3=$(ts_format "$t3" "$DATE_SHORT_FORMAT")
+    record_session "$(cycle_label Beginning "$l1")" "$t1" "$t1" 0 ""
+    record_session "$(cycle_label "$l1" "$l2")" "$t2" "$t2" 0 ""
+    record_session "$(cycle_label "$l2" "$l3")" "$t3" "$t3" 0 ""
+' >/dev/null
+
+_e cycle modify --edit-time 2 2026/02/15-12:00 >/dev/null 2>&1
+chk "edit-time: rc=0" "0" "$?"
+chk "edit-time: both timestamps are the new instant" "1" \
+    "$(sqlite3 "$edb" "SELECT COUNT(*) FROM sessions WHERE id=2 AND start_time LIKE '2026-02-15T12:00%' AND start_time=end_time;")"
+chk "edit-time: own receipt keeps its from, takes the new to" \
+    "2026-01-01 10:00 to 2026-02-15 12:00" "$(_peel 2)"
+chk "edit-time: next break re-labelled from the new instant" \
+    "2026-02-15 12:00 to 2026-03-01 10:00" "$(_peel 3)"
+chk "edit-time: next break's own instant untouched" "1" \
+    "$(sqlite3 "$edb" "SELECT COUNT(*) FROM sessions WHERE id=3 AND start_time LIKE '2026-03-01T10:00%' AND start_time=end_time;")"
+
+# A marker cannot cross its neighbours, in either direction.
+_e cycle modify --edit-time 2 2026/03/02-10:00 >/dev/null 2>&1
+chk "edit-time: crossing the next break refuses" "1" "$?"
+_e cycle modify --edit-time 2 2025/12/31-10:00 >/dev/null 2>&1
+chk "edit-time: crossing the previous break refuses" "1" "$?"
+chk "edit-time: refusals wrote nothing" "2026-02-15 12:00" "$(_peel 2 | sed 's/.*to //')"
+
+# Oldest break: no predecessor, so the receipt still opens at Beginning.
+_e cycle modify --edit-time 1 2026/01/15-09:00 >/dev/null 2>&1
+chk "edit-time: oldest keeps Beginning" "Beginning to 2026-01-15 09:00" "$(_peel 1)"
+chk "edit-time: oldest cascades into the next" "2026-01-15 09:00 to 2026-02-15 12:00" "$(_peel 2)"
+
+# Newest break: nothing above it, so nothing to cascade into.
+_e cycle modify --edit-time 3 2026/03/20-18:30 >/dev/null 2>&1
+chk "edit-time: newest moves with no cascade" "2026-02-15 12:00 to 2026-03-20 18:30" "$(_peel 3)"
+_e cycle modify --edit-time 2 2026/03/20-18:30 >/dev/null 2>&1
+chk "edit-time: landing exactly on a neighbour refuses" "1" "$?"
+
+# Usage and kind guards.
+_e cycle modify --edit-time 2 >/dev/null 2>&1
+chk "edit-time: missing time is usage" "2" "$?"
+_e cycle modify --edit-time 2 nope >/dev/null 2>&1
+chk "edit-time: unparseable time is usage" "2" "$?"
+_e cycle modify --edit-time 2.5 2026/02/20-10:00 >/dev/null 2>&1
+chk "edit-time: non-numeric id is usage" "2" "$?"
+printf 'n\n' | _e past add e50/real 2026/02/10-10:00 2026/02/10-11:00 >/dev/null 2>&1
+_e cycle modify --edit-time 4 2026/02/20-10:00 >/dev/null 2>&1
+chk "edit-time: non-cycle id refuses" "1" "$?"
+
 # ── result ───────────────────────────────────────────────────────────────────
 echo
 total=$(( pass + fail ))

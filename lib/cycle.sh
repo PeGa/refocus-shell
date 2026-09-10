@@ -100,21 +100,107 @@ case "$sub" in
         ;;
 
     modify)
-        [[ "${1:-}" == "--edit-notes" ]] || usage_error cycle
-        id="${2:-}"; [[ -z "$id" ]] && usage_error cycle
-        _require_id "$id"
+        case "${1:-}" in
+        --edit-notes)
+            id="${2:-}"; [[ -z "$id" || $# -gt 2 ]] && usage_error cycle
+            _require_id "$id"
 
-        row=$(get_session "$id")
-        [[ -z "$row" ]] && { echo "❌ Session $id not found." >&2; exit 1; }
-        IFS='|' read -r _ proj _ _ _ cur_notes _ _ <<< "$row"
-        _reject_non_cycle "$id" "$proj"
+            row=$(get_session "$id")
+            [[ -z "$row" ]] && { echo "❌ Session $id not found." >&2; exit 1; }
+            IFS='|' read -r _ proj _ _ _ cur_notes _ _ <<< "$row"
+            _reject_non_cycle "$id" "$proj"
 
-        # Notes come back encoded, one line per row [CONV-NOTES] — decode
-        # before the editor sees them, or a stored newline arrives as \n.
-        echo "📝 Notes (edit; delete everything and save to clear)"
-        new_notes=$(capture_notes "$(notes_decode "$cur_notes")")
-        update_session_notes "$id" "$new_notes"
-        echo "✅ Cycle break $id updated."
+            # Notes come back encoded, one line per row [CONV-NOTES] — decode
+            # before the editor sees them, or a stored newline arrives as \n.
+            echo "📝 Notes (edit; delete everything and save to clear)"
+            new_notes=$(capture_notes "$(notes_decode "$cur_notes")")
+            update_session_notes "$id" "$new_notes"
+            echo "✅ Cycle break $id updated."
+            ;;
+
+        --edit-time)
+            # Moves the marker to a chosen instant [#50]. A break is a point in
+            # time — start == end == the moment — and the label is a receipt
+            # derived from it, so moving the instant regenerates the receipt.
+            # The next break's receipt names this one's instant as its `from`,
+            # so it is regenerated too, from its own untouched timestamps.
+            id="${2:-}"; raw="${3:-}"
+            [[ -z "$id" || -z "$raw" || $# -gt 3 ]] && usage_error cycle
+            _require_id "$id"
+
+            row=$(get_session "$id")
+            [[ -z "$row" ]] && { echo "❌ Session $id not found." >&2; exit 1; }
+            IFS='|' read -r _ proj _ _ _ _ _ _ <<< "$row"
+            _reject_non_cycle "$id" "$proj"
+
+            new_ts=$(parse_time "$raw") || exit 2
+            new_epoch=$(iso_to_epoch "$new_ts")
+            new_label_ts=$(ts_format "$new_ts" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$new_ts")
+
+            # Neighbours by id, not by time: ids record the order the markers
+            # were drawn, and the periods every view computes are id windows.
+            # list_cycles is newest-first — the first row below me is the
+            # previous break; the last row above me is the next one.
+            prev_end="" next_id="" next_start="" next_end="" next_dur=0
+            while IFS='|' read -r cid _cproj cstart cend cdur _cnotes _cdonly _csdate; do
+                if [[ "$cid" -lt "$id" && -z "$prev_end" ]]; then
+                    prev_end="$cend"
+                elif [[ "$cid" -gt "$id" ]]; then
+                    next_id="$cid"; next_start="$cstart"; next_end="$cend"; next_dur="$cdur"
+                fi
+            done < <(list_cycles "$(cycle_prefix)")
+
+            # A marker cannot cross its neighbours: that would invert the
+            # period both receipts describe, and the id windows would disagree
+            # with the timeline the labels claim.
+            if [[ -n "$prev_end" && "$new_epoch" -le "$(iso_to_epoch "$prev_end")" ]]; then
+                echo "❌ At or before the previous break ($(ts_format "$prev_end" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$prev_end")) — a marker cannot cross its neighbours." >&2
+                exit 1
+            fi
+            if [[ -n "$next_end" && "$new_epoch" -ge "$(iso_to_epoch "$next_end")" ]]; then
+                echo "❌ At or after the next break (id $next_id, $(ts_format "$next_end" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$next_end")) — a marker cannot cross its neighbours." >&2
+                exit 1
+            fi
+
+            if [[ -n "$prev_end" ]]; then
+                from=$(ts_format "$prev_end" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$prev_end")
+            else
+                from="Beginning"
+            fi
+            new_label=$(cycle_label "$from" "$new_label_ts")
+            # Storage transliterates '|' (it is the read separator) — same
+            # discipline as add: what is echoed must match what is stored.
+            new_label="${new_label//|/¦}"
+
+            # With the ordering guard holding, a CLI edit cannot duplicate a
+            # label — but an import can pre-seed one, and two identical
+            # receipts are indistinguishable markers.
+            dup=$(list_session_ids_by_project "$new_label" | grep -vx "$id" || true)
+            if [[ -n "$dup" ]]; then
+                echo "❌ Another break (id $(printf '%s' "$dup" | tr '\n' ' ' | sed 's/ $//')) already reads: $new_label" >&2
+                exit 1
+            fi
+
+            update_session "$id" "$new_label" "$new_ts" "$new_ts" 0
+
+            next_label=""
+            if [[ -n "$next_id" ]]; then
+                nto=$(ts_format "$next_end" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$next_end")
+                next_label=$(cycle_label "$new_label_ts" "$nto")
+                next_label="${next_label//|/¦}"
+                update_session "$next_id" "$next_label" "$next_start" "$next_end" "$next_dur"
+            fi
+
+            echo "✅ Cycle break $id moved to $new_label_ts."
+            echo "   was: $proj"
+            echo "   now: $new_label"
+            [[ -n "$next_label" ]] && echo "   Break $next_id re-labelled: $next_label"
+            ;;
+
+        *)
+            usage_error cycle
+            ;;
+        esac
         ;;
 
     delete|del|rm)
