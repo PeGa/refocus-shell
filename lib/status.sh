@@ -3,6 +3,7 @@ set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
 source "$REFOCUS_ROOT/core/time.sh"
+source "$REFOCUS_ROOT/core/text.sh"
 source "$REFOCUS_ROOT/services/help.sh"
 
 wants_help "$@" && show_help status
@@ -12,7 +13,9 @@ db_ensure
 now_ts=$(now_epoch)
 
 _show_last() {
-    local last; last=$(get_last_session)
+    # Cycle-break markers are excluded: "Last:" answers "what was I last
+    # doing?", and a marker is a boundary, not work. [#46]
+    local last; last=$(get_last_session "$(cycle_prefix)")
     [[ -z "$last" ]] && return
     IFS='|' read -r last_project last_end last_dur <<< "$last"
     local last_ts; last_ts=$(iso_to_epoch "$last_end" 2>/dev/null || echo 0)

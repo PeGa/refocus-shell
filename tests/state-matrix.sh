@@ -1076,6 +1076,41 @@ chk "past list with no breaks: lists everything" "1 " \
 REFOCUS_DB_PATH="$nodb" ./focus past cycles show -1 >/dev/null 2>&1
 chk "cycles show -1 with no breaks: rc=1" "1" "$?"
 
+# ── reads that answer "what was I last doing?" must skip markers [#46] ────────
+# A `cycle add` writes the newest row, and both get_last_project (focus on's
+# continue offer) and get_last_session (focus status's Last:) used to return
+# rows regardless of kind — so the marker displaced real work in exactly the
+# reads whose job is naming the last real thing.
+echo "── reads skip cycle markers [on / status] ──"
+
+rdb="$SANDBOX/reads46.db"
+REFOCUS_DB_PATH="$rdb" ./focus status >/dev/null 2>&1
+REFOCUS_DB_PATH="$rdb" ./focus enable >/dev/null 2>&1
+printf 'note\n' | REFOCUS_DB_PATH="$rdb" ./focus past add r46/real 2026/04/01-10:00 2026/04/01-12:00 >/dev/null 2>&1
+REFOCUS_DB_PATH="$rdb" ./focus cycle add >/dev/null 2>&1   # marker becomes the newest row
+
+st=$(REFOCUS_DB_PATH="$rdb" ./focus status 2>&1)
+chk "status Last: names the real session, not the marker" "0" \
+    "$([[ "$st" == *"Last: r46/real"* && "$st" != *"Cycle break"* ]]; echo $?)"
+
+on_out=$(printf 'n\n' | REFOCUS_DB_PATH="$rdb" ./focus on 2>&1)
+chk "on: offers the last real project, not the marker" "0" \
+    "$([[ "$on_out" == *"Continue 'r46/real'"* && "$on_out" != *"Cycle break"* ]]; echo $?)"
+chk "on: declined offer starts nothing" "1" \
+    "$(REFOCUS_DB_PATH="$rdb" ./focus status 2>&1 | grep -c 'Not focusing')"
+
+# A marker-only DB has no last project to offer: bare `on` is a usage error,
+# and status has no Last: line — neither falls back to the marker.
+mdb="$SANDBOX/markers46.db"
+REFOCUS_DB_PATH="$mdb" ./focus status >/dev/null 2>&1
+REFOCUS_DB_PATH="$mdb" ./focus enable >/dev/null 2>&1
+REFOCUS_DB_PATH="$mdb" ./focus cycle add >/dev/null 2>&1
+REFOCUS_DB_PATH="$mdb" ./focus on >/dev/null 2>&1
+chk "on with only markers: rc=2" "2" "$?"
+mst=$(REFOCUS_DB_PATH="$mdb" ./focus status 2>&1)
+chk "status with only markers: no Last line" "0" \
+    "$([[ "$mst" != *"Last:"* ]]; echo $?)"
+
 # ── result ───────────────────────────────────────────────────────────────────
 echo
 total=$(( pass + fail ))

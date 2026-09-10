@@ -413,17 +413,29 @@ get_last_cycle_end() {
 }
 
 get_last_session() {
-    # Returns: project|end_time-or-session_date|duration_seconds
+    # [exclude-prefix] -> project|end_time-or-session_date|duration_seconds
     # A duration-only row (past add --duration, check-in) has no end_time —
     # order by whichever of the two it has, same fallback list_sessions_in_range
     # already uses, so a check-in-logged session isn't invisible to `focus status`.
+    # The exclusion skips cycle-break markers: they delimit periods, they are
+    # not work, and "what was I last doing?" must not answer with one. [#46]
+    local exclude="${1:-}" where=""
+    [[ -n "$exclude" ]] && where="WHERE project NOT LIKE '$(_q "$exclude")%'"
     _query "SELECT project, COALESCE(end_time, session_date, ''), duration_seconds
             FROM sessions
+            $where
             ORDER BY COALESCE(end_time, session_date) DESC LIMIT 1;"
 }
 
 get_last_project() {
+    # [exclude-prefix] as in get_last_session: a bare `focus on` offers to
+    # continue the last project, and the marker a `cycle add` just wrote is
+    # the newest row — answering "continue 'Cycle break…'?" starts a real
+    # session named after a boundary. [#46]
+    local exclude="${1:-}" where=""
+    [[ -n "$exclude" ]] && where="WHERE project NOT LIKE '$(_q "$exclude")%'"
     _query "SELECT project FROM sessions
+            $where
             ORDER BY id DESC LIMIT 1;"
 }
 
