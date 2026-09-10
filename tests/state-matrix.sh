@@ -323,11 +323,11 @@ chk "config show renders override"   "0" "$([[ "$out" == *"NUDGE_INTERVAL='11'"*
 # must leave the mode untouched.
 echo "── config: file mode preserved ──"
 env_file="$SANDBOX/.env"
-./focus config set REPORT_LIMIT 6 >/dev/null 2>&1
+./focus config set MAX_PROJECT_LENGTH 6 >/dev/null 2>&1
 chmod 644 "$env_file"
-./focus config set REPORT_LIMIT 7 >/dev/null 2>&1
+./focus config set MAX_PROJECT_LENGTH 7 >/dev/null 2>&1
 chk "config set preserves 644"   "-rw-r--r--" "$(ls -l "$env_file" | cut -c1-10)"
-./focus config unset REPORT_LIMIT >/dev/null 2>&1
+./focus config unset MAX_PROJECT_LENGTH >/dev/null 2>&1
 chk "config unset preserves 644" "-rw-r--r--" "$(ls -l "$env_file" | cut -c1-10)"
 
 # ── project name sanitization: '|' desyncs every pipe-separated read ────────

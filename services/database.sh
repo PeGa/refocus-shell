@@ -252,12 +252,15 @@ delete_session() {
 _NOTES_ENCODED="REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(notes,''), char(92), char(92,92)), char(10), char(92,110)), char(13), char(92,114)), char(124), char(92,120,55,99))"
 
 list_sessions() {
-    # <limit> [exclude-prefix] -> newest rows first.
+    # <limit> [exclude-prefix] -> newest rows first. Limit is the caller's:
+    # there is no house default — `past list` with no count asks for the full
+    # history through list_sessions_by_id_range instead, and nothing else
+    # reads without saying how much it wants.
     #
     # The exclusion has to happen in SQL rather than in the caller's loop: the
     # LIMIT is applied by the database, so filtering afterwards would return
     # fewer rows than were asked for.
-    local limit="${1:-$REPORT_LIMIT}" exclude="${2:-}" where=""
+    local limit="$1" exclude="${2:-}" where=""
     [[ -n "$exclude" ]] && where="WHERE project NOT LIKE '$(_q "$exclude")%'"
     _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
                    duration_seconds, $_NOTES_ENCODED, duration_only, COALESCE(session_date,'')
