@@ -995,6 +995,87 @@ chk "cycle: no heading collides with the command name" "0" \
 h_cyc=$(./focus cycle --help 2>&1); h_err=$(./focus cycle 2>&1)
 chk "cycle: usage error prints the same doc" "$h_cyc" "$h_err"
 
+# ── periods: listing and reporting between cycle breaks ───────────────────────
+# A period is an id window, not a time window. Ids record the order things were
+# logged; comparing timestamps instead puts a duration-only row — which carries
+# a date and no clock time — on both sides of a boundary falling inside its day.
+echo "── periods [past cycles / report cycle] ──"
+
+pdb="$SANDBOX/periods.db"
+_p() { REFOCUS_DB_PATH="$pdb" ./focus "$@"; }
+_pmk() { printf '%s\n' "$2" | REFOCUS_DB_PATH="$pdb" ./focus past add "$1" "$3" "$4" >/dev/null 2>&1; }
+_pids() { REFOCUS_DB_PATH="$pdb" ./focus "$@" 2>/dev/null | awk '/^[0-9]/{printf "%s ", $1}'; }
+
+_p status >/dev/null 2>&1
+_pmk p/a1 n1 2026/01/01-10:00 2026/01/01-11:00     # id 1
+_pmk p/a2 n2 2026/01/02-10:00 2026/01/02-11:00     # id 2
+_p cycle add >/dev/null 2>&1                        # id 3  C1
+_pmk p/b1 n3 2026/02/01-10:00 2026/02/01-12:00     # id 4
+_p cycle add >/dev/null 2>&1                        # id 5  C2
+_pmk p/c1 n4 2026/03/01-10:00 2026/03/01-11:00     # id 6
+_pmk p/c2 n5 2026/03/02-10:00 2026/03/02-11:00     # id 7
+# A duration-only row dated on a boundary day: the case that made time windows
+# double-count. Logged last, so it belongs to the current period by id.
+REFOCUS_DB_PATH="$pdb" bash -c "source env.sh; source services/database.sh; record_duration_session 'p/manual' 1800 '2026-02-01' ''" >/dev/null
+
+chk "past list: full history, cycles hidden"         "8 7 6 4 2 1 "     "$(_pids past list)"
+chk "past list --show-cycles: same history, breaks shown" "8 7 6 5 4 3 2 1 " "$(_pids past list --show-cycles)"
+chk "past cycles: every break, newest first"         "5 3 "     "$(_pids past cycles)"
+chk "cycles show: the current period"                "8 7 6 "   "$(_pids past cycles show)"
+chk "cycles show 0: same again"                      "8 7 6 "   "$(_pids past cycles show 0)"
+chk "cycles show -1: the period before"              "4 "       "$(_pids past cycles show -1)"
+chk "cycles show -2: before the oldest break"        "2 1 "     "$(_pids past cycles show -2)"
+chk "cycles show <id>: the period that break opened" "4 "       "$(_pids past cycles show 3)"
+chk "cycles show: never prints the breaks"           "0" \
+    "$(_p past cycles show -1 2>/dev/null | grep -c 'Cycle break')"
+
+# The boundary-day manual row lands in exactly one period, not both.
+chk "boundary-day manual row: in the current period" "1" \
+    "$(_p past cycles show 2>/dev/null | grep -c 'p/manual')"
+chk "boundary-day manual row: not also in the previous one" "0" \
+    "$(_p past cycles show -1 2>/dev/null | grep -c 'p/manual')"
+
+# An explicit count crosses breaks and applies the limit to real sessions only —
+# filtering after a SQL LIMIT would hand back fewer rows than asked for.
+chk "past list n: exactly n rows, breaks excluded"   "4" \
+    "$(_p past list 4 2>/dev/null | awk '/^[0-9]/' | wc -l | tr -d ' ')"
+chk "past list n: no break among them"               "0" \
+    "$(_p past list 4 2>/dev/null | grep -c 'Cycle break')"
+chk "past list n --show-cycles: breaks count toward n" "1" \
+    "$(_p past list 4 --show-cycles 2>/dev/null | grep -c 'Cycle break')"
+
+# Selector errors: malformed is usage, well-formed-but-absent is state.
+_p past cycles show -9 >/dev/null 2>&1;  chk "cycles show -9: rc=1"    "1" "$?"
+_p past cycles show 6 >/dev/null 2>&1;   chk "cycles show non-break: rc=1" "1" "$?"
+_p past cycles show 2.5 >/dev/null 2>&1; chk "cycles show 2.5: rc=2"   "2" "$?"
+_p past cycles bogus >/dev/null 2>&1;    chk "cycles bogus: rc=2"      "2" "$?"
+
+# report gains the same selector and never shows a break, in any mode.
+rc_out=$(_p report cycle 2>/dev/null)
+chk "report cycle: current period total" "0" \
+    "$([[ "$rc_out" == *"across 3 sessions"* ]]; echo $?)"
+rc_out=$(_p report cycle -1 2>/dev/null)
+chk "report cycle -1: previous period total" "0" \
+    "$([[ "$rc_out" == *"Total: 2h 0m across 1 session"* ]]; echo $?)"
+chk "report cycle: no break in the output" "0" \
+    "$(_p report cycle 2>/dev/null | grep -c 'Cycle break')"
+rc_out=$(_p report custom 9000 2>/dev/null)
+chk "report custom: breaks excluded from the count" "0" \
+    "$([[ "$rc_out" == *"across 6 sessions"* ]]; echo $?)"
+chk "report custom: no break in the project table" "0" \
+    "$(_p report custom 9000 2>/dev/null | grep -c 'Cycle break')"
+_p report cycle -9 >/dev/null 2>&1;  chk "report cycle -9: rc=1"  "1" "$?"
+_p report cycle abc >/dev/null 2>&1; chk "report cycle abc: rc=2" "2" "$?"
+
+# With no breaks at all the current period is simply everything.
+nodb="$SANDBOX/nocycles.db"
+REFOCUS_DB_PATH="$nodb" ./focus status >/dev/null 2>&1
+printf 'x\n' | REFOCUS_DB_PATH="$nodb" ./focus past add solo/one 2026/01/01-10:00 2026/01/01-11:00 >/dev/null 2>&1
+chk "past list with no breaks: lists everything" "1 " \
+    "$(REFOCUS_DB_PATH="$nodb" ./focus past list 2>/dev/null | awk '/^[0-9]/{printf "%s ", $1}')"
+REFOCUS_DB_PATH="$nodb" ./focus past cycles show -1 >/dev/null 2>&1
+chk "cycles show -1 with no breaks: rc=1" "1" "$?"
+
 # ── result ───────────────────────────────────────────────────────────────────
 echo
 total=$(( pass + fail ))

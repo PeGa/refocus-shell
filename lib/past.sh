@@ -7,6 +7,7 @@ source "$REFOCUS_ROOT/services/help.sh"
 source "$REFOCUS_ROOT/core/time.sh"
 source "$REFOCUS_ROOT/core/text.sh"
 source "$REFOCUS_ROOT/services/merge.sh"
+source "$REFOCUS_ROOT/services/period.sh"
 
 # Before db_ensure and before any parsing: `past modify --help` used to reach
 # SQL and die on `WHERE id=--help`, and `past modify 5 --help` used to take
@@ -39,24 +40,82 @@ _require_id() {
     [[ "$1" =~ ^[0-9]+$ ]] || { echo "❌ Not a session id: $1" >&2; usage_error past; }
 }
 
+# Rows arrive in the 8-field session shape from every read here, so one
+# renderer serves the plain listing, the period listing and the cycle listing.
+# `show_cycles` decides whether a cycle break is printed; it is never printed
+# by default, which is the whole point of a marker that delimits rather than
+# participates.
+_render_rows() {
+    local show_cycles="$1"
+    while IFS="|" read -r id project start end dur notes duration_only session_date; do
+        if [[ "$show_cycles" != "1" ]] && is_cycle_label "$project"; then
+            continue
+        fi
+        if [[ "$duration_only" == "1" ]]; then
+            s="(manual: $session_date)"
+            e=""
+        else
+            s=$(ts_format "$start" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$start")
+            e=$(ts_format "$end"   "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$end")
+        fi
+        printf "%-4s %-22s %-19s %-19s %-8s\n" "$id" "$project" "$s" "$e" "$(fmt_duration "$dur")"
+        if [[ -n "$notes" ]]; then
+            notes_block "     📝 " "        " "$(notes_decode "$notes")"
+        fi
+    done
+}
+
+_render_header() {
+    printf "%-4s %-22s %-19s %-19s %-8s\n" "ID" "Project" "Start" "End" "Duration"
+    echo "─────────────────────────────────────────────────────────────────────────────"
+}
+
 case "$sub" in
     list)
-        limit="${1:-$REPORT_LIMIT}"
-        printf "%-4s %-22s %-19s %-19s %-8s\n" "ID" "Project" "Start" "End" "Duration"
-        echo "─────────────────────────────────────────────────────────────────────────────"
-        while IFS="|" read -r id project start end dur notes duration_only session_date; do
-            if [[ "$duration_only" == "1" ]]; then
-                s="(manual: $session_date)"
-                e=""
-            else
-                s=$(ts_format "$start" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$start")
-                e=$(ts_format "$end"   "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$end")
-            fi
-            printf "%-4s %-22s %-19s %-19s %-8s\n" "$id" "$project" "$s" "$e" "$(fmt_duration "$dur")"
-            if [[ -n "$notes" ]]; then
-                notes_block "     📝 " "        " "$(notes_decode "$notes")"
-            fi
-        done < <(list_sessions "$limit")
+        show_cycles=0
+        limit=""
+        for _a in "$@"; do
+            case "$_a" in
+                --show-cycles) show_cycles=1 ;;
+                *)             limit="$_a"   ;;
+            esac
+        done
+
+        _render_header
+        if [[ -n "$limit" ]]; then
+            # An explicit count is a count of rows, so the exclusion happens in
+            # SQL — LIMIT is applied by the database and filtering afterwards
+            # would hand back fewer than were asked for.
+            exclude=""
+            [[ $show_cycles -eq 0 ]] && exclude="$(cycle_prefix)"
+            list_sessions "$limit" "$exclude" | _render_rows "$show_cycles"
+        else
+            # No count: the full history, uncapped — if it holds 300 sessions,
+            # all 300 render. Breaks ride along in the rows and the render loop
+            # hides them, safe because nothing here applies a LIMIT;
+            # --show-cycles reveals them as recorded.
+            list_sessions_by_id_range "" "" | _render_rows "$show_cycles"
+        fi
+        ;;
+
+    cycles)
+        csub="${1:-list}"; shift || true
+        case "$csub" in
+            list)
+                _render_header
+                list_cycles "$(cycle_prefix)" | _render_rows 1
+                ;;
+            show)
+                sel="${1:-0}"
+                is_period_selector "$sel" || usage_error past
+                window=$(get_period_window "$sel") || exit 1
+                _render_header
+                list_sessions_by_id_range "${window%|*}" "${window#*|}" | _render_rows 0
+                ;;
+            *)
+                usage_error past
+                ;;
+        esac
         ;;
 
     add)
