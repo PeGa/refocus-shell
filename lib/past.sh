@@ -37,7 +37,7 @@ _merge_or_exit() {
 _require_id() {
     # Session ids are integers. The adapter interpolates them into SQL, so a
     # non-numeric id produced a raw sqlite parse error instead of usage. [#25]
-    [[ "$1" =~ ^[0-9]+$ ]] || { echo "❌ Not a session id: $1" >&2; usage_error past; }
+    is_session_id "$1" || { echo "❌ Not a session id: $1" >&2; usage_error past; }
 }
 
 # Rows arrive in the 8-field session shape from every read here, so one

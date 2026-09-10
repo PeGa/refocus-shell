@@ -856,6 +856,10 @@ chk "cycle_label: shape"        "Cycle break. Period: Beginning to 2026-09-05 12
 chk "is_cycle_label: match"     "0" "$(bash -c "source core/text.sh; is_cycle_label 'Cycle break. Period: a to b'"; echo $?)"
 chk "is_cycle_label: near miss" "1" "$(bash -c "source core/text.sh; is_cycle_label 'Break cycle. Period: a to b'"; echo $?)"
 chk "is_cycle_label: not a marker" "1" "$(bash -c "source core/text.sh; is_cycle_label 'fyc/real-work'"; echo $?)"
+chk "is_session_id: digits"     "0" "$(bash -c "source core/text.sh; is_session_id 42"; echo $?)"
+chk "is_session_id: mixed"      "1" "$(bash -c "source core/text.sh; is_session_id 4a2"; echo $?)"
+chk "is_session_id: empty"      "1" "$(bash -c "source core/text.sh; is_session_id ''"; echo $?)"
+chk "is_session_id: negative"   "1" "$(bash -c "source core/text.sh; is_session_id -1"; echo $?)"
 
 # First break has no predecessor, so the period opens at "Beginning".
 before_cyc=$(_cyc_rows)

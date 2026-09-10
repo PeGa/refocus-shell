@@ -24,7 +24,7 @@ sub="${1:-}"; shift || true
 
 # Ids reach the adapter as raw SQL, so they are checked here [CONV-ID].
 _require_id() {
-    [[ "$1" =~ ^[0-9]+$ ]] || { echo "❌ Not a session id: $1" >&2; usage_error cycle; }
+    is_session_id "$1" || { echo "❌ Not a session id: $1" >&2; usage_error cycle; }
 }
 
 # Called directly, never through $( ) — a subshell would swallow the exit and

@@ -71,6 +71,17 @@ notes_merge_trail() {
     fi
 }
 
+# ── Session ids ──────────────────────────────────────────────────────────────
+
+is_session_id() {
+    # <string> -> 0 when it can serve as a session id.
+    # The adapter interpolates ids straight into SQL, so CONV-ID makes every
+    # handler validate first; this predicate exists so the shape lives in
+    # exactly one file, while the refusal — message, usage_error, exit — stays
+    # each handler's own. [#48]
+    [[ "${1:-}" =~ ^[0-9]+$ ]]
+}
+
 # ── Cycle breaks ─────────────────────────────────────────────────────────────
 #
 # A cycle break is a period marker: an ordinary session row whose project reads
