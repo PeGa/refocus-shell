@@ -195,9 +195,22 @@ Old DBs may still carry `pause_notes` / `nudging_enabled` columns. Leave them.
 - Everything else in the adapter is named by domain intent: predicates
   `is_*`, reads `get_*`/`list_*`, mutations as verbs (`start_session`,
   `record_session`, `set_focus_disabled`).
-- Private engine helpers are underscore-prefixed (`_q`, `_exec`, `_query`) and
-  never called outside `database.sh`. Same convention for private helpers in any
-  file (`_cron_*`, `_refocus_prompt`, `_report`).
+- Private engine helpers are underscore-prefixed (`_sql_quote`, `_exec`,
+  `_query`) and never called outside `database.sh`. Same convention for private
+  helpers in any file (`_cron_*`, `_refocus_prompt`, `_report`).
+- NAME-UNDERSCORE: the underscore is a tool, not a stigma. Its place is
+  file-private scope: private functions, module constants (`_CYCLE_PREFIX`),
+  and throwaway single-use variables inside a private scope — loop scratches,
+  don't-care `read` fields. It is never a license for a cryptic name: `_q`
+  failed on the `q`, not on the underscore. Privacy marking and intent-carrying
+  are orthogonal requirements, and a name must satisfy both.
+- NAME-BREVITY: identifiers state intent at their length budget. One- and
+  two-character names are legal only where they read universally in scope —
+  canonical allowlist: `id`, `rc`, `n`, `lo`, `hi` — and the line is enforced
+  by the oracle (the naming-hygiene gate in `tests/state-matrix.sh`), not by
+  review alone. Test-layer helpers follow the same line without the prefix
+  (`state_row`, not `st`): in a file that is entirely private, the privacy
+  marker carries no information, so the name must carry all of it.
 - WHY the split: the prefix is a signal. `db_` says "storage mechanism, not
   domain." When an edge case appears (e.g. a new export helper), it gets `db_`
   *because it serializes the artifact*, not because it touches the DB — every
@@ -247,9 +260,20 @@ tests/                      audit.sh (shellcheck) + state-matrix.sh (behaviour).
 The exact intent API the core calls through. A rebuild must expose equivalently
 named functions with these contracts. Output of reads is pipe-separated.
 
-**Engine (private):** `_q` (escape single quotes), `_exec` (write, dies loud),
-`_query` (read, `-separator '|'`). **Engine (public, called across files):**
-`sanitize_pipe`, `_validate_project_name` (PORT-PROJVALID).
+**Engine (private):** `_sql_quote` (escape single quotes), `_require_uint`
+(guard on every value interpolated as a bare number), `_exec` (write, dies
+loud), `_query` (read, `-separator '|'`). **Engine (public, called across
+files):** `sanitize_pipe`, `_validate_project_name` (PORT-PROJVALID).
+
+**PORT-VOCAB:** the adapter never hardcodes domain vocabulary. What a cycle
+break *is* — the `Cycle break. Period:` prefix — lives in `core/text.sh`
+(CORE-LITERAL) and reaches SQL only as an argument: `list_cycles
+"$(cycle_prefix)"`, `get_last_session "$(cycle_prefix)"`, the exclude-prefixes
+on `list_sessions` and `get_project_totals_*`. WHY: INV-1's one SQL file must
+not become a second place that knows the domain — identification stays a pure
+string question, which is exactly what makes renaming a row out of the prefix
+stop it being a marker. An adapter growing a domain literal is a contract
+violation, not an optimisation.
 
 **PORT-PROJVALID:** reads are pipe-separated (`_query -separator '|'`) and
 every caller splits on `IFS='|' read`; a literal `|` in stored data desyncs
@@ -408,6 +432,13 @@ side effects. Sourced by any layer that needs them; never routable (ARCH-ROUTABL
   line at a time, so a multi-line note cannot wreck a listing's alignment.
   Takes **decoded** text: decoding here too would turn a backslash-n the user
   actually typed into a line break.
+- CORE-LITERAL: domain literals live here exactly once and are handed out by
+  functions — `_CYCLE_PREFIX` behind `cycle_prefix` / `cycle_label` /
+  `is_cycle_label`, the cycle placeholder note behind `cycle_note_placeholder`,
+  the session-id shape behind `is_session_id`. WHY: writers and readers must
+  compare byte-identical strings (the listings' placeholder suppression, the
+  adapter's LIKE arguments, the rename-out-of-cycle-hood mechanism); a literal
+  duplicated across two files is a rename waiting to desynchronise them.
 
 ---
 
@@ -711,6 +742,12 @@ active          1 0 0      paused          0 1 0
 
 - CONV-EXIT: `0` success · `1` runtime/state error (wrong state, not found) ·
   `2` usage/argument error. Used consistently; the test suite asserts them.
+  The split, stated exactly, because new argument kinds keep arriving: a
+  **malformed shape** is usage (`2`) — `2.5`, `abc`, `--help` where an id was
+  wanted — refused before anything is looked up or rendered; a **well-formed
+  value that names nothing** is state (`1`) — "Session 7 not found", "Cycle
+  not found". A declined confirmation is `0`, never an error (CONV-YES). Not
+  new law: the initial release already split it this way; this names it.
 - CONV-YES: destructive ops (`reset`, `import`) require the user to type the
   literal word `yes`. Anything else cancels cleanly with exit 0 (cancel ≠ error).
 - CONV-REARM: `reset` and `import` leave the tool **disabled**. Re-arming is a
