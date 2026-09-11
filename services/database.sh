@@ -252,11 +252,65 @@ delete_session() {
 _NOTES_ENCODED="REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(notes,''), char(92), char(92,92)), char(10), char(92,110)), char(13), char(92,114)), char(124), char(92,120,55,99))"
 
 list_sessions() {
-    local limit="${1:-$REPORT_LIMIT}"
+    # <limit> [exclude-prefix] -> newest rows first. Limit is the caller's:
+    # there is no house default — `past list` with no count asks for the full
+    # history through list_sessions_by_id_range instead, and nothing else
+    # reads without saying how much it wants.
+    #
+    # The exclusion has to happen in SQL rather than in the caller's loop: the
+    # LIMIT is applied by the database, so filtering afterwards would return
+    # fewer rows than were asked for.
+    local limit="$1" exclude="${2:-}" where=""
+    [[ -n "$exclude" ]] && where="WHERE project NOT LIKE '$(_q "$exclude")%'"
     _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
                    duration_seconds, $_NOTES_ENCODED, duration_only, COALESCE(session_date,'')
             FROM sessions
+            $where
             ORDER BY id DESC LIMIT $limit;"
+}
+
+list_cycles() {
+    # <marker-prefix> -> every cycle break, newest first, in the same 8-field
+    # shape as any other session read.
+    local prefix="$1"
+    _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
+                   duration_seconds, $_NOTES_ENCODED, duration_only, COALESCE(session_date,'')
+            FROM sessions
+            WHERE project LIKE '$(_q "$prefix")%'
+            ORDER BY id DESC;"
+}
+
+list_sessions_by_id_range() {
+    # <lo> <hi> -> rows with lo <= id < hi, newest first. Either bound may be
+    # empty for "unbounded".
+    #
+    # A period is an id window, not a time window: ids record the order things
+    # were logged, and comparing timestamps instead would put a duration-only
+    # row — which carries a date and no clock time — on both sides of a
+    # boundary that falls inside its day.
+    local lo="${1:-}" hi="${2:-}" where="WHERE 1=1"
+    [[ -n "$lo" ]] && where="$where AND id >= $lo"
+    [[ -n "$hi" ]] && where="$where AND id < $hi"
+    _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
+                   duration_seconds, $_NOTES_ENCODED, duration_only, COALESCE(session_date,'')
+            FROM sessions
+            $where
+            ORDER BY id DESC;"
+}
+
+get_project_totals_by_id_range() {
+    # <lo> <hi> <exclude-prefix> -> project|seconds|count over an id window,
+    # longest first. Same aggregate-in-SQL rule as the date-range version
+    # (PORT-BASH32), and the same reason the exclusion is a WHERE clause.
+    local lo="${1:-}" hi="${2:-}" exclude="${3:-}" where="WHERE 1=1"
+    [[ -n "$lo" ]] && where="$where AND id >= $lo"
+    [[ -n "$hi" ]] && where="$where AND id < $hi"
+    [[ -n "$exclude" ]] && where="$where AND project NOT LIKE '$(_q "$exclude")%'"
+    _query "SELECT project, SUM(duration_seconds), COUNT(*)
+            FROM sessions
+            $where
+            GROUP BY project
+            ORDER BY SUM(duration_seconds) DESC;"
 }
 
 _range_where() {
@@ -296,10 +350,11 @@ get_project_totals_in_range() {
     # project, ordered by duration_seconds descending. Aggregating in SQL
     # rather than bash means `focus report` has no associative-array
     # dependency — macOS ships bash 3.2, which has none.
-    local start="$1" end="$2"
+    local start="$1" end="$2" exclude="${3:-}" extra=""
+    [[ -n "$exclude" ]] && extra="AND project NOT LIKE '$(_q "$exclude")%'"
     _query "SELECT project, SUM(duration_seconds), COUNT(*)
             FROM sessions
-            WHERE $(_range_where "$start" "$end")
+            WHERE $(_range_where "$start" "$end") $extra
             GROUP BY project
             ORDER BY SUM(duration_seconds) DESC;"
 }
@@ -333,18 +388,57 @@ get_total_time() {
             FROM sessions WHERE project='$(_q "$project")';"
 }
 
+list_session_ids_by_project() {
+    # <project> -> every id carrying that exact project name, newest first,
+    # one per line. Deliberately not get_session_by_project, which answers a
+    # different question — "which row is the original" (lowest id), for the
+    # duplicate fold. A caller that wants the row it just wrote needs the
+    # newest, and a caller clearing a name needs all of them.
+    local project; project=$(sanitize_pipe "$1")
+    _query "SELECT id FROM sessions WHERE project='$(_q "$project")' ORDER BY id DESC;"
+}
+
+get_last_cycle_end() {
+    # <marker-prefix> -> end_time of the most recent cycle break that has one,
+    # or empty when there is no such row. The prefix comes from the caller
+    # (core/text.sh owns what a cycle break looks like) so this stays a plain
+    # "newest row whose project starts with X" question and the adapter never
+    # has to know what a cycle is.
+    #
+    # Rows with no end_time are skipped rather than read as "no previous
+    # break": an import can carry one, and treating it as absent would date
+    # the next period from the beginning of the record.
+    local prefix="$1"
+    _query "SELECT end_time FROM sessions
+            WHERE project LIKE '$(_q "$prefix")%'
+              AND end_time IS NOT NULL AND end_time <> ''
+            ORDER BY id DESC LIMIT 1;"
+}
+
 get_last_session() {
-    # Returns: project|end_time-or-session_date|duration_seconds
+    # [exclude-prefix] -> project|end_time-or-session_date|duration_seconds
     # A duration-only row (past add --duration, check-in) has no end_time —
     # order by whichever of the two it has, same fallback list_sessions_in_range
     # already uses, so a check-in-logged session isn't invisible to `focus status`.
+    # The exclusion skips cycle-break markers: they delimit periods, they are
+    # not work, and "what was I last doing?" must not answer with one. [#46]
+    local exclude="${1:-}" where=""
+    [[ -n "$exclude" ]] && where="WHERE project NOT LIKE '$(_q "$exclude")%'"
     _query "SELECT project, COALESCE(end_time, session_date, ''), duration_seconds
             FROM sessions
+            $where
             ORDER BY COALESCE(end_time, session_date) DESC LIMIT 1;"
 }
 
 get_last_project() {
+    # [exclude-prefix] as in get_last_session: a bare `focus on` offers to
+    # continue the last project, and the marker a `cycle add` just wrote is
+    # the newest row — answering "continue 'Cycle break…'?" starts a real
+    # session named after a boundary. [#46]
+    local exclude="${1:-}" where=""
+    [[ -n "$exclude" ]] && where="WHERE project NOT LIKE '$(_q "$exclude")%'"
     _query "SELECT project FROM sessions
+            $where
             ORDER BY id DESC LIMIT 1;"
 }
 

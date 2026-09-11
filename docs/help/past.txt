@@ -1,12 +1,33 @@
 focus past — log and fix sessions
 
-  focus past list [n]
+  focus past list [n] [--show-cycles]
+  focus past cycles
+  focus past cycles show [id|-n]
   focus past add <project> <start> <end>
   focus past add <project> --duration 2h30m [--date YYYY/MM/DD]
   focus past modify <id> [project] [start] [end]      timestamped session
   focus past modify <id> [project] [--duration 2h]    duration-only session
   focus past modify <id> --notes                      rewrite the note
   focus past delete <id>
+
+With no count, list shows the full history: every session, newest first,
+however many there are. Give it a count and it shows that many instead,
+across breaks.
+
+Cycle breaks are never listed as sessions — they delimit periods, they aren't
+work. --show-cycles puts them back as boundary lines: here starts the new
+count, with the id every cycle command addresses it by. A note you gave the
+break — what the period was — prints under its boundary; the canned one
+doesn't.
+
+  cycles          every break you've recorded, newest first, as boundaries
+  cycles show     the current period — everything since the last break
+  cycles show -1  the period before it, -2 the one before that
+  cycles show <id>  the period that break opened
+
+A period runs from the break that opens it up to the next one. Counting back
+past the oldest break reaches the work that came before it; going further
+than that is an error.
 
 Forgot to start the timer? Log it after the fact.
 

@@ -48,7 +48,6 @@ _show() {
     printf "  %-24s = %s\n" "MAX_PROJECT_LENGTH"  "$MAX_PROJECT_LENGTH"
     printf "  %-24s = %s\n" "DATE_FORMAT"         "$DATE_FORMAT"
     printf "  %-24s = %s\n" "DATE_SHORT_FORMAT"   "$DATE_SHORT_FORMAT"
-    printf "  %-24s = %s\n" "REPORT_LIMIT"        "$REPORT_LIMIT"
     echo ""
     if [[ -f "$ENV_FILE" && -s "$ENV_FILE" ]]; then
         echo "Overrides ($ENV_FILE):"
@@ -64,7 +63,7 @@ _show() {
 
 _valid_key() {
     case "$1" in
-        NUDGE_INTERVAL|CHECKIN_INTERVAL|MAX_PROJECT_LENGTH|DATE_FORMAT|DATE_SHORT_FORMAT|REPORT_LIMIT|DB_PATH) return 0 ;;
+        NUDGE_INTERVAL|CHECKIN_INTERVAL|MAX_PROJECT_LENGTH|DATE_FORMAT|DATE_SHORT_FORMAT|DB_PATH) return 0 ;;
         *) return 1 ;;
     esac
 }
@@ -79,7 +78,7 @@ case "$sub" in
         key="${1:-}"; val="${2:-}"
         [[ -z "$key" || -z "$val" ]] && usage_error config
         _valid_key "$key" || { echo "❌ Unknown key: $key" >&2
-            echo "Valid: NUDGE_INTERVAL CHECKIN_INTERVAL MAX_PROJECT_LENGTH DATE_FORMAT DATE_SHORT_FORMAT REPORT_LIMIT DB_PATH" >&2
+            echo "Valid: NUDGE_INTERVAL CHECKIN_INTERVAL MAX_PROJECT_LENGTH DATE_FORMAT DATE_SHORT_FORMAT DB_PATH" >&2
             exit 2; }
         env_key="REFOCUS_${key}"
         quoted=$(_shell_quote "$val")

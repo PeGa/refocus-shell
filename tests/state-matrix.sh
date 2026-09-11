@@ -323,11 +323,11 @@ chk "config show renders override"   "0" "$([[ "$out" == *"NUDGE_INTERVAL='11'"*
 # must leave the mode untouched.
 echo "── config: file mode preserved ──"
 env_file="$SANDBOX/.env"
-./focus config set REPORT_LIMIT 6 >/dev/null 2>&1
+./focus config set MAX_PROJECT_LENGTH 6 >/dev/null 2>&1
 chmod 644 "$env_file"
-./focus config set REPORT_LIMIT 7 >/dev/null 2>&1
+./focus config set MAX_PROJECT_LENGTH 7 >/dev/null 2>&1
 chk "config set preserves 644"   "-rw-r--r--" "$(ls -l "$env_file" | cut -c1-10)"
-./focus config unset REPORT_LIMIT >/dev/null 2>&1
+./focus config unset MAX_PROJECT_LENGTH >/dev/null 2>&1
 chk "config unset preserves 644" "-rw-r--r--" "$(ls -l "$env_file" | cut -c1-10)"
 
 # ── project name sanitization: '|' desyncs every pipe-separated read ────────
@@ -840,6 +840,367 @@ env -i HOME="$HOME" PATH="$PATH" REFOCUS_ROOT="$ROOT" REFOCUS_DB_PATH="$REFOCUS_
     XDG_RUNTIME_DIR=/nonexistent DISPLAY=:9 bash focus-checkin >/dev/null 2>&1
 chk "checkin@no-display: rc=0"        "0" "$?"
 chk "checkin@no-display: silent no-op" "$before" "$(cnt)"
+
+# ── focus cycle: period markers ───────────────────────────────────────────────
+# A cycle break is an ordinary session row whose project reads a particular way.
+# Nothing in the schema says "cycle" — the project string is the whole of it, so
+# these assertions check the row shape and the recognition, not a new table.
+echo "── focus cycle ──"
+
+_cyc_rows()  { sqlite3 "$REFOCUS_DB_PATH" "SELECT COUNT(*) FROM sessions WHERE project LIKE 'Cycle break. Period:%';"; }
+_cyc_last()  { sqlite3 "$REFOCUS_DB_PATH" "SELECT MAX(id) FROM sessions WHERE project LIKE 'Cycle break. Period:%';"; }
+
+# core/text.sh is pure string work — exercise it directly.
+chk "cycle_label: shape"        "Cycle break. Period: Beginning to 2026-09-05 12:00" \
+    "$(bash -c "source core/text.sh; cycle_label 'Beginning' '2026-09-05 12:00'")"
+chk "is_cycle_label: match"     "0" "$(bash -c "source core/text.sh; is_cycle_label 'Cycle break. Period: a to b'"; echo $?)"
+chk "is_cycle_label: near miss" "1" "$(bash -c "source core/text.sh; is_cycle_label 'Break cycle. Period: a to b'"; echo $?)"
+chk "is_cycle_label: not a marker" "1" "$(bash -c "source core/text.sh; is_cycle_label 'fyc/real-work'"; echo $?)"
+chk "is_session_id: digits"     "0" "$(bash -c "source core/text.sh; is_session_id 42"; echo $?)"
+chk "is_session_id: mixed"      "1" "$(bash -c "source core/text.sh; is_session_id 4a2"; echo $?)"
+chk "is_session_id: empty"      "1" "$(bash -c "source core/text.sh; is_session_id ''"; echo $?)"
+chk "is_session_id: negative"   "1" "$(bash -c "source core/text.sh; is_session_id -1"; echo $?)"
+
+# First break has no predecessor, so the period opens at "Beginning".
+before_cyc=$(_cyc_rows)
+./focus cycle add >/dev/null 2>&1
+chk "cycle add: rc=0"        "0" "$?"
+chk "cycle add: one new row" "$(( before_cyc + 1 ))" "$(_cyc_rows)"
+cid=$(_cyc_last)
+chk "cycle add: opens at Beginning" "0" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT project FROM sessions WHERE id=$cid;" | grep -qF 'Period: Beginning to '; echo $?)"
+chk "cycle add: zero duration"      "0" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT duration_seconds FROM sessions WHERE id=$cid;")"
+chk "cycle add: not duration-only"  "0" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT duration_only FROM sessions WHERE id=$cid;")"
+chk "cycle add: start equals end"   "1" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT start_time=end_time FROM sessions WHERE id=$cid;")"
+chk "cycle add: placeholder note"   "0" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT notes FROM sessions WHERE id=$cid;" | grep -qF 'focus cycle modify --edit-notes'; echo $?)"
+
+# The next break closes the period the previous one opened.
+sqlite3 "$REFOCUS_DB_PATH" "UPDATE sessions SET end_time='2026-09-04T18:00:00-03:00' WHERE id=$cid;"
+./focus cycle add >/dev/null 2>&1
+chk "cycle add: period starts at the previous break" "0" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT project FROM sessions WHERE id=$(_cyc_last);" | grep -qF 'Period: 2026-09-04 18:00 to '; echo $?)"
+
+# A break marks a boundary between periods, so it waits for the session to end.
+./focus on cycle/guard >/dev/null 2>&1
+rows_before=$(_cyc_rows)
+./focus cycle add >/dev/null 2>&1
+chk "cycle add@active: rc=1"         "1" "$?"
+chk "cycle add@active: nothing written" "$rows_before" "$(_cyc_rows)"
+./focus pause >/dev/null 2>&1
+./focus cycle add >/dev/null 2>&1
+chk "cycle add@paused: rc=1"         "1" "$?"
+chk "cycle add@paused: nothing written" "$rows_before" "$(_cyc_rows)"
+printf 'y\nguard done\n' | ./focus off >/dev/null 2>&1
+
+# Disabled is not focusing, so a break is fine there.
+./focus disable >/dev/null 2>&1
+./focus cycle add >/dev/null 2>&1
+chk "cycle add@disabled: rc=0" "0" "$?"
+./focus enable >/dev/null 2>&1 || true
+
+# Two breaks inside one label-resolution render the same name. Coarsening the
+# format makes that collision deterministic instead of a race with the clock.
+./focus config set DATE_SHORT_FORMAT '%Y' >/dev/null 2>&1
+./focus cycle add >/dev/null 2>&1
+rows_before=$(_cyc_rows); id_before=$(_cyc_last)
+printf 'n\n' | ./focus cycle add >/dev/null 2>&1
+chk "cycle add@collision declined: rc=0"    "0" "$?"
+chk "cycle add@collision declined: no new row" "$rows_before" "$(_cyc_rows)"
+chk "cycle add@collision declined: row kept"   "$id_before"   "$(_cyc_last)"
+printf 'y\n' | ./focus cycle add >/dev/null 2>&1
+chk "cycle add@collision replaced: still one row" "$rows_before" "$(_cyc_rows)"
+chk "cycle add@collision replaced: fresh id" "0" \
+    "$([[ "$(_cyc_last)" -gt "$id_before" ]]; echo $?)"
+chk "cycle add: never two markers with one name" "0" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT COUNT(*)-COUNT(DISTINCT project) FROM sessions WHERE project LIKE 'Cycle break. Period:%';")"
+./focus config unset DATE_SHORT_FORMAT >/dev/null 2>&1
+
+# --edit-notes touches the note and nothing else.
+cid=$(_cyc_last)
+dur_before=$(sqlite3 "$REFOCUS_DB_PATH" "SELECT duration_seconds FROM sessions WHERE id=$cid;")
+proj_before=$(sqlite3 "$REFOCUS_DB_PATH" "SELECT project FROM sessions WHERE id=$cid;")
+printf 'invoice sent\n' | ./focus cycle modify --edit-notes "$cid" >/dev/null 2>&1
+chk "cycle modify: rc=0"              "0" "$?"
+chk "cycle modify: note replaced"     "invoice sent" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT notes FROM sessions WHERE id=$cid;")"
+chk "cycle modify: duration untouched" "$dur_before"  "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT duration_seconds FROM sessions WHERE id=$cid;")"
+chk "cycle modify: project untouched"  "$proj_before" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT project FROM sessions WHERE id=$cid;")"
+
+# cycle commands work on cycle breaks only; ordinary sessions belong to past.
+printf 'ordinary\n' | ./focus past add cycle/notacycle 2026/06/15-10:00 2026/06/15-11:00 >/dev/null 2>&1
+plain=$(sqlite3 "$REFOCUS_DB_PATH" "SELECT id FROM sessions WHERE project='cycle/notacycle';")
+./focus cycle modify --edit-notes "$plain" >/dev/null 2>&1
+chk "cycle modify@non-cycle: rc=1" "1" "$?"
+printf 'y\n' | ./focus cycle delete "$plain" >/dev/null 2>&1
+chk "cycle delete@non-cycle: rc=1" "1" "$?"
+chk "cycle delete@non-cycle: row survives" "1" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT COUNT(*) FROM sessions WHERE id=$plain;")"
+
+./focus cycle delete 999999 >/dev/null 2>&1;  chk "cycle delete@missing id: rc=1" "1" "$?"
+./focus cycle delete abc >/dev/null 2>&1;     chk "cycle delete@non-numeric: rc=2" "2" "$?"
+
+# delete confirms first.
+rows_before=$(_cyc_rows)
+printf 'n\n' | ./focus cycle delete "$cid" >/dev/null 2>&1
+chk "cycle delete declined: rc=0"     "0" "$?"
+chk "cycle delete declined: row kept" "$rows_before" "$(_cyc_rows)"
+printf 'y\n' | ./focus cycle delete "$cid" >/dev/null 2>&1
+chk "cycle delete: rc=0"              "0" "$?"
+chk "cycle delete: row gone"          "$(( rows_before - 1 ))" "$(_cyc_rows)"
+
+# The id printed by `add` must be the row `add` wrote. get_session_by_project
+# answers a different question — lowest id, the "original" for the duplicate
+# fold — so using it here reported a pre-existing row and sent --edit-notes at
+# someone else's note. Replace also has to clear *every* row under the name, or
+# it leaves the duplicate it was called to resolve.
+./focus config set DATE_SHORT_FORMAT '%Y' >/dev/null 2>&1
+./focus cycle add >/dev/null 2>&1
+./focus cycle add >/dev/null 2>&1
+dup_label=$(sqlite3 "$REFOCUS_DB_PATH" "SELECT project FROM sessions WHERE id=$(_cyc_last);")
+bash -c "source env.sh; source services/database.sh; record_session '$dup_label' '2026-01-01T00:00:00-03:00' '2026-01-01T00:00:00-03:00' 0 'pre-existing'" >/dev/null
+reported=$(printf 'y\n' | ./focus cycle add 2>/dev/null | sed -n 's/.*✅ Cycle break \([0-9]*\):.*/\1/p')
+chk "cycle add@duplicates: only one row left under the name" "1" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT COUNT(*) FROM sessions WHERE project='$dup_label';")"
+chk "cycle add@duplicates: reported id is the row it wrote" "$reported" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT id FROM sessions WHERE project='$dup_label';")"
+chk "cycle add@duplicates: that row carries the placeholder" "0" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT notes FROM sessions WHERE id=$reported;" | grep -qF 'focus cycle modify --edit-notes'; echo $?)"
+./focus config unset DATE_SHORT_FORMAT >/dev/null 2>&1
+
+# A '|' in the date format is transliterated on the way into storage, so the
+# label echoed back has to be transliterated too or it advertises a name no
+# lookup will match [past.sh does the same for the same reason].
+./focus config set DATE_SHORT_FORMAT '%Y-%m-%d | %H:%M' >/dev/null 2>&1
+shown=$(./focus cycle add 2>/dev/null | sed -n 's/^✅ Cycle break [0-9]*: //p')
+chk "cycle add: message matches what was stored" "$shown" \
+    "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT project FROM sessions WHERE id=$(_cyc_last);")"
+./focus config unset DATE_SHORT_FORMAT >/dev/null 2>&1
+
+# A break with no end_time (importable) must not read as "there was no break":
+# the period would then be dated from the beginning of the record.
+nulldb="$SANDBOX/cycle-nullend.db"
+REFOCUS_DB_PATH="$nulldb" ./focus cycle add >/dev/null 2>&1
+REFOCUS_DB_PATH="$nulldb" bash -c "source env.sh; source services/database.sh; db_import_session_row 'Cycle break. Period: Beginning to 2020-01-01 00:00' '' '' 0 '' 0 ''" >/dev/null
+REFOCUS_DB_PATH="$nulldb" ./focus cycle add >/dev/null 2>&1
+chk "cycle add: skips a break with no end_time" "1" \
+    "$(sqlite3 "$nulldb" "SELECT project FROM sessions ORDER BY id DESC LIMIT 1;" | grep -cv 'Period: Beginning to')"
+
+# The command has to be findable: `focus help` prints global.txt.
+chk "cycle: listed in the help index" "0" "$(grep -q '^  cycle add' docs/help/global.txt; echo $?)"
+chk "cycle: no heading collides with the command name" "0" \
+    "$(grep -qv 'the focus cycle' docs/help/global.txt; echo $?)"
+
+# Command surface [CONV-HELP] [CONV-EXIT].
+./focus cycle >/dev/null 2>&1;        chk "cycle: bare is a usage error"    "2" "$?"
+./focus cycle bogus >/dev/null 2>&1;  chk "cycle: unknown sub is usage"     "2" "$?"
+./focus cycle add extra >/dev/null 2>&1; chk "cycle add: extra args rejected" "2" "$?"
+./focus cycle modify "$cid" >/dev/null 2>&1; chk "cycle modify without --edit-notes: usage" "2" "$?"
+./focus cycle --help >/dev/null 2>&1; chk "cycle --help: rc=0"              "0" "$?"
+h_cyc=$(./focus cycle --help 2>&1); h_err=$(./focus cycle 2>&1)
+chk "cycle: usage error prints the same doc" "$h_cyc" "$h_err"
+
+# ── periods: listing and reporting between cycle breaks ───────────────────────
+# A period is an id window, not a time window. Ids record the order things were
+# logged; comparing timestamps instead puts a duration-only row — which carries
+# a date and no clock time — on both sides of a boundary falling inside its day.
+echo "── periods [past cycles / report cycle] ──"
+
+pdb="$SANDBOX/periods.db"
+_p() { REFOCUS_DB_PATH="$pdb" ./focus "$@"; }
+_pmk() { printf '%s\n' "$2" | REFOCUS_DB_PATH="$pdb" ./focus past add "$1" "$3" "$4" >/dev/null 2>&1; }
+_pids() { REFOCUS_DB_PATH="$pdb" ./focus "$@" 2>/dev/null | awk '/^[0-9]/{printf "%s ", $1}'; }
+# Breaks render as boundary lines, not table rows [#46]: `──── 🔚 id N · …`, so
+# _pids never sees them and their ids come off the boundary instead.
+_pseps() { REFOCUS_DB_PATH="$pdb" ./focus "$@" 2>/dev/null | awk '/🔚/{printf "%s ", $4}'; }
+
+_p status >/dev/null 2>&1
+_pmk p/a1 n1 2026/01/01-10:00 2026/01/01-11:00     # id 1
+_pmk p/a2 n2 2026/01/02-10:00 2026/01/02-11:00     # id 2
+_p cycle add >/dev/null 2>&1                        # id 3  C1
+_pmk p/b1 n3 2026/02/01-10:00 2026/02/01-12:00     # id 4
+_p cycle add >/dev/null 2>&1                        # id 5  C2
+_pmk p/c1 n4 2026/03/01-10:00 2026/03/01-11:00     # id 6
+_pmk p/c2 n5 2026/03/02-10:00 2026/03/02-11:00     # id 7
+# A duration-only row dated on a boundary day: the case that made time windows
+# double-count. Logged last, so it belongs to the current period by id.
+REFOCUS_DB_PATH="$pdb" bash -c "source env.sh; source services/database.sh; record_duration_session 'p/manual' 1800 '2026-02-01' ''" >/dev/null
+
+chk "past list: full history, cycles hidden"         "8 7 6 4 2 1 "     "$(_pids past list)"
+chk "past list --show-cycles: same sessions as bare list" "8 7 6 4 2 1 " "$(_pids past list --show-cycles)"
+chk "past list --show-cycles: breaks as boundaries"  "5 3 "     "$(_pseps past list --show-cycles)"
+chk "past cycles: every break, newest first"         "5 3 "     "$(_pseps past cycles)"
+chk "cycles show: the current period"                "8 7 6 "   "$(_pids past cycles show)"
+chk "cycles show 0: same again"                      "8 7 6 "   "$(_pids past cycles show 0)"
+chk "cycles show -1: the period before"              "4 "       "$(_pids past cycles show -1)"
+chk "cycles show -2: before the oldest break"        "2 1 "     "$(_pids past cycles show -2)"
+chk "cycles show <id>: the period that break opened" "4 "       "$(_pids past cycles show 3)"
+chk "cycles show: never prints the breaks"           "0" \
+    "$(_p past cycles show -1 2>/dev/null | grep -c 'Cycle break')"
+
+# The boundary-day manual row lands in exactly one period, not both.
+chk "boundary-day manual row: in the current period" "1" \
+    "$(_p past cycles show 2>/dev/null | grep -c 'p/manual')"
+chk "boundary-day manual row: not also in the previous one" "0" \
+    "$(_p past cycles show -1 2>/dev/null | grep -c 'p/manual')"
+
+# An explicit count crosses breaks and applies the limit to real sessions only —
+# filtering after a SQL LIMIT would hand back fewer rows than asked for.
+chk "past list n: exactly n rows, breaks excluded"   "4" \
+    "$(_p past list 4 2>/dev/null | awk '/^[0-9]/' | wc -l | tr -d ' ')"
+chk "past list n: no break among them"               "0" \
+    "$(_p past list 4 2>/dev/null | grep -c 'Cycle break')"
+chk "past list n --show-cycles: breaks count toward n" "1" \
+    "$(_p past list 4 --show-cycles 2>/dev/null | grep -c 'Cycle break')"
+
+# The boundary payoff [#46]: the ~50-char label used to overflow the %-22s
+# project column and shove that row's Start/End/Duration right. A break takes
+# no table row at all now, and the canned note stays silent — only a note that
+# says what the period was gets printed.
+chk "no table row carries the break label"           "0" \
+    "$(_p past list --show-cycles 2>/dev/null | grep -c '^[0-9].*Cycle break')"
+chk "break label only on boundary lines"             "2" \
+    "$(_p past list --show-cycles 2>/dev/null | grep -c '^──── 🔚')"
+chk "canned note stays silent"                       "0" \
+    "$(_p past list --show-cycles 2>/dev/null | grep -c 'Edit with')"
+chk "past cycles: no table header over boundaries"   "0" \
+    "$(_p past cycles 2>/dev/null | grep -c 'Duration')"
+
+# A note that replaced the placeholder is the period's own: it prints under
+# its boundary line.
+REFOCUS_DB_PATH="$pdb" bash -c "source env.sh; source core/text.sh; source services/database.sh; update_session_notes 5 'invoice #12 sent'" >/dev/null
+chk "edited note renders under its boundary"         "1" \
+    "$(_p past cycles 2>/dev/null | grep -c 'invoice #12 sent')"
+chk "edited note: canned text gone"                  "0" \
+    "$(_p past cycles 2>/dev/null | grep -c 'Edit with')"
+
+# Selector errors: malformed is usage, well-formed-but-absent is state.
+_p past cycles show -9 >/dev/null 2>&1;  chk "cycles show -9: rc=1"    "1" "$?"
+_p past cycles show 6 >/dev/null 2>&1;   chk "cycles show non-break: rc=1" "1" "$?"
+_p past cycles show 2.5 >/dev/null 2>&1; chk "cycles show 2.5: rc=2"   "2" "$?"
+_p past cycles bogus >/dev/null 2>&1;    chk "cycles bogus: rc=2"      "2" "$?"
+
+# report gains the same selector and never shows a break, in any mode.
+rc_out=$(_p report cycle 2>/dev/null)
+chk "report cycle: current period total" "0" \
+    "$([[ "$rc_out" == *"across 3 sessions"* ]]; echo $?)"
+rc_out=$(_p report cycle -1 2>/dev/null)
+chk "report cycle -1: previous period total" "0" \
+    "$([[ "$rc_out" == *"Total: 2h 0m across 1 session"* ]]; echo $?)"
+chk "report cycle: no break in the output" "0" \
+    "$(_p report cycle 2>/dev/null | grep -c 'Cycle break')"
+rc_out=$(_p report custom 9000 2>/dev/null)
+chk "report custom: breaks excluded from the count" "0" \
+    "$([[ "$rc_out" == *"across 6 sessions"* ]]; echo $?)"
+chk "report custom: no break in the project table" "0" \
+    "$(_p report custom 9000 2>/dev/null | grep -c 'Cycle break')"
+_p report cycle -9 >/dev/null 2>&1;  chk "report cycle -9: rc=1"  "1" "$?"
+_p report cycle abc >/dev/null 2>&1; chk "report cycle abc: rc=2" "2" "$?"
+
+# With no breaks at all the current period is simply everything.
+nodb="$SANDBOX/nocycles.db"
+REFOCUS_DB_PATH="$nodb" ./focus status >/dev/null 2>&1
+printf 'x\n' | REFOCUS_DB_PATH="$nodb" ./focus past add solo/one 2026/01/01-10:00 2026/01/01-11:00 >/dev/null 2>&1
+chk "past list with no breaks: lists everything" "1 " \
+    "$(REFOCUS_DB_PATH="$nodb" ./focus past list 2>/dev/null | awk '/^[0-9]/{printf "%s ", $1}')"
+REFOCUS_DB_PATH="$nodb" ./focus past cycles show -1 >/dev/null 2>&1
+chk "cycles show -1 with no breaks: rc=1" "1" "$?"
+
+# ── reads that answer "what was I last doing?" must skip markers [#46] ────────
+# A `cycle add` writes the newest row, and both get_last_project (focus on's
+# continue offer) and get_last_session (focus status's Last:) used to return
+# rows regardless of kind — so the marker displaced real work in exactly the
+# reads whose job is naming the last real thing.
+echo "── reads skip cycle markers [on / status] ──"
+
+rdb="$SANDBOX/reads46.db"
+REFOCUS_DB_PATH="$rdb" ./focus status >/dev/null 2>&1
+REFOCUS_DB_PATH="$rdb" ./focus enable >/dev/null 2>&1
+printf 'note\n' | REFOCUS_DB_PATH="$rdb" ./focus past add r46/real 2026/04/01-10:00 2026/04/01-12:00 >/dev/null 2>&1
+REFOCUS_DB_PATH="$rdb" ./focus cycle add >/dev/null 2>&1   # marker becomes the newest row
+
+st=$(REFOCUS_DB_PATH="$rdb" ./focus status 2>&1)
+chk "status Last: names the real session, not the marker" "0" \
+    "$([[ "$st" == *"Last: r46/real"* && "$st" != *"Cycle break"* ]]; echo $?)"
+
+on_out=$(printf 'n\n' | REFOCUS_DB_PATH="$rdb" ./focus on 2>&1)
+chk "on: offers the last real project, not the marker" "0" \
+    "$([[ "$on_out" == *"Continue 'r46/real'"* && "$on_out" != *"Cycle break"* ]]; echo $?)"
+chk "on: declined offer starts nothing" "1" \
+    "$(REFOCUS_DB_PATH="$rdb" ./focus status 2>&1 | grep -c 'Not focusing')"
+
+# A marker-only DB has no last project to offer: bare `on` is a usage error,
+# and status has no Last: line — neither falls back to the marker.
+mdb="$SANDBOX/markers46.db"
+REFOCUS_DB_PATH="$mdb" ./focus status >/dev/null 2>&1
+REFOCUS_DB_PATH="$mdb" ./focus enable >/dev/null 2>&1
+REFOCUS_DB_PATH="$mdb" ./focus cycle add >/dev/null 2>&1
+REFOCUS_DB_PATH="$mdb" ./focus on >/dev/null 2>&1
+chk "on with only markers: rc=2" "2" "$?"
+mst=$(REFOCUS_DB_PATH="$mdb" ./focus status 2>&1)
+chk "status with only markers: no Last line" "0" \
+    "$([[ "$mst" != *"Last:"* ]]; echo $?)"
+
+# ── cycle modify --edit-time: moving a marker [#50] ───────────────────────────
+# A break is one instant; the label is a receipt derived from it. Moving the
+# instant regenerates the receipt and the next break's — its `from` is this
+# one's timestamp — while every period window stays put, because windows are
+# ids, not times.
+echo "── cycle edit-time [move a marker] ──"
+
+edb="$SANDBOX/edittime.db"
+_e() { REFOCUS_DB_PATH="$edb" ./focus "$@"; }
+_peel() { sqlite3 "$edb" "SELECT REPLACE(project,'Cycle break. Period: ','') FROM sessions WHERE id=$1;"; }
+_e status >/dev/null 2>&1
+# Three breaks at controlled instants, built through the same gears the
+# handler uses so the stored shape matches a real `cycle add` exactly.
+REFOCUS_DB_PATH="$edb" bash -c '
+    source env.sh; source core/time.sh; source core/text.sh; source services/database.sh
+    t1=$(parse_time 2026/01/01-10:00); t2=$(parse_time 2026/02/01-10:00); t3=$(parse_time 2026/03/01-10:00)
+    l1=$(ts_format "$t1" "$DATE_SHORT_FORMAT"); l2=$(ts_format "$t2" "$DATE_SHORT_FORMAT"); l3=$(ts_format "$t3" "$DATE_SHORT_FORMAT")
+    record_session "$(cycle_label Beginning "$l1")" "$t1" "$t1" 0 ""
+    record_session "$(cycle_label "$l1" "$l2")" "$t2" "$t2" 0 ""
+    record_session "$(cycle_label "$l2" "$l3")" "$t3" "$t3" 0 ""
+' >/dev/null
+
+_e cycle modify --edit-time 2 2026/02/15-12:00 >/dev/null 2>&1
+chk "edit-time: rc=0" "0" "$?"
+chk "edit-time: both timestamps are the new instant" "1" \
+    "$(sqlite3 "$edb" "SELECT COUNT(*) FROM sessions WHERE id=2 AND start_time LIKE '2026-02-15T12:00%' AND start_time=end_time;")"
+chk "edit-time: own receipt keeps its from, takes the new to" \
+    "2026-01-01 10:00 to 2026-02-15 12:00" "$(_peel 2)"
+chk "edit-time: next break re-labelled from the new instant" \
+    "2026-02-15 12:00 to 2026-03-01 10:00" "$(_peel 3)"
+chk "edit-time: next break's own instant untouched" "1" \
+    "$(sqlite3 "$edb" "SELECT COUNT(*) FROM sessions WHERE id=3 AND start_time LIKE '2026-03-01T10:00%' AND start_time=end_time;")"
+
+# A marker cannot cross its neighbours, in either direction.
+_e cycle modify --edit-time 2 2026/03/02-10:00 >/dev/null 2>&1
+chk "edit-time: crossing the next break refuses" "1" "$?"
+_e cycle modify --edit-time 2 2025/12/31-10:00 >/dev/null 2>&1
+chk "edit-time: crossing the previous break refuses" "1" "$?"
+chk "edit-time: refusals wrote nothing" "2026-02-15 12:00" "$(_peel 2 | sed 's/.*to //')"
+
+# Oldest break: no predecessor, so the receipt still opens at Beginning.
+_e cycle modify --edit-time 1 2026/01/15-09:00 >/dev/null 2>&1
+chk "edit-time: oldest keeps Beginning" "Beginning to 2026-01-15 09:00" "$(_peel 1)"
+chk "edit-time: oldest cascades into the next" "2026-01-15 09:00 to 2026-02-15 12:00" "$(_peel 2)"
+
+# Newest break: nothing above it, so nothing to cascade into.
+_e cycle modify --edit-time 3 2026/03/20-18:30 >/dev/null 2>&1
+chk "edit-time: newest moves with no cascade" "2026-02-15 12:00 to 2026-03-20 18:30" "$(_peel 3)"
+_e cycle modify --edit-time 2 2026/03/20-18:30 >/dev/null 2>&1
+chk "edit-time: landing exactly on a neighbour refuses" "1" "$?"
+
+# Usage and kind guards.
+_e cycle modify --edit-time 2 >/dev/null 2>&1
+chk "edit-time: missing time is usage" "2" "$?"
+_e cycle modify --edit-time 2 nope >/dev/null 2>&1
+chk "edit-time: unparseable time is usage" "2" "$?"
+_e cycle modify --edit-time 2.5 2026/02/20-10:00 >/dev/null 2>&1
+chk "edit-time: non-numeric id is usage" "2" "$?"
+printf 'n\n' | _e past add e50/real 2026/02/10-10:00 2026/02/10-11:00 >/dev/null 2>&1
+_e cycle modify --edit-time 4 2026/02/20-10:00 >/dev/null 2>&1
+chk "edit-time: non-cycle id refuses" "1" "$?"
 
 # ── result ───────────────────────────────────────────────────────────────────
 echo
