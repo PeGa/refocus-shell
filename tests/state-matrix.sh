@@ -1081,6 +1081,22 @@ chk "past list n: no break among them"               "0" \
 chk "past list n --show-cycles: breaks count toward n" "1" \
     "$(periods_focus past list 4 --show-cycles 2>/dev/null | grep -c 'Cycle break')"
 
+# The count is validated before it reaches SQL [#51]: a word or a decimal is
+# a usage error — not sqlite's rc=20, not a parse-error dump leaking adapter
+# SQL — and a negative is refused outright, since sqlite reads a negative
+# LIMIT as *unbounded*. 0 stays a legal "show nothing".
+periods_focus past list abc >/dev/null 2>&1
+chk "past list abc: rc=2"  "2" "$?"
+periods_focus past list 2.5 >/dev/null 2>&1
+chk "past list 2.5: rc=2"  "2" "$?"
+periods_focus past list -3 >/dev/null 2>&1
+chk "past list -3: rc=2"   "2" "$?"
+periods_focus past list 0 >/dev/null 2>&1
+chk "past list 0: rc=0"    "0" "$?"
+bad_out=$(periods_focus past list abc 2>&1)
+chk "past list abc: no SQL fragment leaks" "0" \
+    "$([[ "$bad_out" != *"Error: in prepare"* && "$bad_out" != *"ORDER BY"* ]]; echo $?)"
+
 # The boundary payoff [#46]: the ~50-char label used to overflow the %-22s
 # project column and shove that row's Start/End/Duration right. A break takes
 # no table row at all now, and the canned note stays silent — only a note that
@@ -1230,6 +1246,70 @@ chk "edit-time: non-numeric id is usage" "2" "$?"
 printf 'n\n' | edittime_focus past add e50/real 2026/02/10-10:00 2026/02/10-11:00 >/dev/null 2>&1
 edittime_focus cycle modify --edit-time 4 2026/02/20-10:00 >/dev/null 2>&1
 chk "edit-time: non-cycle id refuses" "1" "$?"
+
+# A successful move exits 0 on EVERY path — the no-cascade one (newest break)
+# used to exit 1 because a trailing `[[ … ]] && echo` was the branch's last
+# command. The receipt assertions above passed while the rc was wrong.
+edittime_focus cycle modify --edit-time 3 2026/03/21-09:00 >/dev/null 2>&1
+chk "edit-time: newest move exits 0 (no-cascade path)" "0" "$?"
+chk "edit-time: newest receipt took the move" "2026-02-15 12:00 to 2026-03-21 09:00" \
+    "$(break_receipt 3)"
+
+# A break closes a period that already happened; the future is refused, and
+# the refusal writes nothing.
+edittime_focus cycle modify --edit-time 3 2099/01/01-00:00 >/dev/null 2>&1
+chk "edit-time: future instant refuses" "1" "$?"
+chk "edit-time: future refusal wrote nothing" "2026-03-21 09:00" \
+    "$(break_receipt 3 | sed 's/.*to //')"
+
+# Leading-zero ids normalise: the duplicate check compares ids as strings, and
+# "02" vs "2" used to read the row's OWN label as somebody else's — refusing a
+# clean same-minute no-op.
+edittime_focus cycle modify --edit-time 02 2026/02/15-12:00 >/dev/null 2>&1
+chk "edit-time: leading-zero id, same-minute no-op, rc=0" "0" "$?"
+chk "edit-time: no-op kept the receipt" "2026-01-15 09:00 to 2026-02-15 12:00" \
+    "$(break_receipt 2)"
+
+# Deleting a break re-anchors the next receipt to the nearest survivor —
+# the invariant --edit-time upholds, which delete used to strand.
+ddb="$SANDBOX/deleterelabel.db"
+REFOCUS_DB_PATH="$ddb" bash -c '
+    source env.sh; source core/time.sh; source core/text.sh; source services/database.sh
+    db_ensure
+    ts1=$(parse_time 2026/01/01-10:00); ts2=$(parse_time 2026/02/01-10:00); ts3=$(parse_time 2026/03/01-10:00)
+    lbl1=$(ts_format "$ts1" "$DATE_SHORT_FORMAT"); lbl2=$(ts_format "$ts2" "$DATE_SHORT_FORMAT"); lbl3=$(ts_format "$ts3" "$DATE_SHORT_FORMAT")
+    record_session "$(cycle_label Beginning "$lbl1")" "$ts1" "$ts1" 0 ""
+    record_session "$(cycle_label "$lbl1" "$lbl2")" "$ts2" "$ts2" 0 ""
+    record_session "$(cycle_label "$lbl2" "$lbl3")" "$ts3" "$ts3" 0 ""
+' >/dev/null
+delete_receipt() { sqlite3 "$ddb" "SELECT REPLACE(project,'Cycle break. Period: ','') FROM sessions WHERE id=$1;"; }
+printf 'y\n' | REFOCUS_DB_PATH="$ddb" ./focus cycle delete 2 >/dev/null 2>&1
+chk "delete: rc=0" "0" "$?"
+chk "delete: next receipt re-anchored to the survivor" "2026-01-01 10:00 to 2026-03-01 10:00" \
+    "$(delete_receipt 3)"
+printf 'y\n' | REFOCUS_DB_PATH="$ddb" ./focus cycle delete 1 >/dev/null 2>&1
+chk "delete: last survivor re-opens at Beginning" "Beginning to 2026-03-01 10:00" \
+    "$(delete_receipt 3)"
+
+# An import-damaged break (no end_time) is skipped by the cascade, never
+# rewritten: it has no instant to name, and date(1) fed an empty date answers
+# today-midnight instead of failing.
+ndb="$SANDBOX/nullend.db"
+REFOCUS_DB_PATH="$ndb" bash -c '
+    source env.sh; source core/time.sh; source core/text.sh; source services/database.sh
+    db_ensure
+    ts1=$(parse_time 2026/01/01-10:00); lbl1=$(ts_format "$ts1" "$DATE_SHORT_FORMAT")
+    record_session "$(cycle_label Beginning "$lbl1")" "$ts1" "$ts1" 0 ""
+    db_import_session_row "$(cycle_label "$lbl1" "")" "" "" 0 "" 0 ""
+' >/dev/null
+label_before=$(sqlite3 "$ndb" "SELECT project FROM sessions WHERE id=2;")
+REFOCUS_DB_PATH="$ndb" ./focus cycle modify --edit-time 1 2026/01/15-09:00 >/dev/null 2>&1
+chk "edit-time: null-end next skipped, rc=0" "0" "$?"
+chk "edit-time: null-end receipt untouched" "$label_before" \
+    "$(sqlite3 "$ndb" "SELECT project FROM sessions WHERE id=2;")"
+null_out=$(REFOCUS_DB_PATH="$ndb" ./focus report cycle 2>/dev/null)
+chk "report cycle: null-end opener reads unknown, not midnight" "0" \
+    "$([[ "$null_out" == *"Period: unknown → now"* ]]; echo $?)"
 
 # ── result ───────────────────────────────────────────────────────────────────
 echo

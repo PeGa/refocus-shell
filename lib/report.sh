@@ -170,6 +170,10 @@ case "$period" in
             local row; row=$(get_session "$1")
             [[ -z "$row" ]] && { printf 'now'; return 0; }
             local end_t; IFS='|' read -r _ _ _ end_t _ <<< "$row"
+            # An import-damaged row with no end_time has no moment to name:
+            # date(1) handed an empty date answers today-midnight, not an
+            # error, so the emptiness is checked before formatting.
+            [[ -z "$end_t" ]] && { printf 'unknown'; return 0; }
             ts_format "$end_t" "$DATE_SHORT_FORMAT" 2>/dev/null || printf '%s' "$end_t"
         }
         if [[ -n "$lo" ]]; then _range_from=$(_cycle_moment "$lo"); else _range_from="Beginning"; fi
