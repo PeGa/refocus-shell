@@ -19,6 +19,19 @@ _sql_quote() {
     printf '%s' "${1//\'/\'\'}"
 }
 
+_require_uint() {
+    # <label> <value> [empty-ok] -> 0 when the value can be interpolated into
+    # SQL as a bare integer. Handlers validate first [CONV-ID], but the file
+    # that interpolates is the file that defends: past these checks a word
+    # becomes a sqlite parse error and a negative becomes an unbounded LIMIT.
+    # [#51]
+    if [[ "${3:-}" == "empty-ok" && -z "$2" ]]; then return 0; fi
+    [[ "$2" =~ ^[0-9]+$ ]] || {
+        echo "❌ DB $1 must be a non-negative integer (got: $2)" >&2
+        return 2
+    }
+}
+
 _exec() {
     # Fire-and-forget write. Dies loud on error.
     sqlite3 "$DB_PATH" "$1" || { echo "❌ DB write failed" >&2; return 1; }
@@ -261,6 +274,7 @@ list_sessions() {
     # LIMIT is applied by the database, so filtering afterwards would return
     # fewer rows than were asked for.
     local limit="$1" exclude="${2:-}" where=""
+    _require_uint "limit" "$limit" || return 2
     [[ -n "$exclude" ]] && where="WHERE project NOT LIKE '$(_sql_quote "$exclude")%'"
     _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
                    duration_seconds, $_NOTES_ENCODED, duration_only, COALESCE(session_date,'')
@@ -289,6 +303,8 @@ list_sessions_by_id_range() {
     # row — which carries a date and no clock time — on both sides of a
     # boundary that falls inside its day.
     local lo="${1:-}" hi="${2:-}" where="WHERE 1=1"
+    _require_uint "id bound" "$lo" empty-ok || return 2
+    _require_uint "id bound" "$hi" empty-ok || return 2
     [[ -n "$lo" ]] && where="$where AND id >= $lo"
     [[ -n "$hi" ]] && where="$where AND id < $hi"
     _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
@@ -303,6 +319,8 @@ get_project_totals_by_id_range() {
     # longest first. Same aggregate-in-SQL rule as the date-range version
     # (PORT-BASH32), and the same reason the exclusion is a WHERE clause.
     local lo="${1:-}" hi="${2:-}" exclude="${3:-}" where="WHERE 1=1"
+    _require_uint "id bound" "$lo" empty-ok || return 2
+    _require_uint "id bound" "$hi" empty-ok || return 2
     [[ -n "$lo" ]] && where="$where AND id >= $lo"
     [[ -n "$hi" ]] && where="$where AND id < $hi"
     [[ -n "$exclude" ]] && where="$where AND project NOT LIKE '$(_sql_quote "$exclude")%'"

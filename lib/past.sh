@@ -90,6 +90,16 @@ case "$sub" in
             esac
         done
 
+        # The count goes straight into SQL's LIMIT, so its shape is checked
+        # here rather than by sqlite: unvalidated, a word leaked a raw parse
+        # error (plus a fragment of the adapter's SQL) at rc=1, a decimal
+        # leaked sqlite's own rc=20, and a negative read as an *unbounded*
+        # LIMIT. 0 stays a legal "show nothing". [#51]
+        if [[ -n "$limit" ]] && ! [[ "$limit" =~ ^[0-9]+$ ]]; then
+            echo "❌ Not a row count: $limit" >&2
+            usage_error past
+        fi
+
         _render_header
         if [[ -n "$limit" ]]; then
             # An explicit count is a count of rows, so the exclusion happens in
