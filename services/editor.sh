@@ -20,21 +20,21 @@ _resolve_editor() {
     # $VISUAL/$EDITOR win when the user has set them. Otherwise find a real
     # terminal editor and use it locally — never exported; the user's
     # environment is not ours to write to.
-    local ed="${VISUAL:-${EDITOR:-}}"
-    if [[ -z "$ed" ]]; then
+    local editor_cmd="${VISUAL:-${EDITOR:-}}"
+    if [[ -z "$editor_cmd" ]]; then
         local cand
         for cand in nano vim vi; do
-            if command -v "$cand" >/dev/null 2>&1; then ed="$cand"; break; fi
+            if command -v "$cand" >/dev/null 2>&1; then editor_cmd="$cand"; break; fi
         done
     fi
     # Last resort on macOS, if the box somehow has no vi: hand it to the GUI.
     # -W blocks until the editor quits — bare `open` returns immediately and we
     # would read the file back before anything was typed. -n forces a new
     # instance so -W still blocks when the editor is already running.
-    if [[ -z "$ed" && "$(uname -s)" == "Darwin" ]] && command -v open >/dev/null 2>&1; then
-        ed="open -W -n -t"
+    if [[ -z "$editor_cmd" && "$(uname -s)" == "Darwin" ]] && command -v open >/dev/null 2>&1; then
+        editor_cmd="open -W -n -t"
     fi
-    printf '%s' "$ed"
+    printf '%s' "$editor_cmd"
 }
 
 capture_notes() {
@@ -62,8 +62,8 @@ capture_notes() {
         return 0
     fi
 
-    local ed; ed=$(_resolve_editor)
-    if [[ -z "$ed" ]]; then
+    local editor_cmd; editor_cmd=$(_resolve_editor)
+    if [[ -z "$editor_cmd" ]]; then
         # No editor on the box at all (a stripped container image). Degraded
         # single-line prompt: Enter means skip — leave initial untouched,
         # same as it would be if there were nothing to type. Typing text
@@ -85,9 +85,9 @@ capture_notes() {
 
     # The editor must talk to the terminal, not to us: our stdout is a command
     # substitution pipe, and a full-screen editor would render straight into
-    # the note. $ed is deliberately unquoted — it may carry flags.
+    # the note. $editor_cmd is deliberately unquoted — it may carry flags.
     # shellcheck disable=SC2086
-    $ed "$tmp" </dev/tty >/dev/tty 2>&1 || true
+    $editor_cmd "$tmp" </dev/tty >/dev/tty 2>&1 || true
 
     # Drop comment lines; $( ) strips the trailing newlines for us.
     local out; out=$(sed '/^[[:space:]]*#/d' "$tmp")

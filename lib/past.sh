@@ -61,13 +61,13 @@ _render_rows() {
             continue
         fi
         if [[ "$duration_only" == "1" ]]; then
-            s="(manual: $session_date)"
-            e=""
+            start_str="(manual: $session_date)"
+            end_str=""
         else
-            s=$(ts_format "$start" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$start")
-            e=$(ts_format "$end"   "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$end")
+            start_str=$(ts_format "$start" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$start")
+            end_str=$(ts_format "$end"   "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$end")
         fi
-        printf "%-4s %-22s %-19s %-19s %-8s\n" "$id" "$project" "$s" "$e" "$(fmt_duration "$dur")"
+        printf "%-4s %-22s %-19s %-19s %-8s\n" "$id" "$project" "$start_str" "$end_str" "$(fmt_duration "$dur")"
         if [[ -n "$notes" ]]; then
             notes_block "     📝 " "        " "$(notes_decode "$notes")"
         fi
@@ -83,10 +83,10 @@ case "$sub" in
     list)
         show_cycles=0
         limit=""
-        for _a in "$@"; do
-            case "$_a" in
+        for _arg in "$@"; do
+            case "$_arg" in
                 --show-cycles) show_cycles=1 ;;
-                *)             limit="$_a"   ;;
+                *)             limit="$_arg"   ;;
             esac
         done
 
@@ -189,8 +189,8 @@ case "$sub" in
         # threading it through both. [#25]
         want_notes=0
         _args=()
-        for _a in "$@"; do
-            if [[ "$_a" == "--notes" ]]; then want_notes=1; else _args+=("$_a"); fi
+        for _arg in "$@"; do
+            if [[ "$_arg" == "--notes" ]]; then want_notes=1; else _args+=("$_arg"); fi
         done
         set -- ${_args[@]+"${_args[@]}"}
 

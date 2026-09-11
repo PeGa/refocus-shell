@@ -58,19 +58,19 @@ has_desktop_display() {
         return 1
     fi
 
-    local wd="${WAYLAND_DISPLAY:-}"
-    if [[ -n "$wd" ]]; then
-        case "$wd" in
-            /*) [[ -S "$wd" ]] && return 0 ;;
-            *)  [[ -S "${XDG_RUNTIME_DIR:-}/$wd" ]] && return 0 ;;
+    local wayland_display="${WAYLAND_DISPLAY:-}"
+    if [[ -n "$wayland_display" ]]; then
+        case "$wayland_display" in
+            /*) [[ -S "$wayland_display" ]] && return 0 ;;
+            *)  [[ -S "${XDG_RUNTIME_DIR:-}/$wayland_display" ]] && return 0 ;;
         esac
     fi
-    local d="${DISPLAY:-}"
-    if [[ -n "$d" ]]; then
+    local display="${DISPLAY:-}"
+    if [[ -n "$display" ]]; then
         # ":1" / ":1.0" name a local X server, so its socket must be there.
         # A host-qualified DISPLAY ("box:0") is someone else's X server over
         # the network — nothing local to check, so take it at its word.
-        if [[ "$d" =~ ^:([0-9]+) ]]; then
+        if [[ "$display" =~ ^:([0-9]+) ]]; then
             [[ -S "/tmp/.X11-unix/X${BASH_REMATCH[1]}" ]] && return 0
             return 1
         fi

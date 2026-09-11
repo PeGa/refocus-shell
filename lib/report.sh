@@ -26,23 +26,23 @@ db_ensure
 # loops drop them here, which is safe only because neither applies a LIMIT.
 _rows() {
     if [[ "$_mode" == "window" ]]; then
-        list_sessions_by_id_range "$_a" "$_b"
+        list_sessions_by_id_range "$_range_lo" "$_range_hi"
     else
-        list_sessions_in_range "$_a" "$_b"
+        list_sessions_in_range "$_range_lo" "$_range_hi"
     fi
 }
 
 _totals() {
     if [[ "$_mode" == "window" ]]; then
-        get_project_totals_by_id_range "$_a" "$_b" "$(cycle_prefix)"
+        get_project_totals_by_id_range "$_range_lo" "$_range_hi" "$(cycle_prefix)"
     else
-        get_project_totals_in_range "$_a" "$_b" "$(cycle_prefix)"
+        get_project_totals_in_range "$_range_lo" "$_range_hi" "$(cycle_prefix)"
     fi
 }
 
 _report() {
     local label="$1"
-    _mode="$2" _a="$3" _b="$4"
+    _mode="$2" _range_lo="$3" _range_hi="$4"
 
     echo "# Focus report"
     echo "## $label"
@@ -85,7 +85,7 @@ _report() {
     done < <(_totals)
     [[ $have_projects -eq 1 ]] && { echo ""; echo "---"; echo ""; }
 
-    local have_sessions=0 s e
+    local have_sessions=0 start_str end_str
     while IFS='|' read -r id project start_t end_t dur notes duration_only session_date; do
         is_cycle_label "$project" && continue
         if [[ $have_sessions -eq 0 ]]; then
@@ -108,9 +108,9 @@ _report() {
             # Fall back to the stored string when it won't parse, the way
             # `past list` does — under set -e a bare command substitution here
             # would abort the whole report over one unreadable timestamp.
-            s=$(ts_format "$start_t" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$start_t")
-            e=$(ts_format "$end_t"   "%H:%M"             2>/dev/null || echo "$end_t")
-            echo "**$s–$e · $(fmt_duration "$dur")**"
+            start_str=$(ts_format "$start_t" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$start_t")
+            end_str=$(ts_format "$end_t"   "%H:%M"             2>/dev/null || echo "$end_t")
+            echo "**$start_str–$end_str · $(fmt_duration "$dur")**"
         fi
 
         if [[ -n "$notes" ]]; then

@@ -56,17 +56,17 @@ _cron_minute_field() {
 }
 
 _cron_validate_interval() {
-    local iv="$1"
-    if ! [[ "$iv" =~ ^[0-9]+$ ]]; then
-        echo "NUDGE_INTERVAL must be numeric (got: $iv)" >&2; return 1
+    local interval="$1"
+    if ! [[ "$interval" =~ ^[0-9]+$ ]]; then
+        echo "NUDGE_INTERVAL must be numeric (got: $interval)" >&2; return 1
     fi
     # Force base-10: a leading zero ("090") is otherwise read as octal, and
     # "090"/"008" aren't valid octal digits — bash throws "value too great
     # for base" on the comparison below, and since that comparison is an
     # if-condition, set -e never sees it as a failure, so the bad value
     # silently sails through as "valid".
-    iv=$((10#$iv))
-    if [[ $iv -lt 1 || $iv -gt 60 ]]; then
+    interval=$((10#$interval))
+    if [[ $interval -lt 1 || $interval -gt 60 ]]; then
         echo "NUDGE_INTERVAL must be 1-60 (got: $1)" >&2; return 1
     fi
 }
@@ -79,16 +79,16 @@ _cron_validate_checkin_interval() {
     # (0-59), so a hop that doesn't divide evenly into hours needs the hour
     # field to step instead (see cron_checkin_install), and that only
     # produces an even cadence for whole-hour intervals.
-    local iv="$1"
-    if ! [[ "$iv" =~ ^[0-9]+$ ]]; then
-        echo "CHECKIN_INTERVAL must be numeric (got: $iv)" >&2; return 1
+    local interval="$1"
+    if ! [[ "$interval" =~ ^[0-9]+$ ]]; then
+        echo "CHECKIN_INTERVAL must be numeric (got: $interval)" >&2; return 1
     fi
     # Base-10, same reason as _cron_validate_interval above.
-    iv=$((10#$iv))
-    if [[ $iv -gt 1440 ]]; then
+    interval=$((10#$interval))
+    if [[ $interval -gt 1440 ]]; then
         echo "CHECKIN_INTERVAL must be 0-1440 (got: $1)" >&2; return 1
     fi
-    if [[ $iv -gt 60 && $(( iv % 60 )) -ne 0 ]]; then
+    if [[ $interval -gt 60 && $(( interval % 60 )) -ne 0 ]]; then
         echo "CHECKIN_INTERVAL over 60 must be a whole number of hours (got: $1)" >&2; return 1
     fi
 }
