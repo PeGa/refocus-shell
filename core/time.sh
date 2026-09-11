@@ -117,8 +117,8 @@ parse_date_to_fmt() {
 fmt_duration() {
     # seconds -> human string: "2h 15m" or "45m"
     local secs="$1"
-    local h=$(( secs / 3600 )) m=$(( (secs % 3600) / 60 ))
-    if [[ $h -gt 0 ]]; then echo "${h}h ${m}m"; else echo "${m}m"; fi
+    local hours=$(( secs / 3600 )) mins=$(( (secs % 3600) / 60 ))
+    if [[ $hours -gt 0 ]]; then echo "${hours}h ${mins}m"; else echo "${mins}m"; fi
 }
 
 parse_duration() {

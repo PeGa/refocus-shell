@@ -6,7 +6,7 @@ INSTALL_DIR="$HOME/.local/refocus"
 BIN_DIR="$HOME/.local/bin"
 SRC_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 _info()  { echo "  $1"; }
-_ok()    { echo "$1"; }
+_say_ok()    { echo "$1"; }
 _warn()  { echo "  $1"; }
 _die()   { echo "$1" >&2; exit 1; }
 
@@ -25,38 +25,38 @@ install_deps() {
         command -v notify-send &>/dev/null || missing+=(libnotify-bin)
     fi
 
-    [[ ${#missing[@]} -eq 0 ]] && { _ok "Dependencies present."; return; }
+    [[ ${#missing[@]} -eq 0 ]] && { _say_ok "Dependencies present."; return; }
 
     _info "Installing: ${missing[*]}"
     if command -v apt-get &>/dev/null; then
         sudo apt-get install -y "${missing[@]}"
     elif command -v pacman &>/dev/null; then
         local pkgs=()
-        for p in "${missing[@]}"; do
-            case $p in
+        for pkg in "${missing[@]}"; do
+            case $pkg in
                 libnotify-bin) pkgs+=(libnotify);;
                 cron)          pkgs+=(cronie);;
-                *)             pkgs+=("$p");;
+                *)             pkgs+=("$pkg");;
             esac
         done
         sudo pacman -S --noconfirm "${pkgs[@]}"
     elif command -v dnf &>/dev/null; then
         local pkgs=()
-        for p in "${missing[@]}"; do
-            case $p in
+        for pkg in "${missing[@]}"; do
+            case $pkg in
                 libnotify-bin) pkgs+=(libnotify);;
                 cron)          pkgs+=(cronie);;
-                *)             pkgs+=("$p");;
+                *)             pkgs+=("$pkg");;
             esac
         done
         sudo dnf install -y "${pkgs[@]}"
     elif command -v brew &>/dev/null; then
         local pkgs=()
-        for p in "${missing[@]}"; do
-            case $p in
+        for pkg in "${missing[@]}"; do
+            case $pkg in
                 sqlite3) pkgs+=(sqlite);;
                 cron)    ;;   # macOS ships cron; nothing to install
-                *)       pkgs+=("$p");;
+                *)       pkgs+=("$pkg");;
             esac
         done
         # Guard the expansion: macOS bash is 3.2, where "${empty[@]}" trips set -u.
@@ -111,11 +111,11 @@ install_files() {
     chmod +x "$INSTALL_DIR/services/"*.sh
 
     # Restore stashed data
-    [[ -n "$db_tmp"  ]] && { mv "$db_tmp"  "$INSTALL_DIR/refocus.db"; _ok "Database preserved."; }
-    [[ -n "$env_tmp" ]] && { mv "$env_tmp" "$INSTALL_DIR/.env";       _ok "Config (.env) preserved."; }
+    [[ -n "$db_tmp"  ]] && { mv "$db_tmp"  "$INSTALL_DIR/refocus.db"; _say_ok "Database preserved."; }
+    [[ -n "$env_tmp" ]] && { mv "$env_tmp" "$INSTALL_DIR/.env";       _say_ok "Config (.env) preserved."; }
 
     ln -sf "$INSTALL_DIR/focus" "$BIN_DIR/focus"
-    _ok "Files installed to $INSTALL_DIR"
+    _say_ok "Files installed to $INSTALL_DIR"
 }
 
 install_shell() {
@@ -123,14 +123,14 @@ install_shell() {
     local line="source $INSTALL_DIR/services/focus-function.sh"
 
     if grep -qF "$line" "$rc" 2>/dev/null; then
-        _ok "Shell integration already in $rc"
+        _say_ok "Shell integration already in $rc"
     else
         {
             echo ""
             echo "# Refocus Shell"
             echo "$line"
         } >> "$rc"
-        _ok "Shell integration added to $rc"
+        _say_ok "Shell integration added to $rc"
         _warn "Run: source ~/.bashrc"
     fi
 }
@@ -155,7 +155,7 @@ DESKTOP
     if command -v update-desktop-database &>/dev/null; then
         update-desktop-database "$app_dir" 2>/dev/null || true
     fi
-    _ok "Desktop entry installed (notifications will appear in history)."
+    _say_ok "Desktop entry installed (notifications will appear in history)."
 }
 
 init_and_enable() {
@@ -167,7 +167,7 @@ init_and_enable() {
     set_focus_enabled
     cron_install || _warn "Could not arm cron nudge — run 'focus enable' manually."
     cron_checkin_install || _warn "Could not arm check-in cron — run 'focus enable' manually."
-    _ok "Database ready and nudging armed."
+    _say_ok "Database ready and nudging armed."
 }
 
 case "${1:-install}" in
@@ -175,7 +175,7 @@ case "${1:-install}" in
         echo "Installing Refocus Shell..."
         install_deps
         install_files
-        [[ -f "$INSTALL_DIR/refocus.db" ]] && _ok "Existing database preserved."
+        [[ -f "$INSTALL_DIR/refocus.db" ]] && _say_ok "Existing database preserved."
         init_and_enable
         install_shell
         install_desktop_entry
@@ -206,7 +206,7 @@ case "${1:-install}" in
                 && cat "$rc_tmp" > "$rc"
             rm -f "$rc_tmp"
         fi
-        _ok "Uninstalled."
+        _say_ok "Uninstalled."
         ;;
     *)
         echo "Usage: ./setup.sh [install|uninstall]" >&2; exit 2

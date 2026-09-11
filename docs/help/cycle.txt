@@ -20,7 +20,8 @@ becomes one. Visual identification, no bookkeeping.
   add       records the break and prints its id
   --edit-notes   replaces the placeholder note; timestamps aren't touched
   --edit-time    moves the marker to <time>; the receipts regenerate
-  delete    asks first
+  delete    asks first; the next break's receipt re-anchors to the
+            nearest survivor, so no receipt outlives its boundary
 
 The note is what the period was: 'focus past cycles' and 'focus past list
 --show-cycles' print it under the boundary line they render the break as.
@@ -30,8 +31,9 @@ The placeholder itself is never printed.
 A break is a single instant, so moving it rewrites both timestamps at once;
 the "Period: X to Y" text is derived, so yours regenerates and so does the
 next break's — its period starts where yours now lands. The new instant must
-fall strictly between the neighbouring breaks: a marker cannot cross one.
-Times take the usual grammar: 2026/09/03-17:40, "yesterday 14:00".
+fall strictly between the neighbouring breaks — a marker cannot cross one —
+and in the past: a break closes a period that already happened. Times take
+the usual grammar: 2026/09/03-17:40, "yesterday 14:00".
 
 add refuses while a session is focusing or paused: a break marks the boundary
 between periods, and mid-session there isn't one yet. Run 'focus off' first.

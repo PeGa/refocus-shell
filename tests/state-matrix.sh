@@ -62,17 +62,46 @@ chk() {
     fi
 }
 
-st()  { sqlite3 -separator '|' "$REFOCUS_DB_PATH" \
+state_row()  { sqlite3 -separator '|' "$REFOCUS_DB_PATH" \
           "SELECT active,paused,focus_disabled,COALESCE(project,'-') FROM state;" 2>/dev/null; }
 dur() { sqlite3 "$REFOCUS_DB_PATH" \
           "SELECT duration_seconds FROM sessions WHERE project='$1' ORDER BY id DESC LIMIT 1;" 2>/dev/null; }
 cnt() { sqlite3 "$REFOCUS_DB_PATH" "SELECT count(*) FROM sessions;" 2>/dev/null; }
 
+# ── naming hygiene [NAME]: brevity must be earned ─────────────────────────────
+# The `_q` / `_e` / `s=` class — identifiers too short to state intent, born
+# from fast sessions and paid for by every later reader. Five scans cover the
+# five ways the class declares itself: assignments, function definitions,
+# for-loop vars, bare `local x y` declarations, and `read -r` field names (a
+# bare `_` is the idiomatic don't-care and exempt). The allowlist is the
+# complete set of short names that read universally in scope; growing it is a
+# deliberate act, which is the point of the gate. On failure the offending
+# tokens print; `grep -rnw <token>` locates them.
+echo "── naming hygiene ──"
+# Explicit file globs, not directories: sed has no -r, and a silently skipped
+# directory is a guard that guards nothing.
+naming_files=$(ls lib/*.sh services/*.sh core/*.sh tests/*.sh \
+    env.sh setup.sh focus focus-nudge focus-checkin 2>/dev/null)
+# Comments are stripped first, the way the CONV-PORTABLE drift checks do it:
+# prose explaining the rule must not trip the rule.
+naming_src="$SANDBOX/naming-scan.tmp"
+sed 's/#.*//' $naming_files 2>/dev/null > "$naming_src"
+naming_offenders=$(
+    {
+        grep -oE '(^|[^A-Za-z0-9_$.%/-])_?[a-z]{1,2}=' "$naming_src" | grep -oE '_?[a-z]{1,2}='
+        grep -oE '^[[:space:]]*_?[a-z]{1,2}[[:space:]]*\(\)' "$naming_src" | grep -oE '_?[a-z]{1,2}'
+        grep -oE '^[[:space:]]*for[[:space:]]+_?[a-z]{1,2}[[:space:]]' "$naming_src" | awk '{print $2}'
+        grep -E '^[[:space:]]*local[[:space:]]' "$naming_src" | grep -oE '[[:space:]]_?[a-z]{1,2}([[:space:];]|$)' | grep -oE '_?[a-z]{1,2}'
+        grep -E '\bread[[:space:]]+-r\b' "$naming_src" | sed 's/.*read[[:space:]]\{1,\}-r//; s/[;|<].*//' | tr -s ' ' '\n' | grep -E '^_?[a-z]{1,2}$' | grep -vx '_'
+    } | tr -d '=' | sort -u | grep -vxE 'id|rc|n|lo|hi'
+)
+chk "no cryptic 1-2 char identifiers (allowlist: id rc n lo hi)" "" "$naming_offenders"
+
 # ── setup ────────────────────────────────────────────────────────────────────
 echo "── setup ──"
 ./focus init >/dev/null
 ./focus enable >/dev/null 2>&1 || true
-chk "init: idle enabled" "0|0|0|-" "$(st)"
+chk "init: idle enabled" "0|0|0|-" "$(state_row)"
 
 # ── on guard: disabled ───────────────────────────────────────────────────────
 echo "── on guard: disabled ──"
@@ -83,26 +112,26 @@ echo "── on guard: disabled ──"
 # ── on / pause / continue / off cycle ───────────────────────────────────────
 echo "── lifecycle ──"
 ./focus on fyc/work >/dev/null 2>&1
-chk "on: active"           "1|0|0|fyc/work" "$(st)"
+chk "on: active"           "1|0|0|fyc/work" "$(state_row)"
 
 ./focus disable >/dev/null 2>&1; chk "disable@active rc=1" "1" "$?"
-chk "disable@active: state held" "1|0|0|fyc/work" "$(st)"
+chk "disable@active: state held" "1|0|0|fyc/work" "$(state_row)"
 
 ./focus pause >/dev/null 2>&1
-chk "pause: paused"        "0|1|0|fyc/work" "$(st)"
+chk "pause: paused"        "0|1|0|fyc/work" "$(state_row)"
 
 ./focus disable >/dev/null 2>&1; chk "disable@paused rc=1" "1" "$?"
 
 printf '\n' | ./focus continue >/dev/null 2>&1
-chk "continue: active"     "1|0|0|fyc/work" "$(st)"
+chk "continue: active"     "1|0|0|fyc/work" "$(state_row)"
 
 printf 'context note\n' | ./focus off >/dev/null 2>&1
-chk "off: idle"            "0|0|0|-" "$(st)"
+chk "off: idle"            "0|0|0|-" "$(state_row)"
 
 # ── disable/enable cycle ─────────────────────────────────────────────────────
 echo "── disable/enable ──"
 ./focus disable >/dev/null 2>&1; chk "disable@idle rc=0" "0" "$?"
-chk "disabled state"       "0|0|1|-" "$(st)"
+chk "disabled state"       "0|0|1|-" "$(state_row)"
 
 out=$(./focus status 2>&1)
 [[ "$out" == *"disabled"* ]]; chk "status surfaces disabled" "0" "$?"
@@ -146,7 +175,7 @@ sessions_before=$(cnt)
 ( cd "$SANDBOX" && "$REFOCUS_ROOT/focus" export snap >/dev/null )
 printf 'done\n' | ./focus off >/dev/null 2>&1
 printf 'yes\n' | ./focus import "$SANDBOX/snap.sql" >/dev/null 2>&1
-chk "import: state idle+disabled" "0|0|1|-" "$(st)"
+chk "import: state idle+disabled" "0|0|1|-" "$(state_row)"
 chk "import: sessions preserved"  "$sessions_before" "$(cnt)"
 
 # ── config round-trip ────────────────────────────────────────────────────────
@@ -275,29 +304,29 @@ chk "report: single-session project total" "0" \
 echo "── report: markdown structure ──"
 printf -- '- bullet one\n- bullet two\n' | ./focus past add md/notes 2026/06/13-09:00 2026/06/13-10:30 >/dev/null 2>&1
 printf 'manual note\n' | ./focus past add md/manual --duration 45m --date 2026/06/13 >/dev/null 2>&1
-md=$(./focus report custom 90000 2>&1)
+report_md=$(./focus report custom 90000 2>&1)
 
-chk "md: document header"     "0" "$([[ "$md" == *"# Focus report"*        ]]; echo $?)"
-chk "md: projects section"    "0" "$([[ "$md" == *"## Projects"*          ]]; echo $?)"
-chk "md: table delimiter row" "0" "$([[ "$md" == *"|---|---:|---:|"*      ]]; echo $?)"
-chk "md: sessions section"    "0" "$([[ "$md" == *"## Sessions"*          ]]; echo $?)"
+chk "md: document header"     "0" "$([[ "$report_md" == *"# Focus report"*        ]]; echo $?)"
+chk "md: projects section"    "0" "$([[ "$report_md" == *"## Projects"*          ]]; echo $?)"
+chk "md: table delimiter row" "0" "$([[ "$report_md" == *"|---|---:|---:|"*      ]]; echo $?)"
+chk "md: sessions section"    "0" "$([[ "$report_md" == *"## Sessions"*          ]]; echo $?)"
 chk "md: heading carries id and project" "0" \
-    "$([[ "$md" == *'### ['*'] `md/notes`'* ]]; echo $?)"
+    "$([[ "$report_md" == *'### ['*'] `md/notes`'* ]]; echo $?)"
 chk "md: timestamped time line" "0" \
-    "$([[ "$md" == *"**2026-06-13 09:00–10:30 · 1h 30m**"* ]]; echo $?)"
+    "$([[ "$report_md" == *"**2026-06-13 09:00–10:30 · 1h 30m**"* ]]; echo $?)"
 chk "md: duration-only time line" "0" \
-    "$([[ "$md" == *"**45m on 2026-06-13 (manual)**"* ]]; echo $?)"
+    "$([[ "$report_md" == *"**45m on 2026-06-13 (manual)**"* ]]; echo $?)"
 
 # The regression the format exists for: a note's own markdown must survive at
 # column 0, not behind an indent.
 chk "md: note bullets are not indented" "0" \
-    "$(echo "$md" | grep -q '^- bullet one$'; echo $?)"
-chk "md: no 📝 prefix survives" "0" "$(echo "$md" | grep -c '📝' | tr -d ' ')"
+    "$(echo "$report_md" | grep -q '^- bullet one$'; echo $?)"
+chk "md: no 📝 prefix survives" "0" "$(echo "$report_md" | grep -c '📝' | tr -d ' ')"
 
 # Rules separate sessions from each other, so the last one must not be left
 # with one dangling after it.
 chk "md: no trailing rule" "1" \
-    "$([[ "$(echo "$md" | grep -v '^$' | tail -1)" == "---" ]]; echo $?)"
+    "$([[ "$(echo "$report_md" | grep -v '^$' | tail -1)" == "---" ]]; echo $?)"
 
 # An empty period gets the header and the period line and stops — no rule
 # trailing off the end of an otherwise blank document.
@@ -343,7 +372,7 @@ chk "past add '|' name stored as ¦" "1" \
     "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT COUNT(*) FROM sessions WHERE project='evil¦project';")"
 
 ./focus on 'a|b' >/dev/null 2>&1; chk "on '|' name rc=0" "0" "$?"
-chk "on '|' name active, stored as ¦" "1|0|0|a¦b" "$(st)"
+chk "on '|' name active, stored as ¦" "1|0|0|a¦b" "$(state_row)"
 printf 'n\n' | ./focus off >/dev/null 2>&1
 
 # A second 'on' with the same raw name must find the total the first one
@@ -384,7 +413,7 @@ chk "JSON import: '|' row doesn't abort the rest" "0" \
     "$([[ "$(cnt)" -eq 3 ]]; echo $?)"
 chk "JSON import: bad row sanitized, not dropped" "1" \
     "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT COUNT(*) FROM sessions WHERE project='bad¦name';")"
-chk "JSON import: normalizes state per INV-5" "0|0|1|-" "$(st)"
+chk "JSON import: normalizes state per INV-5" "0|0|1|-" "$(state_row)"
 
 # ── import: a bad file must cost nothing ──────────────────────────────────────
 # Import used to delete the database first and find out whether the input was
@@ -481,10 +510,10 @@ chk "checkin@1440: once-daily hour-stepped" "0" "$(checkin_cron_entry | grep -qE
 # no minute may produce a range, at 10 every minute must.
 cron_minute_field() { bash -c "source env.sh; source services/cron.sh; _cron_minute_field '$1' '$2'"; }
 ranges_at_60=0; singles_at_10=0; wrong_minute=0
-for m in $(seq 0 59); do
-    [[ "$(cron_minute_field "$m" 60)" == *-* ]] && ranges_at_60=$(( ranges_at_60 + 1 ))
-    [[ "$(cron_minute_field "$m" 60)" != "$m" ]] && wrong_minute=$(( wrong_minute + 1 ))
-    [[ "$(cron_minute_field $(( m % 10 )) 10)" != *-59/10 ]] && singles_at_10=$(( singles_at_10 + 1 ))
+for minute in $(seq 0 59); do
+    [[ "$(cron_minute_field "$minute" 60)" == *-* ]] && ranges_at_60=$(( ranges_at_60 + 1 ))
+    [[ "$(cron_minute_field "$minute" 60)" != "$minute" ]] && wrong_minute=$(( wrong_minute + 1 ))
+    [[ "$(cron_minute_field $(( minute % 10 )) 10)" != *-59/10 ]] && singles_at_10=$(( singles_at_10 + 1 ))
 done
 chk "minute field@60: never a range, any install minute" "0" "$ranges_at_60"
 chk "minute field@60: keeps the install minute"          "0" "$wrong_minute"
@@ -560,8 +589,8 @@ chk "checkin@interval=0: silent no-op" "$before" "$(cnt)"
 # must fall all the way through and exit 0 without ever spawning anything.
 ./focus config set CHECKIN_INTERVAL 60 >/dev/null 2>&1
 mkdir -p "$SANDBOX/notool-bin"
-for b in bash env awk cat column date dirname grep id mktemp sed sqlite3 tr; do
-    ln -sf "$(command -v "$b")" "$SANDBOX/notool-bin/$b" 2>/dev/null
+for tool in bash env awk cat column date dirname grep id mktemp sed sqlite3 tr; do
+    ln -sf "$(command -v "$tool")" "$SANDBOX/notool-bin/$tool" 2>/dev/null
 done
 before=$(cnt)
 PATH="$SANDBOX/notool-bin" bash focus-checkin >/dev/null 2>&1
@@ -724,11 +753,11 @@ printf 'live one\n' | ./focus off >/dev/null 2>&1
 ./focus on dup/live >/dev/null 2>&1
 printf 'n\n' | ./focus off >/dev/null 2>&1
 chk "off@dup declined: rc=0"           "0" "$?"
-chk "off@dup declined: still active"   "1|0|0|dup/live" "$(st)"
+chk "off@dup declined: still active"   "1|0|0|dup/live" "$(state_row)"
 chk "off@dup declined: no second row"  "1" "$(rows_of_project dup/live)"
 
 printf 'y\nlive two\n' | ./focus off >/dev/null 2>&1
-chk "off@dup accepted: idle"           "0|0|0|-" "$(st)"
+chk "off@dup accepted: idle"           "0|0|0|-" "$(state_row)"
 chk "off@dup accepted: still one row"  "1" "$(rows_of_project dup/live)"
 
 # past modify renaming onto a name another row holds folds the two together
@@ -1052,6 +1081,22 @@ chk "past list n: no break among them"               "0" \
 chk "past list n --show-cycles: breaks count toward n" "1" \
     "$(periods_focus past list 4 --show-cycles 2>/dev/null | grep -c 'Cycle break')"
 
+# The count is validated before it reaches SQL [#51]: a word or a decimal is
+# a usage error — not sqlite's rc=20, not a parse-error dump leaking adapter
+# SQL — and a negative is refused outright, since sqlite reads a negative
+# LIMIT as *unbounded*. 0 stays a legal "show nothing".
+periods_focus past list abc >/dev/null 2>&1
+chk "past list abc: rc=2"  "2" "$?"
+periods_focus past list 2.5 >/dev/null 2>&1
+chk "past list 2.5: rc=2"  "2" "$?"
+periods_focus past list -3 >/dev/null 2>&1
+chk "past list -3: rc=2"   "2" "$?"
+periods_focus past list 0 >/dev/null 2>&1
+chk "past list 0: rc=0"    "0" "$?"
+bad_out=$(periods_focus past list abc 2>&1)
+chk "past list abc: no SQL fragment leaks" "0" \
+    "$([[ "$bad_out" != *"Error: in prepare"* && "$bad_out" != *"ORDER BY"* ]]; echo $?)"
+
 # The boundary payoff [#46]: the ~50-char label used to overflow the %-22s
 # project column and shove that row's Start/End/Duration right. A break takes
 # no table row at all now, and the canned note stays silent — only a note that
@@ -1118,9 +1163,9 @@ REFOCUS_DB_PATH="$reads_db" ./focus enable >/dev/null 2>&1
 printf 'note\n' | REFOCUS_DB_PATH="$reads_db" ./focus past add r46/real 2026/04/01-10:00 2026/04/01-12:00 >/dev/null 2>&1
 REFOCUS_DB_PATH="$reads_db" ./focus cycle add >/dev/null 2>&1   # marker becomes the newest row
 
-st=$(REFOCUS_DB_PATH="$reads_db" ./focus status 2>&1)
+status_out=$(REFOCUS_DB_PATH="$reads_db" ./focus status 2>&1)
 chk "status Last: names the real session, not the marker" "0" \
-    "$([[ "$st" == *"Last: r46/real"* && "$st" != *"Cycle break"* ]]; echo $?)"
+    "$([[ "$status_out" == *"Last: r46/real"* && "$status_out" != *"Cycle break"* ]]; echo $?)"
 
 on_out=$(printf 'n\n' | REFOCUS_DB_PATH="$reads_db" ./focus on 2>&1)
 chk "on: offers the last real project, not the marker" "0" \
@@ -1136,9 +1181,9 @@ REFOCUS_DB_PATH="$markers_db" ./focus enable >/dev/null 2>&1
 REFOCUS_DB_PATH="$markers_db" ./focus cycle add >/dev/null 2>&1
 REFOCUS_DB_PATH="$markers_db" ./focus on >/dev/null 2>&1
 chk "on with only markers: rc=2" "2" "$?"
-mst=$(REFOCUS_DB_PATH="$markers_db" ./focus status 2>&1)
+markers_status_out=$(REFOCUS_DB_PATH="$markers_db" ./focus status 2>&1)
 chk "status with only markers: no Last line" "0" \
-    "$([[ "$mst" != *"Last:"* ]]; echo $?)"
+    "$([[ "$markers_status_out" != *"Last:"* ]]; echo $?)"
 
 # ── cycle modify --edit-time: moving a marker [#50] ───────────────────────────
 # A break is one instant; the label is a receipt derived from it. Moving the
@@ -1155,11 +1200,11 @@ edittime_focus status >/dev/null 2>&1
 # handler uses so the stored shape matches a real `cycle add` exactly.
 REFOCUS_DB_PATH="$edittime_db" bash -c '
     source env.sh; source core/time.sh; source core/text.sh; source services/database.sh
-    t1=$(parse_time 2026/01/01-10:00); t2=$(parse_time 2026/02/01-10:00); t3=$(parse_time 2026/03/01-10:00)
-    l1=$(ts_format "$t1" "$DATE_SHORT_FORMAT"); l2=$(ts_format "$t2" "$DATE_SHORT_FORMAT"); l3=$(ts_format "$t3" "$DATE_SHORT_FORMAT")
-    record_session "$(cycle_label Beginning "$l1")" "$t1" "$t1" 0 ""
-    record_session "$(cycle_label "$l1" "$l2")" "$t2" "$t2" 0 ""
-    record_session "$(cycle_label "$l2" "$l3")" "$t3" "$t3" 0 ""
+    ts1=$(parse_time 2026/01/01-10:00); ts2=$(parse_time 2026/02/01-10:00); ts3=$(parse_time 2026/03/01-10:00)
+    lbl1=$(ts_format "$ts1" "$DATE_SHORT_FORMAT"); lbl2=$(ts_format "$ts2" "$DATE_SHORT_FORMAT"); lbl3=$(ts_format "$ts3" "$DATE_SHORT_FORMAT")
+    record_session "$(cycle_label Beginning "$lbl1")" "$ts1" "$ts1" 0 ""
+    record_session "$(cycle_label "$lbl1" "$lbl2")" "$ts2" "$ts2" 0 ""
+    record_session "$(cycle_label "$lbl2" "$lbl3")" "$ts3" "$ts3" 0 ""
 ' >/dev/null
 
 edittime_focus cycle modify --edit-time 2 2026/02/15-12:00 >/dev/null 2>&1
@@ -1201,6 +1246,70 @@ chk "edit-time: non-numeric id is usage" "2" "$?"
 printf 'n\n' | edittime_focus past add e50/real 2026/02/10-10:00 2026/02/10-11:00 >/dev/null 2>&1
 edittime_focus cycle modify --edit-time 4 2026/02/20-10:00 >/dev/null 2>&1
 chk "edit-time: non-cycle id refuses" "1" "$?"
+
+# A successful move exits 0 on EVERY path — the no-cascade one (newest break)
+# used to exit 1 because a trailing `[[ … ]] && echo` was the branch's last
+# command. The receipt assertions above passed while the rc was wrong.
+edittime_focus cycle modify --edit-time 3 2026/03/21-09:00 >/dev/null 2>&1
+chk "edit-time: newest move exits 0 (no-cascade path)" "0" "$?"
+chk "edit-time: newest receipt took the move" "2026-02-15 12:00 to 2026-03-21 09:00" \
+    "$(break_receipt 3)"
+
+# A break closes a period that already happened; the future is refused, and
+# the refusal writes nothing.
+edittime_focus cycle modify --edit-time 3 2099/01/01-00:00 >/dev/null 2>&1
+chk "edit-time: future instant refuses" "1" "$?"
+chk "edit-time: future refusal wrote nothing" "2026-03-21 09:00" \
+    "$(break_receipt 3 | sed 's/.*to //')"
+
+# Leading-zero ids normalise: the duplicate check compares ids as strings, and
+# "02" vs "2" used to read the row's OWN label as somebody else's — refusing a
+# clean same-minute no-op.
+edittime_focus cycle modify --edit-time 02 2026/02/15-12:00 >/dev/null 2>&1
+chk "edit-time: leading-zero id, same-minute no-op, rc=0" "0" "$?"
+chk "edit-time: no-op kept the receipt" "2026-01-15 09:00 to 2026-02-15 12:00" \
+    "$(break_receipt 2)"
+
+# Deleting a break re-anchors the next receipt to the nearest survivor —
+# the invariant --edit-time upholds, which delete used to strand.
+ddb="$SANDBOX/deleterelabel.db"
+REFOCUS_DB_PATH="$ddb" bash -c '
+    source env.sh; source core/time.sh; source core/text.sh; source services/database.sh
+    db_ensure
+    ts1=$(parse_time 2026/01/01-10:00); ts2=$(parse_time 2026/02/01-10:00); ts3=$(parse_time 2026/03/01-10:00)
+    lbl1=$(ts_format "$ts1" "$DATE_SHORT_FORMAT"); lbl2=$(ts_format "$ts2" "$DATE_SHORT_FORMAT"); lbl3=$(ts_format "$ts3" "$DATE_SHORT_FORMAT")
+    record_session "$(cycle_label Beginning "$lbl1")" "$ts1" "$ts1" 0 ""
+    record_session "$(cycle_label "$lbl1" "$lbl2")" "$ts2" "$ts2" 0 ""
+    record_session "$(cycle_label "$lbl2" "$lbl3")" "$ts3" "$ts3" 0 ""
+' >/dev/null
+delete_receipt() { sqlite3 "$ddb" "SELECT REPLACE(project,'Cycle break. Period: ','') FROM sessions WHERE id=$1;"; }
+printf 'y\n' | REFOCUS_DB_PATH="$ddb" ./focus cycle delete 2 >/dev/null 2>&1
+chk "delete: rc=0" "0" "$?"
+chk "delete: next receipt re-anchored to the survivor" "2026-01-01 10:00 to 2026-03-01 10:00" \
+    "$(delete_receipt 3)"
+printf 'y\n' | REFOCUS_DB_PATH="$ddb" ./focus cycle delete 1 >/dev/null 2>&1
+chk "delete: last survivor re-opens at Beginning" "Beginning to 2026-03-01 10:00" \
+    "$(delete_receipt 3)"
+
+# An import-damaged break (no end_time) is skipped by the cascade, never
+# rewritten: it has no instant to name, and date(1) fed an empty date answers
+# today-midnight instead of failing.
+ndb="$SANDBOX/nullend.db"
+REFOCUS_DB_PATH="$ndb" bash -c '
+    source env.sh; source core/time.sh; source core/text.sh; source services/database.sh
+    db_ensure
+    ts1=$(parse_time 2026/01/01-10:00); lbl1=$(ts_format "$ts1" "$DATE_SHORT_FORMAT")
+    record_session "$(cycle_label Beginning "$lbl1")" "$ts1" "$ts1" 0 ""
+    db_import_session_row "$(cycle_label "$lbl1" "")" "" "" 0 "" 0 ""
+' >/dev/null
+label_before=$(sqlite3 "$ndb" "SELECT project FROM sessions WHERE id=2;")
+REFOCUS_DB_PATH="$ndb" ./focus cycle modify --edit-time 1 2026/01/15-09:00 >/dev/null 2>&1
+chk "edit-time: null-end next skipped, rc=0" "0" "$?"
+chk "edit-time: null-end receipt untouched" "$label_before" \
+    "$(sqlite3 "$ndb" "SELECT project FROM sessions WHERE id=2;")"
+null_out=$(REFOCUS_DB_PATH="$ndb" ./focus report cycle 2>/dev/null)
+chk "report cycle: null-end opener reads unknown, not midnight" "0" \
+    "$([[ "$null_out" == *"Period: unknown → now"* ]]; echo $?)"
 
 # ── result ───────────────────────────────────────────────────────────────────
 echo

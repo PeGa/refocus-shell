@@ -39,6 +39,45 @@ _reject_non_cycle() {
 
 _note_placeholder="$(cycle_note_placeholder)"
 
+# Both branches below keep the same derived-data invariant: a break's receipt
+# must agree with its neighbours' instants. Editing regenerates the next
+# receipt; deleting regenerates it too, re-anchored to the nearest survivor.
+# One walk and one writer, shared, so the invariant has a single implementation.
+_cycle_neighbours() {
+    # <break-id> -> "prev_end|next_id|next_end" over the live break list:
+    # nearest break by id below (its end) and nearest above. Empty fields
+    # mean none. Neighbours by id, not by time: ids record the order the
+    # markers were drawn, and every period view is an id window.
+    local target="$1" found_prev=0 prev_end="" next_id="" next_end=""
+    local cid _cproj _cstart cend _cdur _cnotes _cdonly _csdate
+    while IFS='|' read -r cid _cproj _cstart cend _cdur _cnotes _cdonly _csdate; do
+        if [[ "$cid" -lt "$target" && $found_prev -eq 0 ]]; then
+            prev_end="$cend"; found_prev=1
+        elif [[ "$cid" -gt "$target" ]]; then
+            next_id="$cid"; next_end="$cend"
+        fi
+    done < <(list_cycles "$(cycle_prefix)")
+    printf '%s|%s|%s' "$prev_end" "$next_id" "$next_end"
+}
+
+_relabel_break() {
+    # <break-id> <from-text> -> rewrite that break's receipt so its period
+    # opens at the given moment; prints the one-line confirmation on success.
+    # A row with no end_time (import damage) is skipped, not rewritten: it
+    # has no instant to name, and feeding date(1) an empty date answers
+    # today-midnight instead of failing.
+    local break_id="$1" from_text="$2" nrow nstart nend ndur nto nlabel
+    nrow=$(get_session "$break_id")
+    [[ -z "$nrow" ]] && return 0
+    IFS='|' read -r _ _ nstart nend ndur _ _ _ <<< "$nrow"
+    [[ -z "$nend" ]] && return 0
+    nto=$(ts_format "$nend" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$nend")
+    nlabel=$(cycle_label "$from_text" "$nto")
+    nlabel="${nlabel//|/¦}"
+    update_session "$break_id" "$nlabel" "$nstart" "$nend" "$ndur"
+    echo "   Break $break_id re-labelled: $nlabel"
+}
+
 case "$sub" in
     add)
         [[ $# -gt 0 ]] && usage_error cycle
@@ -127,6 +166,11 @@ case "$sub" in
             id="${2:-}"; raw="${3:-}"
             [[ -z "$id" || -z "$raw" || $# -gt 3 ]] && usage_error cycle
             _require_id "$id"
+            # Normalise before the id is compared as a string (the duplicate
+            # check greps the adapter's ids) or fed to [[ -lt ]], which reads
+            # a leading zero as octal: "08" would crash the walk, "02" would
+            # fail to exclude its own row from the duplicate check.
+            id=$((10#$id))
 
             row=$(get_session "$id")
             [[ -z "$row" ]] && { echo "❌ Session $id not found." >&2; exit 1; }
@@ -137,18 +181,18 @@ case "$sub" in
             new_epoch=$(iso_to_epoch "$new_ts")
             new_label_ts=$(ts_format "$new_ts" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$new_ts")
 
-            # Neighbours by id, not by time: ids record the order the markers
-            # were drawn, and the periods every view computes are id windows.
-            # list_cycles is newest-first — the first row below me is the
-            # previous break; the last row above me is the next one.
-            prev_end="" next_id="" next_start="" next_end="" next_dur=0
-            while IFS='|' read -r cid _cproj cstart cend cdur _cnotes _cdonly _csdate; do
-                if [[ "$cid" -lt "$id" && -z "$prev_end" ]]; then
-                    prev_end="$cend"
-                elif [[ "$cid" -gt "$id" ]]; then
-                    next_id="$cid"; next_start="$cstart"; next_end="$cend"; next_dur="$cdur"
-                fi
-            done < <(list_cycles "$(cycle_prefix)")
+            # A break closes a period: one landing in the future would close a
+            # period that hasn't happened, and the next `cycle add` would date
+            # its receipt backwards from there.
+            if [[ "$new_epoch" -gt "$(now_epoch)" ]]; then
+                echo "❌ That is in the future — a break can only close a period that already happened." >&2
+                exit 1
+            fi
+
+            neighbours=$(_cycle_neighbours "$id")
+            prev_end="${neighbours%%|*}"
+            next_id="${neighbours#*|}"; next_id="${next_id%%|*}"
+            next_end="${neighbours##*|}"
 
             # A marker cannot cross its neighbours: that would invert the
             # period both receipts describe, and the id windows would disagree
@@ -183,18 +227,17 @@ case "$sub" in
 
             update_session "$id" "$new_label" "$new_ts" "$new_ts" 0
 
-            next_label=""
-            if [[ -n "$next_id" ]]; then
-                nto=$(ts_format "$next_end" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$next_end")
-                next_label=$(cycle_label "$new_label_ts" "$nto")
-                next_label="${next_label//|/¦}"
-                update_session "$next_id" "$next_label" "$next_start" "$next_end" "$next_dur"
-            fi
-
             echo "✅ Cycle break $id moved to $new_label_ts."
             echo "   was: $proj"
             echo "   now: $new_label"
-            [[ -n "$next_label" ]] && echo "   Break $next_id re-labelled: $next_label"
+            # The cascade ends in if/fi, never a trailing `&& echo`: a false
+            # test as the branch's last command would exit the handler 1 on a
+            # fully successful move — which is exactly what the no-cascade
+            # path (newest break) used to do.
+            if [[ -n "$next_id" ]]; then
+                reline=$(_relabel_break "$next_id" "$new_label_ts")
+                if [[ -n "$reline" ]]; then echo "$reline"; fi
+            fi
             ;;
 
         *)
@@ -206,6 +249,7 @@ case "$sub" in
     delete|del|rm)
         id="${1:-}"; [[ -z "$id" ]] && usage_error cycle
         _require_id "$id"
+        id=$((10#$id))   # same normalisation as --edit-time: the walk below compares ids
 
         row=$(get_session "$id")
         [[ -z "$row" ]] && { echo "❌ Session $id not found." >&2; exit 1; }
@@ -216,7 +260,26 @@ case "$sub" in
         ans=""
         read -r ans || true
         [[ "$ans" =~ ^[Yy]$ ]] || { echo "Cancelled."; exit 0; }
+
+        # Neighbours are captured while the row still exists: the next break's
+        # receipt opens at THIS break's instant, and after the delete it must
+        # re-anchor to the nearest survivor — otherwise it names a boundary
+        # that no longer exists, forever.
+        neighbours=$(_cycle_neighbours "$id")
+        prev_end="${neighbours%%|*}"
+        next_id="${neighbours#*|}"; next_id="${next_id%%|*}"
+
         delete_session "$id"
+
+        if [[ -n "$next_id" ]]; then
+            if [[ -n "$prev_end" ]]; then
+                from_text=$(ts_format "$prev_end" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$prev_end")
+            else
+                from_text="Beginning"
+            fi
+            reline=$(_relabel_break "$next_id" "$from_text")
+            if [[ -n "$reline" ]]; then echo "$reline"; fi
+        fi
         echo "✅ Deleted."
         ;;
 
