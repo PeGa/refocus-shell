@@ -54,7 +54,7 @@ get_period_window() {
         fi
         lo="$sel"
         # The next break above it, if any, closes the period.
-        hi=$(printf '%s\n' "$ids" | awk -v s="$sel" '$1 > s' | sort -n | head -1)
+        hi=$(printf '%s\n' "$ids" | awk -v want="$sel" '$1 > want' | sort -n | head -1)
     fi
     printf '%s|%s' "$lo" "$hi"
 }

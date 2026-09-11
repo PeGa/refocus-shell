@@ -60,7 +60,7 @@ _report() {
 
     local noun="sessions"
     [[ $sessions -eq 1 ]] && noun="session"
-    echo "Period: $_from → $_to Total: $(fmt_duration $total) across $sessions $noun"
+    echo "Period: $_range_from → $_range_to Total: $(fmt_duration $total) across $sessions $noun"
 
     # An empty period stops here: a header, the period line, and no rules
     # trailing off the end of an otherwise blank document.
@@ -73,7 +73,7 @@ _report() {
     # Project names cannot contain '|' — the sessions table CHECKs for it — so
     # no table cell needs escaping.
     local have_projects=0
-    while IFS='|' read -r p pdur pcnt; do
+    while IFS='|' read -r proj pdur pcnt; do
         if [[ $have_projects -eq 0 ]]; then
             echo "## Projects"
             echo ""
@@ -81,7 +81,7 @@ _report() {
             echo "|---|---:|---:|"
             have_projects=1
         fi
-        printf "| \`%s\` | %s | %s |\n" "$p" "$(fmt_duration "$pdur")" "$pcnt"
+        printf "| \`%s\` | %s | %s |\n" "$proj" "$(fmt_duration "$pdur")" "$pcnt"
     done < <(_totals)
     [[ $have_projects -eq 1 ]] && { echo ""; echo "---"; echo ""; }
 
@@ -127,8 +127,8 @@ _report() {
 }
 
 _date_range() {
-    _from=$(ts_format "$1" "$DATE_FORMAT")
-    _to=$(ts_format "$2" "$DATE_FORMAT")
+    _range_from=$(ts_format "$1" "$DATE_FORMAT")
+    _range_to=$(ts_format "$2" "$DATE_FORMAT")
 }
 
 period="${1:-today}"
@@ -169,11 +169,11 @@ case "$period" in
         _cycle_moment() {
             local row; row=$(get_session "$1")
             [[ -z "$row" ]] && { printf 'now'; return 0; }
-            local e; IFS='|' read -r _ _ _ e _ <<< "$row"
-            ts_format "$e" "$DATE_SHORT_FORMAT" 2>/dev/null || printf '%s' "$e"
+            local end_t; IFS='|' read -r _ _ _ end_t _ <<< "$row"
+            ts_format "$end_t" "$DATE_SHORT_FORMAT" 2>/dev/null || printf '%s' "$end_t"
         }
-        if [[ -n "$lo" ]]; then _from=$(_cycle_moment "$lo"); else _from="Beginning"; fi
-        if [[ -n "$hi" ]]; then _to=$(_cycle_moment "$hi");   else _to="now"; fi
+        if [[ -n "$lo" ]]; then _range_from=$(_cycle_moment "$lo"); else _range_from="Beginning"; fi
+        if [[ -n "$hi" ]]; then _range_to=$(_cycle_moment "$hi");   else _range_to="now"; fi
 
         label="Cycle ${sel}"
         [[ "$sel" == "0" ]] && label="Current cycle"

@@ -41,9 +41,9 @@ wants_help() {
     # wants_help "$@" -> true if -h/--help appears anywhere in the arguments.
     # Handlers call this before parsing or touching the DB, so `past modify 5
     # --help` cannot reach the code that treated --help as a new project name.
-    local a
-    for a in "$@"; do
-        [[ "$a" == "-h" || "$a" == "--help" ]] && return 0
+    local arg
+    for arg in "$@"; do
+        [[ "$arg" == "-h" || "$arg" == "--help" ]] && return 0
     done
     return 1
 }

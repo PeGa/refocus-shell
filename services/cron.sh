@@ -25,9 +25,9 @@ _cron_env_prefix() {
     #     no-op: it names a display server called "", which suppresses every
     #     fallback the tool would otherwise have.
     local root="${REFOCUS_ROOT:-$HOME/.local/refocus}"
-    local prefix="REFOCUS_ROOT=$root" v
-    for v in DISPLAY WAYLAND_DISPLAY XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS; do
-        [[ -n "${!v:-}" ]] && prefix="$prefix $v=${!v}"
+    local prefix="REFOCUS_ROOT=$root" env_var
+    for env_var in DISPLAY WAYLAND_DISPLAY XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS; do
+        [[ -n "${!env_var:-}" ]] && prefix="$prefix $env_var=${!env_var}"
     done
     printf '%s' "$prefix"
 }
