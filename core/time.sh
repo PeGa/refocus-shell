@@ -29,34 +29,34 @@ now_epoch() {
 
 epoch_to_iso() {
     # epoch seconds -> ISO-8601 timestamp
-    local e="$1"
+    local epoch="$1"
     if [[ "$_DATE_IS_GNU" == "1" ]]; then
-        _date --date="@$e" -Iseconds
+        _date --date="@$epoch" -Iseconds
     else
-        _date -r "$e" -Iseconds
+        _date -r "$epoch" -Iseconds
     fi
 }
 
 epoch_format() {
     # epoch seconds + strftime format -> formatted string
-    local e="$1" fmt="$2"
+    local epoch="$1" fmt="$2"
     if [[ "$_DATE_IS_GNU" == "1" ]]; then
-        _date --date="@$e" +"$fmt"
+        _date --date="@$epoch" +"$fmt"
     else
-        _date -r "$e" +"$fmt"
+        _date -r "$epoch" +"$fmt"
     fi
 }
 
 iso_to_epoch() {
     # stored ISO (-Iseconds output) or normalised "YYYY-MM-DD HH:MM" -> epoch.
     # Returns non-zero on failure so callers' `|| ...` guards still fire.
-    local s="$1"
+    local iso="$1"
     if [[ "$_DATE_IS_GNU" == "1" ]]; then
-        _date --date="$s" +%s
+        _date --date="$iso" +%s
         return
     fi
     # BSD strptime rejects the colon in a "-03:00" offset; strip it.
-    local norm="${s}"
+    local norm="${iso}"
     if [[ "$norm" =~ ^(.*[T\ ][0-9]{2}:[0-9]{2}:[0-9]{2})([+-][0-9]{2}):([0-9]{2})$ ]]; then
         norm="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
     fi
@@ -66,16 +66,16 @@ iso_to_epoch() {
     _date -j -f "%Y-%m-%dT%H:%M:%S%z" "$norm" +%s 2>/dev/null && return 0
     local fmt
     for fmt in "%Y-%m-%dT%H:%M:%S" "%Y-%m-%d %H:%M:%S" "%Y-%m-%d %H:%M" "%Y-%m-%d" "%H:%M"; do
-        _date -j -f "$fmt" "$s" +%s 2>/dev/null && return 0
+        _date -j -f "$fmt" "$iso" +%s 2>/dev/null && return 0
     done
     return 1
 }
 
 ts_format() {
     # stored ISO -> formatted for display. Non-zero if the timestamp won't parse.
-    local iso="$1" fmt="$2" e
-    e=$(iso_to_epoch "$iso") || return 1
-    epoch_format "$e" "$fmt"
+    local iso="$1" fmt="$2" epoch
+    epoch=$(iso_to_epoch "$iso") || return 1
+    epoch_format "$epoch" "$fmt"
 }
 
 iso_days_ago() {
