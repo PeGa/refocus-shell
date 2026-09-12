@@ -418,7 +418,11 @@ side effects. Sourced by any layer that needs them; never routable (ARCH-ROUTABL
   `--date`, `-r`, `-v` and strptime formats; `_date` and `_DATE_IS_GNU` (private)
   absorb the split. Adding a `date` call to a handler is a contract violation,
   not a shortcut. Same reasoning bans GNU-only `sed -i` everywhere: write a
-  sibling temp file and rename.
+  sibling temp file and rename. The layer also owns the ruling on absence
+  (CONV-ABSENT): `iso_to_epoch` refuses the empty string on **both** platforms,
+  because the platforms disagree about it too — GNU fabricates today-midnight,
+  BSD fails. `ts_format` inherits the refusal; callers' `|| echo "$raw"`
+  fallbacks then do the honest thing everywhere, by construction.
 - WHY a separate layer: `parse_duration`/`parse_time` were duplicated inline in
   two `past` branches; one of those copies fed an empty string to `date` and
   silently produced a zero duration (CONV-DURONLY). One definition, one place.
@@ -623,9 +627,18 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
 ### CMD-IMPORT · `focus import <file>`
 - detect sql/json by extension then content sniff. Warn if session open. Require
   literal `yes` (CONV-YES). Back up current DB. `cron_remove` +
-  `cron_checkin_remove` (both — INV-3). sql → `db_load_sql`;
-  json → `db_init` + per-row `db_import_session_row` (needs `jq`). Then
-  `reset_state_post_import` (INV-5). Leaves disabled (CONV-REARM).
+  `cron_checkin_remove` (both — INV-3). sql → `db_load_sql`, **verbatim
+  rescue**: a `.dump` restore does not row-validate — refusing rows there
+  would strand exactly the damaged DBs the format exists to rescue
+  (CONV-ABSENT's render side covers what comes through). json → `db_init`
+  into staging + per-row `db_import_session_row` (needs `jq`); every row is
+  **shape-validated first** (CONV-ABSENT): `duration_only` ∈ {0,1},
+  `duration_seconds` a non-negative integer, a timestamped row carrying both
+  timestamps, a duration-only row a `YYYY-MM-DD` date. One impossible row
+  aborts the whole import before the swap — nothing written, message names
+  the row; representable oddities (`|`, newlines in projects) are sanitised
+  per row, not refused. Then `reset_state_post_import` (INV-5). Leaves
+  disabled (CONV-REARM).
 
 ### CMD-INIT · `focus init`
 - `db_init`; report path. Safe to re-run.
@@ -759,7 +772,32 @@ active          1 0 0      paused          0 1 0
 - CONV-DURONLY: a `duration_only=1` row has no timestamps. Never feed an empty
   date string to `date(1)` (it parses as today-midnight and silently yields a
   zero/garbage duration — the data-loss bug). `modify` on such a row accepts
-  rename, `--duration` (see CMD-PAST-ARGS), and `--notes`.
+  rename, `--duration` (see CMD-PAST-ARGS), and `--notes`. This is the first
+  instance of CONV-ABSENT.
+- CONV-ABSENT: an absent value is data to branch on — never parser input,
+  never a silent default, never repaired in place. Three boundaries, one law.
+  **Time layer:** `iso_to_epoch` refuses the empty string identically on both
+  platforms (CORE-DATE) — GNU `date -d ''` answers today-midnight, a
+  confident fabricated instant, while BSD fails; one explicit refusal at the
+  one door stored data comes through keeps that split out of every caller's
+  fallback logic. **Renderers:** name the absence (`(no timestamps)`,
+  `unknown`, no recency) instead of dating it. In views that don't ask the row
+  for a date — `past list`, the id-window period views — it stays listed and
+  its stored duration keeps counting (DM-SESSION): the data is the user's, and
+  the damage is to the clock detail, not to the time worked. A time-*range*
+  view legitimately omits a row it cannot place; that is omission by absent
+  data, never a fabricated placement. **Import
+  boundary:** shapes no app write path can produce are rejected loudly and
+  atomically (CMD-IMPORT); content the app *could* have written is accepted
+  verbatim, with conflictive-but-representable characters transformed exactly
+  as every write path transforms them (`|` → `¦` in projects; notes
+  byte-exact under PORT-NOTES encoding). And the app **repairs nothing**:
+  resident damage — `.sql` rescues, live-DB surgery, history predating any
+  validator — is rendered honestly, forever, unless an external tool (a
+  migrator, if one ever exists) fixes the data. WHY a rule and not three
+  fixes: the class regenerated three times in one month (edit-time cascade,
+  report bound, `past list`), once per feature that learned to read a
+  timestamp; absent law, every future reader re-derives the hazard.
 - CONV-HELP: help is data, never code. A handler that spells its own usage
   string is a bug — that is how `focus past --help`, `focus past add --help` and
   `focus past add` came to print three contradictory things while
@@ -768,6 +806,18 @@ active          1 0 0      paused          0 1 0
 - CONV-ID: session ids are validated in the handler before reaching the adapter
   (CMD-PAST-ID). The adapter interpolates ids into SQL unparameterised, so a
   non-numeric id is a SQL error, not a usage error, unless the handler stops it.
+  Validation has **two faces, and both are mandatory**. The handler face is UX:
+  shape-check the argument before parsing or rendering anything, refuse at
+  exit 2 with a human message. The adapter face is structural: every value
+  interpolated as a bare number passes `_require_uint` at the interpolation
+  site. WHY both: INV-1 concentrates all SQL into one file, and that chokepoint
+  is exactly why the file can — and must — defend itself; "one boundary to
+  audit" holds only if the boundary audits its own inputs. Handler-only
+  outsources integrity to every caller forever (`list_sessions` trusted callers
+  for its whole life, and the first unvalidated one walked in — #51);
+  adapter-only answers a typo in a storage-layer voice. The adapter face never
+  fires in correct code; it is a tripwire, and its return 2 surfaces through
+  the calling handler's own error path.
 - CONV-NOTES: notes may contain newlines or pipes; session reads may not
   (PORT-NOTES). Encode in the adapter (`_NOTES_ENCODED`: backslash, `\n`,
   `\r`, then `|` as the hex escape `\x7c` — in that order, backslash first

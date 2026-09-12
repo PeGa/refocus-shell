@@ -18,6 +18,12 @@ _show_last() {
     local last; last=$(get_last_session "$(cycle_prefix)")
     [[ -z "$last" ]] && return
     IFS='|' read -r last_project last_end last_dur <<< "$last"
+    if [[ -z "$last_end" ]]; then
+        # No instant to date the row by (import damage): the duration is
+        # real, the recency would be fabricated (CONV-ABSENT).
+        echo "   Last: $last_project ($(( last_dur / 60 ))m, no timestamp)"
+        return
+    fi
     local last_ts; last_ts=$(iso_to_epoch "$last_end" 2>/dev/null || echo 0)
     local since=$(( (now_ts - last_ts) / 60 ))
     echo "   Last: $last_project ($(( last_dur / 60 ))m, ${since}m ago)"

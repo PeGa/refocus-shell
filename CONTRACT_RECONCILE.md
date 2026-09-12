@@ -16,17 +16,12 @@
 | A2 — the naming line | `NAME-UNDERSCORE` (the `_` is a tool with a place: file-private functions, module constants, throwaway single-use vars inside private scope; never a license for cryptic names) + `NAME-BREVITY` (intent at length budget; allowlist `id rc n lo hi`; oracle-enforced; test helpers intent-named without the prefix) | MAIN.md [NAME] |
 | A3 — one literal, one file | `CORE-LITERAL`: domain literals live once in core/text.sh, handed out by functions | MAIN.md [CORE-TEXT] |
 | A5 — error taxonomy | CONV-EXIT refined: malformed shape → 2; well-formed but absent → 1; decline → 0. Verified pre-existing since the initial release (`75ed4d5`) — names practice, makes no new law | MAIN.md [CONV] |
+| A8 — damaged-data quarantine | `CONV-ABSENT`, matured through challenge: three boundaries, one law — the time layer refuses empty identically on both platforms (CORE-DATE amended); renderers name the absence (`(no timestamps)`, `unknown`, no fabricated recency) while unbounded/id-window views keep the row listed and its duration counted; JSON import rejects shapes no write path can produce (loud, atomic, pre-swap) and sanitises representable oddities per row. The app **repairs nothing** — a migrator, if it ever exists, is external. Boundary taxonomy (settled via the `\|` challenge, citing MAIN.md's existing import ruling): conflictive-but-representable → transform at the boundary (`\|`→`¦`); impossible-and-unrepresentable → refuse; already-resident → render honestly. App batch shipped: `iso_to_epoch` empty refusal, renderer markers (past/report/status), import shape validation; +8 matrix, +2 tp | MAIN.md [CONV]/[CORE-TIME]/[CMD-IMPORT] |
+| A4 — two-face validation | CONV-ID amended: handler face = UX (shape-check before parse/render, rc=2, human message); adapter face = structural (`_require_uint` at every bare-number interpolation site). WHY both: INV-1's chokepoint must defend itself; handler-only outsources integrity to every caller forever (#51), adapter-only answers typos in a storage-layer voice. Sweep shipped: 10 adapter functions guarded — including `get_session_by_project`'s `id<>$exclude`, found during the sweep; +4 matrix abuse checks (non-destructive payloads: a vanished guard fails as rc≠2, never as eaten fixtures) | MAIN.md [CONV] |
 
 ---
 
 ## Pending brainstorm
-
-### A4 — Two-face validation
-Handler validates for UX (rc=2 before anything renders); adapter defends at
-interpolation (`_require_uint`, [#51]). "The file that interpolates is the file
-that defends." CONV-ID currently mandates only the handler face.
-Material: `services/database.sh` `_require_uint`; `lib/past.sh` list branch;
-#51's three repro variants.
 
 ### A6 — Derived-data discipline (receipts)
 The cycle label is a receipt derived from timestamps: regenerated at *write*
@@ -45,15 +40,6 @@ are timestamped sessions vs duration-only rows (date, no clock time): a
 sides — the double-count periods were built to kill. Id windows make
 membership total because every row has exactly one id. Material:
 `services/period.sh` header; matrix "boundary-day manual row" checks.
-
-### A8 — Damaged-data quarantine  ⟵ PUSHBACK
-Import-only damage (null `end_time`) is skipped by writers, read as `unknown`
-by displays, never fed to a parser (empty date → `date(1)` answers
-today-midnight). **User position: "that isn't contract drift, it's a bug to be
-solved."** Owed: justify as a rule (three sites already behave this way; the
-rule freezes the stance) OR park as a GitHub issue (import should refuse or
-repair null-end rows instead of every reader defending). Direction decides
-whether this graduates to CONV or to the bug tracker.
 
 ### A9 — Two-tier confirmation  ⟵ PUSHBACK
 Literal `yes` for irreversible (CONV-YES: reset/import); `y/N` default-no for

@@ -104,6 +104,10 @@ _report() {
         echo "### [$id] \`$project\`"
         if [[ "$duration_only" == "1" ]]; then
             echo "**$(fmt_duration "$dur") on $session_date (manual)**"
+        elif [[ -z "$start_t" || -z "$end_t" ]]; then
+            # Import damage: duration is real, the clock detail is absent.
+            # Counted in the totals, dated never (CONV-ABSENT).
+            echo "**$(fmt_duration "$dur") (no timestamps)**"
         else
             # Fall back to the stored string when it won't parse, the way
             # `past list` does — under set -e a bare command substitution here

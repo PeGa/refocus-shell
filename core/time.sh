@@ -50,7 +50,13 @@ epoch_format() {
 iso_to_epoch() {
     # stored ISO (-Iseconds output) or normalised "YYYY-MM-DD HH:MM" -> epoch.
     # Returns non-zero on failure so callers' `|| ...` guards still fire.
+    # The empty string is refused here, identically on both platforms
+    # (CONV-ABSENT): GNU date answers '' with today-midnight — a confident,
+    # fabricated instant — while BSD fails. One explicit refusal at the one
+    # door stored data comes through keeps that platform split out of every
+    # caller's fallback logic, and ts_format inherits it for free.
     local iso="$1"
+    [[ -z "$iso" ]] && return 1
     if [[ "$_DATE_IS_GNU" == "1" ]]; then
         _date --date="$iso" +%s
         return

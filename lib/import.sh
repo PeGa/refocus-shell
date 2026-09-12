@@ -105,14 +105,27 @@ db_init
 
 # Sessions — verbatim, full fidelity. Older exports may carry a 'projects' array;
 # that's from the dead model and silently ignored by the '[]?' optional iterator.
-jq -c '.sessions[]?' "$file" | while IFS= read -r row; do
+#
+# Two tiers, split by representability, not weirdness [CONV-ABSENT]: content
+# the app *could* have written is accepted and sanitised per row ('|' → '¦',
+# newlines folded — the same boundary discipline every write path applies);
+# a shape no app write path can produce aborts the WHOLE import before the
+# swap — fail early, name the row, write nothing. The loop runs in the main
+# shell (process substitution, not a pipe) precisely so that refusal can exit.
+import_row_num=0
+_bad_import_row() {
+    echo "❌ Row $import_row_num (project '$project'): $1" >&2
+    echo "   Import refused — nothing was changed; your data is untouched." >&2
+    echo "   Fix the row in the file, or restore the .sql export instead." >&2
+    exit 1
+}
+while IFS= read -r row; do
+    import_row_num=$(( import_row_num + 1 ))
     project=$(jq -r '.project'            <<< "$row")
     project="${project//|/¦}"
-    # db_import_session_row skips _validate_project_name on purpose (a bad
-    # row must not abort the rest of the import) — but the DB's own CHECK
-    # constraint still rejects a newline/CR, which would do exactly that.
-    # Sanitize here too, same as '|' above, rather than let a hand-edited
-    # import file take down every row after it.
+    # db_import_session_row skips _validate_project_name on purpose, but the
+    # DB's own CHECK constraint still rejects a newline/CR — which would take
+    # down every row after it. Fold them here, same as '|' above.
     project="${project//$'\n'/ }"
     project="${project//$'\r'/ }"
     start=$(  jq -r '.start_time  // ""'  <<< "$row")
@@ -121,8 +134,21 @@ jq -c '.sessions[]?' "$file" | while IFS= read -r row; do
     notes=$(  jq -r '.notes       // ""'  <<< "$row")
     donly=$(  jq -r '.duration_only // 0' <<< "$row")
     sdate=$(  jq -r '.session_date // ""' <<< "$row")
+
+    [[ "$donly" == "0" || "$donly" == "1" ]] \
+        || _bad_import_row "duration_only is '$donly' (want 0 or 1)"
+    [[ "$dur" =~ ^[0-9]+$ ]] \
+        || _bad_import_row "duration_seconds is '$dur' (want a non-negative integer)"
+    if [[ "$donly" == "1" ]]; then
+        [[ "$sdate" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] \
+            || _bad_import_row "duration-only but session_date is '$sdate' (want YYYY-MM-DD)"
+    else
+        [[ -n "$start" && -n "$end" ]] \
+            || _bad_import_row "timestamped row with no timestamps"
+    fi
+
     db_import_session_row "$project" "$start" "$end" "$dur" "$notes" "$donly" "$sdate"
-done
+done < <(jq -c '.sessions[]?' "$file")
 
 # Normalize state — db_init defaults focus_disabled=0; set it to 1 explicitly.
 reset_state_post_import
