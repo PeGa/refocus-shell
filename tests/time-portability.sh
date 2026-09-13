@@ -93,6 +93,14 @@ expect_ok  "parse_date_to_fmt today"       parse_date_to_fmt "today"      "%Y-%m
 expect_ok  "parse_date_to_fmt YYYY/MM/DD"  parse_date_to_fmt "2026/06/11" "%Y-%m-%d"
 chk "YYYY/MM/DD -> ISO date" "2026-06-11" "$(parse_date_to_fmt '2026/06/11' '%Y-%m-%d')"
 
+echo "── absence [CONV-ABSENT] ──"
+# The refusal happens before _date is reached, so it is identical on GNU and
+# BSD by construction — which is the entire point of ruling on it here:
+# GNU date answers '' with today-midnight, BSD fails; callers must see one
+# behavior, not whichever platform they landed on.
+chk "iso_to_epoch refuses empty" "1" "$(iso_to_epoch '' >/dev/null 2>&1; echo $?)"
+chk "ts_format refuses empty"    "1" "$(ts_format '' '%Y-%m-%d' >/dev/null 2>&1; echo $?)"
+
 echo
 total=$(( pass + fail ))
 echo "RESULT: $pass/$total passed"

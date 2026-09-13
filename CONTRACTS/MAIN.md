@@ -11,10 +11,11 @@
 **Audience.** An agent (or developer) rebuilding refocus-shell from scratch, or
 modifying it without drifting from its design.
 
-**Acceptance oracle.** A correct build passes both:
+**Acceptance oracle.** A correct build passes all three:
 - `tests/audit.sh` — shellcheck clean across all scripts.
 - `tests/state-matrix.sh` — the behavioural regression suite.
-If your output fails either, it is wrong regardless of how reasonable it looks.
+- `tests/time-portability.sh` — GNU/BSD date(1) portability probe (on macOS, run twice: with and without `gdate`).
+If your output fails any, it is wrong regardless of how reasonable it looks.
 Note the oracle's blind spot (see [INT]): install, shell integration, cron
 delivery, and desktop notifications are *not* exercised by it.
 
@@ -119,6 +120,28 @@ If you find yourself adding any of these, stop; it is the old model leaking back
 Old DBs may still carry `pause_notes` / `nudging_enabled` columns. Leave them.
 `db_migrate` is additive-only and never drops columns. Never read them.
 
+### DM-CYCLE · Cycle breaks are informational delimiters, not periods
+A **cycle break** is a zero-duration session (start == end == the instant) that
+marks a boundary between periods of work. The break itself is not a period — it
+is a point in time, a delimiter. A **period** is comprised of the sessions
+between two breaks (or between the beginning of time and the first break, or
+between the last break and now).
+
+The break's project string is a **receipt**: `Cycle break. Period: <from> → <to>`,
+where `<from>` is the previous break's end time (or "Beginning") and `<to>` is
+this break's end time. The receipt is derived from timestamps at write time; it
+is not recomputed at read time. When a break is moved or deleted, the next
+break's receipt may be regenerated to reflect the new neighbour (enhancement
+#56; the cascade is not invariant — if the previous break is gone, the next
+break keeps its original receipt).
+
+- A cycle break is identified by its project string starting with
+  `Cycle break. Period:` (core/text.sh: `cycle_prefix`, `is_cycle_label`).
+  There is no `cycle` column in the schema; the project string is the whole of it.
+- Renaming a break's project out of that shape stops it from being one.
+- The receipt's `<from>` and `<to>` are formatted timestamps; they name instants,
+  but the break itself is a zero-duration session, not a span.
+
 ---
 
 ## [INV] Invariants
@@ -195,9 +218,22 @@ Old DBs may still carry `pause_notes` / `nudging_enabled` columns. Leave them.
 - Everything else in the adapter is named by domain intent: predicates
   `is_*`, reads `get_*`/`list_*`, mutations as verbs (`start_session`,
   `record_session`, `set_focus_disabled`).
-- Private engine helpers are underscore-prefixed (`_q`, `_exec`, `_query`) and
-  never called outside `database.sh`. Same convention for private helpers in any
-  file (`_cron_*`, `_refocus_prompt`, `_report`).
+- Private engine helpers are underscore-prefixed (`_sql_quote`, `_exec`,
+  `_query`) and never called outside `database.sh`. Same convention for private
+  helpers in any file (`_cron_*`, `_refocus_prompt`, `_report`).
+- NAME-UNDERSCORE: the underscore is a tool, not a stigma. Its place is
+  file-private scope: private functions, module constants (`_CYCLE_PREFIX`),
+  and throwaway single-use variables inside a private scope — loop scratches,
+  don't-care `read` fields. It is never a license for a cryptic name: `_q`
+  failed on the `q`, not on the underscore. Privacy marking and intent-carrying
+  are orthogonal requirements, and a name must satisfy both.
+- NAME-BREVITY: identifiers state intent at their length budget. One- and
+  two-character names are legal only where they read universally in scope —
+  canonical allowlist: `id`, `rc`, `n`, `lo`, `hi` — and the line is enforced
+  by the oracle (the naming-hygiene gate in `tests/state-matrix.sh`), not by
+  review alone. Test-layer helpers follow the same line without the prefix
+  (`state_row`, not `st`): in a file that is entirely private, the privacy
+  marker carries no information, so the name must carry all of it.
 - WHY the split: the prefix is a signal. `db_` says "storage mechanism, not
   domain." When an edge case appears (e.g. a new export helper), it gets `db_`
   *because it serializes the artifact*, not because it touches the DB — every
@@ -215,17 +251,22 @@ Hexagonal / ports-and-adapters. Three layers plus entry points.
 ```
 focus                       dispatcher. resolves REFOCUS_ROOT, sources env.sh,
                             routes `focus <cmd> [args]` → exec lib/<cmd>.sh
-lib/<cmd>.sh                PRIMARY ADAPTERS. one file per command. receive user
-                            input, drive the core via intent calls. routable.
-core/<topic>.sh             DOMAIN HELPERS. pure functions, string→string/int.
+lib/<cmd>.sh                handler. one file per command. receive user input,
+                            drive the core via intent calls. routable.
+core/<topic>.sh             domain helpers. pure functions, string→string/int.
                             no SQL, no cron, no state, no side effects. NOT routable.
-services/database.sh        SECONDARY ADAPTER. the only file that speaks SQL (INV-1).
-services/cron.sh            SECONDARY ADAPTER. arms/disarms the nudge schedule.
+services/database.sh        infrastructure. the only file that speaks SQL (INV-1).
+services/cron.sh            infrastructure. arms/disarms nudge and checkin schedules.
+services/desktop.sh         integration. desktop notifications (kdialog/zenity).
+services/editor.sh          integration. captures notes through $EDITOR.
+services/help.sh            integration. renders docs/help/<cmd>.txt.
+services/merge.sh           composer. duplicate-session merge rule.
+services/period.sh          composer. period resolution rule.
 services/focus-function.sh  shell integration: prompt hook + focus() wrapper.
 env.sh                      environment loader. reads .env, exports config.
 focus-nudge                 self-contained cron payload. sources env.sh + database.sh.
 docs/help/<cmd>.txt         per-command help, served verbatim by lib/help.sh.
-tests/                      audit.sh (shellcheck) + state-matrix.sh (behaviour).
+tests/                      audit.sh (shellcheck) + state-matrix.sh (behaviour) + time-portability.sh (GNU/BSD date).
 ```
 
 - ARCH-ROUTABLE: the dispatcher routes only to `lib/`, by filename, with no case
@@ -239,6 +280,11 @@ tests/                      audit.sh (shellcheck) + state-matrix.sh (behaviour).
   `cd "$PWD"` or `$0` games — `realpath` on `BASH_SOURCE` is the one correct form.)
 - ARCH-SOURCE: every `lib/` handler begins by sourcing `env.sh`, then whatever
   services/core it needs, then calls `db_ensure` if it touches the DB.
+- ARCH-COMPOSER: when two handlers need the same domain rule, it becomes a
+  composer service (`services/`), not a copy. Composers have no mechanism of
+  their own, document their scope assumptions (what the caller must source),
+  and are never sourced by another service. Duplication is reserved for trivial
+  guards.
 
 ---
 
@@ -247,9 +293,20 @@ tests/                      audit.sh (shellcheck) + state-matrix.sh (behaviour).
 The exact intent API the core calls through. A rebuild must expose equivalently
 named functions with these contracts. Output of reads is pipe-separated.
 
-**Engine (private):** `_q` (escape single quotes), `_exec` (write, dies loud),
-`_query` (read, `-separator '|'`). **Engine (public, called across files):**
-`sanitize_pipe`, `_validate_project_name` (PORT-PROJVALID).
+**Engine (private):** `_sql_quote` (escape single quotes), `_require_uint`
+(guard on every value interpolated as a bare number), `_exec` (write, dies
+loud), `_query` (read, `-separator '|'`). **Engine (public, called across
+files):** `sanitize_pipe`, `_validate_project_name` (PORT-PROJVALID).
+
+**PORT-VOCAB:** the adapter never hardcodes domain vocabulary. What a cycle
+break *is* — the `Cycle break. Period:` prefix — lives in `core/text.sh`
+(CORE-LITERAL) and reaches SQL only as an argument: `list_cycles
+"$(cycle_prefix)"`, `get_last_session "$(cycle_prefix)"`, the exclude-prefixes
+on `list_sessions` and `get_project_totals_*`. WHY: INV-1's one SQL file must
+not become a second place that knows the domain — identification stays a pure
+string question, which is exactly what makes renaming a row out of the prefix
+stop it being a marker. An adapter growing a domain literal is a contract
+violation, not an optimisation.
 
 **PORT-PROJVALID:** reads are pipe-separated (`_query -separator '|'`) and
 every caller splits on `IFS='|' read`; a literal `|` in stored data desyncs
@@ -339,13 +396,30 @@ here controls.
 - `delete_session <id>`.
 
 **Session reads** (all 8-field rows: `id|project|start|end|dur|notes|duration_only|session_date`):
-- `list_sessions [limit]` — newest first, `limit` defaults to `REPORT_LIMIT`.
+- `list_sessions <limit>` — newest first, limit is the caller's (no house default).
 - `list_sessions_in_range <start> <end>` — timestamped rows by `end_time`;
   duration-only rows by `session_date`.
+- `list_sessions_by_id_range <lo> <hi>` — rows with `lo <= id < hi`, newest first.
+  Either bound may be empty for unbounded. A period is an id range, not a time
+  range (CMD-PERIOD).
+- `list_cycles <prefix>` — every cycle break, newest first, 8-field rows.
 - `get_session <id>`.
 - `get_total_time <project>` → summed `duration_seconds`.
+- `get_project_totals_in_range <start> <end>` → `project|duration_seconds|session_count`
+  rows, one per project, `GROUP BY project` ordered by duration descending. Same
+  WHERE clause as `list_sessions_in_range` on purpose — the breakdown must count
+  exactly the sessions the raw listing shows. PORT-BASH32: this exists so `focus
+  report` never needs a bash associative array — macOS ships bash 3.2, which
+  has none, and `declare -A` there is not a warning, it's a hard abort.
+- `get_project_totals_by_id_range <lo> <hi> <exclude-prefix>` → `project|seconds|count`
+  over an id window, longest first. Same aggregate-in-SQL rule as the date-range
+  version (PORT-BASH32).
 - `get_last_session` → `project|end_time|duration_seconds` of most recent.
 - `get_last_project` → most recent project name.
+- `get_last_cycle_end <prefix>` → `end_time` of the most recent cycle break that
+  has one, or empty when there is no such row. Rows with no `end_time` are skipped.
+- `list_session_ids_by_project <project>` → every id carrying that exact project
+  name, newest first, one per line.
 
 **PORT-NOTES:** `notes` is the one free-text column and may contain newlines,
 but a read is one line per row — a raw newline would desynchronise every
@@ -357,12 +431,6 @@ it (CONV-NOTES). The JSON and `.dump` exports are untouched — both formats
 carry newlines correctly on their own.
 
 **Serialization (db_*, storage):**
-- `get_project_totals_in_range <start> <end>` → `project|duration_seconds|session_count`
-  rows, one per project, `GROUP BY project` ordered by duration descending. Same
-  WHERE clause as `list_sessions_in_range` on purpose — the breakdown must count
-  exactly the sessions the raw listing shows. PORT-BASH32: this exists so `focus
-  report` never needs a bash associative array — macOS ships bash 3.2, which
-  has none, and `declare -A` there is not a warning, it's a hard abort.
 - `db_dump_sql` → `.dump` to stdout. `db_load_sql <file>` → restore.
 - `db_export_state_json` → single JSON object. `db_export_sessions_json` → array.
 - `db_import_session_row <7 fields>` — verbatim insert, NULLs preserved.
@@ -394,7 +462,11 @@ side effects. Sourced by any layer that needs them; never routable (ARCH-ROUTABL
   `--date`, `-r`, `-v` and strptime formats; `_date` and `_DATE_IS_GNU` (private)
   absorb the split. Adding a `date` call to a handler is a contract violation,
   not a shortcut. Same reasoning bans GNU-only `sed -i` everywhere: write a
-  sibling temp file and rename.
+  sibling temp file and rename. The layer also owns the ruling on absence
+  (CONV-ABSENT): `iso_to_epoch` refuses the empty string on **both** platforms,
+  because the platforms disagree about it too — GNU fabricates today-midnight,
+  BSD fails. `ts_format` inherits the refusal; callers' `|| echo "$raw"`
+  fallbacks then do the honest thing everywhere, by construction.
 - WHY a separate layer: `parse_duration`/`parse_time` were duplicated inline in
   two `past` branches; one of those copies fed an empty string to `date` and
   silently produced a zero duration (CONV-DURONLY). One definition, one place.
@@ -408,6 +480,29 @@ side effects. Sourced by any layer that needs them; never routable (ARCH-ROUTABL
   line at a time, so a multi-line note cannot wreck a listing's alignment.
   Takes **decoded** text: decoding here too would turn a backslash-n the user
   actually typed into a line break.
+- `notes_merge_trail <note> <orig-start> <orig-stop> <new-start> <new-stop>` →
+  the note with the timestamps a merge is about to destroy appended to it (#36).
+  Folding a second session into an existing row turns it duration-only, so its
+  start/end are dropped; recording them in the note keeps the merge non-lossy.
+  Empty arguments are skipped.
+- `is_session_id <string>` → exit 0 when it can serve as a session id (matches
+  `^[0-9]+$`). The adapter interpolates ids straight into SQL, so CONV-ID makes
+  every handler validate first; this predicate exists so the shape lives in
+  exactly one file (#48).
+- `cycle_prefix` → the cycle break prefix string (`Cycle break. Period:`).
+- `cycle_label <from> <to>` → the project string a cycle break is stored under:
+  `Cycle break. Period: <from> to <to>`.
+- `is_cycle_label <project>` → exit 0 when that project names a cycle break
+  (starts with the prefix).
+- `cycle_note_placeholder` → the canned note `focus cycle add` writes: "Period
+  cycle. Edit with `focus cycle modify --edit-notes` and the `id` of this cycle."
+- CORE-LITERAL: domain literals live here exactly once and are handed out by
+  functions — `_CYCLE_PREFIX` behind `cycle_prefix` / `cycle_label` /
+  `is_cycle_label`, the cycle placeholder note behind `cycle_note_placeholder`,
+  the session-id shape behind `is_session_id`. WHY: writers and readers must
+  compare byte-identical strings (the listings' placeholder suppression, the
+  adapter's LIKE arguments, the rename-out-of-cycle-hood mechanism); a literal
+  duplicated across two files is a rename waiting to desynchronise them.
 
 ---
 
@@ -419,14 +514,18 @@ dispatcher, by `focus-nudge`, and by the shell hook.
 - Bootstrap: before `DB_PATH` is known, source `"$(dirname "${REFOCUS_DB_PATH:-<default>}")/.env"`
   if present, so a relocated DB's `.env` is honoured.
 - Then set and **export** exactly: `DB_PATH`, `ENV_FILE`, `NUDGE_INTERVAL`,
-  `MAX_PROJECT_LENGTH`, `DATE_FORMAT`, `DATE_SHORT_FORMAT`, `REPORT_LIMIT`.
-  Defaults: DB `~/.local/refocus/refocus.db`, interval `10`, max-len `100`,
-  date `%Y-%m-%d`, short `%Y-%m-%d %H:%M`, limit `20`.
+  `CHECKIN_INTERVAL`, `MAX_PROJECT_LENGTH`, `DATE_FORMAT`, `DATE_SHORT_FORMAT`.
+  Defaults: DB `~/.local/refocus/refocus.db`, nudge `10`, checkin `60`, max-len `100`,
+  date `%Y-%m-%d`, short `%Y-%m-%d %H:%M`.
 - `ENV_FILE` = `"$(dirname "$DB_PATH")/.env"`, computed **here, once**, exported.
 - Precedence (high→low): `REFOCUS_*` shell env vars → `.env` → these defaults.
 - CONV-ENVFILE: `ENV_FILE` is never re-derived elsewhere; `lib/config.sh` uses
   this export. WHY: re-deriving after a `DB_PATH` change splits reads and writes
   across two `.env` files (the split-brain bug).
+- CONV-DEADKNOB: every config key has a live reader. When the last reader of a
+  config key is removed, the key goes with it — from code, from config display,
+  from contract. A key the tool accepts but never reads is a lie: the user sets
+  a value expecting behavior, and nothing changes.
 
 ---
 
@@ -455,6 +554,8 @@ strip-and-rewrite discipline, sharing one crontab.
   always against the user's *live* crontab — never a saved backup. WHY: the path
   contains `.` (a regex wildcard); a regex strip can delete unrelated lines, and
   restoring a stale backup clobbers crontab entries added since install.
+  (App debt: #41 — `crontab -l` failure cannot distinguish "no crontab" from
+  "could not read crontab"; fail-closed intent not yet implemented.)
 - CRON-INTERVAL: reject non-numeric or out-of-range before building a pattern;
   valid range 1–60 for the nudge.
 - CRON-CHECKIN-INTERVAL: `CHECKIN_INTERVAL` has a wider, differently-shaped
@@ -466,7 +567,9 @@ strip-and-rewrite discipline, sharing one crontab.
   (`<minute> <offset>-23/<hours> * * *`), because cron's minute field cannot
   express a span past 60 — a 90-minute cadence has no single cron line. A
   non-whole-hour value above 60 (e.g. 90) is rejected before ever building an
-  entry.
+  entry. **Step-size guard** (`4c609f8`): when the step can only land once
+  (e.g. interval 60 in a 55-minute range), name the minute instead of building
+  a step wider than the range — same schedule, no cron warning.
 - CRON-CHECKIN-FAILCLOSED: on an invalid `CHECKIN_INTERVAL`,
   `cron_checkin_install` returns 1 without writing anything — it neither
   installs a bad entry nor leaves a stale one from before, since `focus
@@ -487,6 +590,8 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
 - no project: `get_last_project`; if none → usage (exit 2); else offer to
   continue (show total logged), decline → hint + exit 0.
 - named project over `MAX_PROJECT_LENGTH` → exit 2.
+  (App debt: #43 — enforced on `on` but not on `past add` or `past modify`;
+  contract states: enforced on every path that takes a project name.)
 - named project with prior time → typo guard "X has Ym logged. Continue? (Y/n)",
   decline → exit 0.
 - otherwise `start_session`; notify.
@@ -495,6 +600,10 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
 - not active and not paused → error (exit 1).
 - active: duration = now − start. paused: duration = `previous_elapsed`.
 - prompt for notes (Enter to skip), `record_session`, then `end_session`; notify.
+- Before writing, call `merge_duplicate_session` (services/merge.sh, #36): if a
+  row already carries the same project name, fold the new time into that
+  original row instead of creating a duplicate. Two rows with the same name and
+  overlapping times are indistinguishable in a report.
 - CMD-OFF-RECOVERY: `off` does **not** check `focus_disabled`. It is the escape
   hatch out of any corrupted/disabled state. WHY: the user must always be able
   to close a session.
@@ -513,14 +622,22 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
 - disabled branch first → "🚫 … 'focus enable' to start", show last session, exit.
 - active → elapsed + total logged. paused → banked + paused-for. idle → "Not
   focusing." + last session. Read-only.
+- **Cycle breaks are excluded** from "last session" (#46) — the last *work*
+  session, not the last marker. `get_last_session` is called with the cycle
+  prefix as an exclude argument.
 
-### CMD-PAST · `focus past <list|add|modify|delete>`
-- `list [n]` — table via `list_sessions`.
+### CMD-PAST · `focus past <list|add|modify|delete|cycles>`
+- `list [n]` — table via `list_sessions`. `n` is validated as a non-negative
+  integer before reaching SQL (#51). Default: full history via
+  `list_sessions_by_id_range`.
 - `add <project> <start> <end>` — `parse_time` both (CORE), end>start else exit 2,
-  prompt notes, `record_session`.
+  prompt notes, call `merge_duplicate_session` (#36), then `record_session`.
 - `add <project> --duration <D> [--date <date>]` — `parse_duration`, default date
-  today, prompt notes, `record_duration_session`.
+  today, prompt notes, call `merge_duplicate_session` (#36), then `record_duration_session`.
 - `modify <id> [project] [start] [end]` (timestamped row) — recompute duration.
+  If the row is a cycle break, this is the rename-out-of-cycle-hood mechanism:
+  changing the project out of the `Cycle break. Period:` prefix stops it being
+  a marker (DM-CYCLE).
 - `modify <id> [project] [--duration <D>]` (duration-only row) — rename and/or
   re-duration ONLY; any timestamp arg → exit 2 (CONV-DURONLY).
 - `modify <id> --notes` (either kind of row) — reopen the note in `$EDITOR`,
@@ -538,14 +655,34 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
   comment, and surfaced as `Error: in prepare, incomplete input`.
 - CMD-PAST-NOOP: a `modify` that names no field to change is a usage error
   (exit 2), not a no-op UPDATE reported as `✅ Session N updated.`
-- `delete <id>` — confirm, `delete_session`.
+- `delete <id>` — confirm, `delete_session`. If the row is a cycle break, this
+  deletes the marker; the next break's receipt may be regenerated (cascade,
+  enhancement #56).
+- `cycles list` — list all cycle breaks (no table header; every line is a
+  boundary, not a row).
+- `cycles show [selector]` — show sessions in a period (CMD-PERIOD). Selector
+  is `0` (current), `-N` (N periods back), or `<id>` (period opened by that
+  break). Uses `list_sessions_by_id_range` with the id window from
+  `get_period_window`.
+- `list --show-cycles` — include cycle breaks in the listing (rendered as
+  boundary lines, not session rows).
 
-### CMD-REPORT · `focus report <today|week|month|custom N>`
-- compute range, `list_sessions_in_range` for the total and per-session listing,
-  `get_project_totals_in_range` for the per-project breakdown (PORT-BASH32 —
+### CMD-REPORT · `focus report <today|week|month|custom N|cycle [selector]>`
+- Output is **markdown** on stdout — `focus report custom 14 > report.md` (#39).
+  Notes are emitted verbatim; the structure (bullets, bold, blockquotes) survives.
+- Compute range, `list_sessions_in_range` (or `list_sessions_by_id_range` for
+  `cycle` mode) for the total and per-session listing, `get_project_totals_in_range`
+  (or `get_project_totals_by_id_range`) for the per-project breakdown (PORT-BASH32 —
   never aggregate per-project totals in bash; that means `declare -A`, and
   `focus report` must run on bash 3.2). `custom` requires numeric N (exit 2).
-  Facts only, no score.
+- **Cycle breaks are never listed** — they delimit periods, they are not work.
+  The breakdown drops them in SQL (the exclude-prefix is `cycle_prefix`); the
+  row loops drop them here.
+- `cycle [selector]` — report for a period (CMD-PERIOD). Selector is `0`
+  (current), `-N` (N periods back), or `<id>` (period opened by that break).
+  Duration-only rows with no timestamps render as `(no timestamps)`; projects
+  with no sessions in the period render as `unknown` (CONV-ABSENT).
+- Facts only, no score.
 
 ### CMD-ENABLE · `focus enable`
 - already enabled (`! is_focus_disabled`) → say so, exit 0, touch nothing
@@ -569,14 +706,21 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
   would fire, checked in the same order `focus-checkin` itself checks
   (CHECKIN-CASCADE): kdialog → zenity → spawned terminal running `dialog` →
   spawned terminal running a plain prompt → "none found, stays silent".
+  **Desktop guard** (#35): before attempting kdialog/zenity, check that the
+  desktop environment is available (DISPLAY, WAYLAND_DISPLAY, XDG_RUNTIME_DIR);
+  if not, skip GUI tools and fall through to terminal prompts or silent.
 - `test`: runs `focus-checkin` directly. Same guards as a real cron fire apply
   (CHECKIN-GUARDS) — it stays silent unless idle and armed; the diagnostic
   does not bypass them, so "test" only shows a popup when a real fire would too.
+- **Five exits, not four**: the cascade has five outcomes (kdialog, zenity,
+  dialog, plain prompt, silent), not four. The contract names all five.
 
 ### CMD-CONFIG · `focus config <show|set|unset>`
 - `show`: effective values + overrides from `$ENV_FILE`.
 - `set <KEY> <VAL>`: validate KEY against the known set; write `REFOCUS_<KEY>` to
   `$ENV_FILE`. `unset`: remove the line. `$ENV_FILE` from env.sh (CONV-ENVFILE).
+  (App debt: #40 — `unset` does not validate KEY; contract states: unset of an
+  unknown key is a usage error, exit 2.)
 - Both edits go through `_rewrite_env` (CONV-PORTABLE): `sed` into a temp file,
   then `cat` the temp file's contents back into `$ENV_FILE` — never `mv` the
   temp file over it. `mv` swaps the inode in, and mktemp's default mode is
@@ -592,9 +736,61 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
 ### CMD-IMPORT · `focus import <file>`
 - detect sql/json by extension then content sniff. Warn if session open. Require
   literal `yes` (CONV-YES). Back up current DB. `cron_remove` +
-  `cron_checkin_remove` (both — INV-3). sql → `db_load_sql`;
-  json → `db_init` + per-row `db_import_session_row` (needs `jq`). Then
-  `reset_state_post_import` (INV-5). Leaves disabled (CONV-REARM).
+  `cron_checkin_remove` (both — INV-3). sql → `db_load_sql`, **verbatim
+  rescue**: a `.dump` restore does not row-validate — refusing rows there
+  would strand exactly the damaged DBs the format exists to rescue
+  (CONV-ABSENT's render side covers what comes through). json → `db_init`
+  into staging + per-row `db_import_session_row` (needs `jq`); every row is
+  **shape-validated first** (CONV-ABSENT): `duration_only` ∈ {0,1},
+  `duration_seconds` a non-negative integer, a timestamped row carrying both
+  timestamps, a duration-only row a `YYYY-MM-DD` date. One impossible row
+  aborts the whole import before the swap — nothing written, message names
+  the row; representable oddities (`|`, newlines in projects) are sanitised
+  per row, not refused. Then `reset_state_post_import` (INV-5). Leaves
+  disabled (CONV-REARM).
+
+### CMD-CYCLE · `focus cycle <add|modify|delete>`
+Manage cycle breaks (DM-CYCLE). A break is a zero-duration session marking a
+boundary between periods.
+
+- **add**: idle or paused → error (exit 1); active → error naming the open session
+  (exit 1). Otherwise: create a zero-duration session (start == end == now) with
+  the receipt label `Cycle break. Period: <from> → <to>`, where `<from>` is the
+  last break's end time (or "Beginning") and `<to>` is now. If a break with the
+  same receipt already exists (same minute), offer to replace (y/N, CONV-YES
+  simple tier). Exit 0 with the new break's id.
+- **modify --edit-notes <id>**: open `$EDITOR` to edit the break's notes
+  (CONV-NOTES-CLEAR). Exit 0 on success.
+- **modify --edit-time <id> <time>**: move the break to `<time>`. Reject future
+  times (exit 1). Reject times at or before the previous break, or at or after
+  the next break (exit 1; a marker cannot cross its neighbours). Regenerate the
+  break's receipt; regenerate the next break's receipt if it exists (cascade,
+  enhancement #56). Exit 0 on success.
+- **delete <id>**: confirm (y/N, CONV-YES simple tier), delete the break,
+  regenerate the next break's receipt if it exists (cascade, enhancement #56).
+  Exit 0 on success.
+- All subcommands reject non-cycle sessions (exit 1) and malformed ids (exit 2,
+  CONV-ID).
+
+### CMD-PERIOD · Period resolution (services/period.sh)
+A **period** is comprised of the sessions between two cycle breaks (DM-CYCLE).
+Period resolution translates a selector into an id range `[lo, hi)` where `lo`
+is inclusive and `hi` is exclusive; either may be empty for unbounded.
+
+- **Selectors**:
+  - `0` or empty: the current period (from the newest break onward, `hi` unbounded)
+  - `-N`: N periods back; N may equal the number of breaks (reaches the span
+    before the first one, `lo` unbounded)
+  - `<id>`: the period opened by that break (must be a cycle break, not an
+    ordinary session)
+- **Ordering**: periods follow id order (the order breaks were logged), not time
+  order. Session date is authoritative for when work happened; id order is a
+  valid before/after signal. Enhancement #57 for `--order` parameter to choose
+  time-based ordering.
+- **Membership**: a session belongs to the period whose id range contains the
+  session's id. Duration-only rows (date, no clock time) are placed by id, not
+  by date, so a timestamp boundary falling inside the row's day does not put it
+  on both sides.
 
 ### CMD-INIT · `focus init`
 - `db_init`; report path. Safe to re-run.
@@ -711,18 +907,55 @@ active          1 0 0      paused          0 1 0
 
 - CONV-EXIT: `0` success · `1` runtime/state error (wrong state, not found) ·
   `2` usage/argument error. Used consistently; the test suite asserts them.
-- CONV-YES: destructive ops (`reset`, `import`) require the user to type the
-  literal word `yes`. Anything else cancels cleanly with exit 0 (cancel ≠ error).
+  The split, stated exactly, because new argument kinds keep arriving: a
+  **malformed shape** is usage (`2`) — `2.5`, `abc`, `--help` where an id was
+  wanted — refused before anything is looked up or rendered; a **well-formed
+  value that names nothing** is state (`1`) — "Session 7 not found", "Cycle
+  not found". A declined confirmation is `0`, never an error (CONV-YES). Not
+  new law: the initial release already split it this way; this names it.
+- CONV-YES: two-tier confirmation. App-wide destructive ops (`reset`, `import`)
+  require the user to type the literal word `yes`. Simple/recoverable ops (cycle
+  delete, cycle add replace-prompt) use `y/N` default-no. Anything else cancels
+  cleanly with exit 0 (cancel ≠ error).
+  (App debt: #42 — prompts abort at EOF instead of cancelling cleanly; EOF at
+  a prompt should be a decline, exit 0, never an abort.)
 - CONV-REARM: `reset` and `import` leave the tool **disabled**. Re-arming is a
   conscious `focus enable`. WHY: destroying or replacing data must not silently
   resume nudging behind the user.
 - CONV-IDEMPOTENT-ENABLE: `enable` while already enabled is a no-op that says so.
   WHY: re-running it would re-phase the cron schedule for no reason; calling it
   defensively in scripts must be harmless.
+  (App debt: #44 — idempotent message currently goes to stderr; stdout is the
+  success channel.)
 - CONV-DURONLY: a `duration_only=1` row has no timestamps. Never feed an empty
   date string to `date(1)` (it parses as today-midnight and silently yields a
   zero/garbage duration — the data-loss bug). `modify` on such a row accepts
-  rename, `--duration` (see CMD-PAST-ARGS), and `--notes`.
+  rename, `--duration` (see CMD-PAST-ARGS), and `--notes`. This is the first
+  instance of CONV-ABSENT.
+- CONV-ABSENT: an absent value is data to branch on — never parser input,
+  never a silent default, never repaired in place. Three boundaries, one law.
+  **Time layer:** `iso_to_epoch` refuses the empty string identically on both
+  platforms (CORE-DATE) — GNU `date -d ''` answers today-midnight, a
+  confident fabricated instant, while BSD fails; one explicit refusal at the
+  one door stored data comes through keeps that split out of every caller's
+  fallback logic. **Renderers:** name the absence (`(no timestamps)`,
+  `unknown`, no recency) instead of dating it. In views that don't ask the row
+  for a date — `past list`, the period listings — it stays listed and
+  its stored duration keeps counting (DM-SESSION): the data is the user's, and
+  the damage is to the clock detail, not to the time worked. A time-*range*
+  view legitimately omits a row it cannot place; that is omission by absent
+  data, never a fabricated placement. **Import
+  boundary:** shapes no app write path can produce are rejected loudly and
+  atomically (CMD-IMPORT); content the app *could* have written is accepted
+  verbatim, with conflictive-but-representable characters transformed exactly
+  as every write path transforms them (`|` → `¦` in projects; notes
+  byte-exact under PORT-NOTES encoding). And the app **repairs nothing**:
+  resident damage — `.sql` rescues, live-DB surgery, history predating any
+  validator — is rendered honestly, forever, unless an external tool (a
+  migrator, if one ever exists) fixes the data. WHY a rule and not three
+  fixes: the class regenerated three times in one month (edit-time cascade,
+  report bound, `past list`), once per feature that learned to read a
+  timestamp; absent law, every future reader re-derives the hazard.
 - CONV-HELP: help is data, never code. A handler that spells its own usage
   string is a bug — that is how `focus past --help`, `focus past add --help` and
   `focus past add` came to print three contradictory things while
@@ -731,6 +964,18 @@ active          1 0 0      paused          0 1 0
 - CONV-ID: session ids are validated in the handler before reaching the adapter
   (CMD-PAST-ID). The adapter interpolates ids into SQL unparameterised, so a
   non-numeric id is a SQL error, not a usage error, unless the handler stops it.
+  Validation has **two faces, and both are mandatory**. The handler face is UX:
+  shape-check the argument before parsing or rendering anything, refuse at
+  exit 2 with a human message. The adapter face is structural: every value
+  interpolated as a bare number passes `_require_uint` at the interpolation
+  site. WHY both: INV-1 concentrates all SQL into one file, and that chokepoint
+  is exactly why the file can — and must — defend itself; "one boundary to
+  audit" holds only if the boundary audits its own inputs. Handler-only
+  outsources integrity to every caller forever (`list_sessions` trusted callers
+  for its whole life, and the first unvalidated one walked in — #51);
+  adapter-only answers a typo in a storage-layer voice. The adapter face never
+  fires in correct code; it is a tripwire, and its return 2 surfaces through
+  the calling handler's own error path.
 - CONV-NOTES: notes may contain newlines or pipes; session reads may not
   (PORT-NOTES). Encode in the adapter (`_NOTES_ENCODED`: backslash, `\n`,
   `\r`, then `|` as the hex escape `\x7c` — in that order, backslash first
@@ -754,9 +999,14 @@ active          1 0 0      paused          0 1 0
     clear a note at all; that always requires a real editor.
 - CONV-PORTABLE: the tool targets GNU and BSD userland, **and bash 3.2** — macOS
   ships 3.2 as `/bin/bash` (GPLv3; Apple will not move), and the shebang is
-  `#!/usr/bin/env bash`, so nothing forces a newer one onto PATH. Three concrete
+  `#!/usr/bin/env bash`, so nothing forces a newer one onto PATH. Four concrete
   bans, each cost a real bug on macOS before it was named here:
-  - `date(1)` is confined to `core/time.sh` (CORE-DATE).
+  - `date(1)` is confined to `core/time.sh` (CORE-DATE). All time operations —
+    formatting, parsing, arithmetic — go through core/time.sh functions. This
+    prevents duplication, maintains the hexagonal design (core + adapters), and
+    keeps the GNU/BSD abstraction in one place. Existing violations: 7 POSIX
+    `date +FMT` sites in export.sh, import.sh, cron.sh, tests — these should
+    be replaced with core/time.sh functions.
   - `sed -i` is banned outright — GNU takes a bare `-i`, BSD demands `-i ''`.
     Write a sibling temp file and rename.
   - A `t` label in a multi-command `sed` expression must be its own `-e`
@@ -818,9 +1068,11 @@ recurring class of self-inflicted defects.
   delimiters get silently mangled (a broken `sed` delimiter, dropped UTF-8,
   unquoted heredocs all shipped this way). Prefer surgical edits to exact strings
   read immediately before editing; when writing a whole file, write it directly.
-- BUILD-VERIFY: after any change, run `tests/audit.sh` and `tests/state-matrix.sh`.
-  A test harness is code too — assert by stable keys (project name), never by
-  volatile row id, or the oracle lies.
+- BUILD-VERIFY: after any change, run `tests/audit.sh`, `tests/state-matrix.sh`,
+  and `tests/time-portability.sh`. A test harness is code too — assert by stable
+  keys (project name), never by volatile row id, or the oracle lies.
+  (App debt: #28 — report regression tests match substrings across lines, not
+  per-project lines; test debt, covered by BUILD-VERIFY's spirit.)
 - BUILD-UTF8: run shellcheck under `LC_ALL=C.UTF-8`; its output encoder crashes on
   multibyte glyphs otherwise.
 - BUILD-SCOPE: one concern per change. Touch only the files the task names.
@@ -836,10 +1088,12 @@ A rebuild or change is correct when:
    the full on/pause/continue/off cycle, duration-only storage + modify guards
    (including `modify <id> --duration` with no project), import state
    normalisation, config round-trip, help dispatch.
-3. `grep -rl sqlite3` over application files (excluding `tests/`) shows only
+3. `tests/time-portability.sh` exits 0 — GNU/BSD date(1) portability verified.
+   On macOS, run twice: with and without `gdate` on PATH.
+4. `grep -rl sqlite3` over application files (excluding `tests/`) shows only
    `services/database.sh` (+ the `setup.sh` probe).
-4. No symbol from DM-DEAD reappears.
-5. Hand-verified (oracle blind spot, [INT]): install arms cron and leaves state
+5. No symbol from DM-DEAD reappears.
+6. Hand-verified (oracle blind spot, [INT]): install arms cron and leaves state
    consistent; the shell hook shows the prompt marker; `focus nudge test` lands a
    notification in history.
 

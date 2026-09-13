@@ -179,6 +179,7 @@ end_session() {
 
 pause_session() {
     local elapsed="$1" now="$2"
+    _require_uint "elapsed" "$elapsed" || return 2
     _exec "UPDATE state SET
         active=0, paused=1,
         pause_start_time='$(_sql_quote "$now")',
@@ -201,6 +202,7 @@ record_session() {
     local start_time="$2" end_time="$3" duration="$4" notes="${5:-}"
     local project; project=$(sanitize_pipe "$1")
     _validate_project_name "$project" || return 2
+    _require_uint "duration" "$duration" || return 2
     _exec "INSERT INTO sessions (project, start_time, end_time, duration_seconds, notes)
            VALUES ('$(_sql_quote "$project")', '$(_sql_quote "$start_time")', '$(_sql_quote "$end_time")',
                    $duration, '$(_sql_quote "$notes")');"
@@ -210,6 +212,7 @@ record_duration_session() {
     local duration="$2" date="$3" notes="${4:-}"
     local project; project=$(sanitize_pipe "$1")
     _validate_project_name "$project" || return 2
+    _require_uint "duration" "$duration" || return 2
     _exec "INSERT INTO sessions (project, duration_seconds, notes, duration_only, session_date)
            VALUES ('$(_sql_quote "$project")', $duration, '$(_sql_quote "$notes")', 1, '$(_sql_quote "$date")');"
 }
@@ -218,6 +221,8 @@ update_session() {
     local id="$1" start_time="$3" end_time="$4" duration="$5"
     local project; project=$(sanitize_pipe "$2")
     _validate_project_name "$project" || return 2
+    _require_uint "id" "$id" || return 2
+    _require_uint "duration" "$duration" || return 2
     _exec "UPDATE sessions SET
         project='$(_sql_quote "$project")', start_time='$(_sql_quote "$start_time")',
         end_time='$(_sql_quote "$end_time")', duration_seconds=$duration
@@ -229,6 +234,7 @@ update_session_notes() {
     # on duration-only rows too, since it bolts no timestamps onto them
     # [CONV-DURONLY].
     local id="$1" notes="$2"
+    _require_uint "id" "$id" || return 2
     _exec "UPDATE sessions SET notes='$(_sql_quote "$notes")' WHERE id=$id;"
 }
 
@@ -240,6 +246,8 @@ fold_session_into() {
     # the caller writes the dropped times into the note first, which is the
     # only record of them that survives.
     local id="$1" duration="$2" date="$3" notes="${4:-}"
+    _require_uint "id" "$id" || return 2
+    _require_uint "duration" "$duration" || return 2
     _exec "UPDATE sessions SET
         duration_seconds=$duration, notes='$(_sql_quote "$notes")',
         duration_only=1, session_date='$(_sql_quote "$date")',
@@ -249,6 +257,7 @@ fold_session_into() {
 
 delete_session() {
     local id="$1"
+    _require_uint "id" "$id" || return 2
     _exec "DELETE FROM sessions WHERE id=$id;"
 }
 
@@ -379,6 +388,7 @@ get_project_totals_in_range() {
 
 get_session() {
     local id="$1"
+    _require_uint "id" "$id" || return 2
     _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
                    duration_seconds, $_NOTES_ENCODED, duration_only, COALESCE(session_date,'')
             FROM sessions WHERE id=$id;"
@@ -393,6 +403,7 @@ get_session_by_project() {
     # lookup would miss the row it is about to duplicate.
     local project; project=$(sanitize_pipe "$1")
     local exclude="${2:-}" where
+    _require_uint "exclude id" "$exclude" empty-ok || return 2
     where="project='$(_sql_quote "$project")'"
     [[ -n "$exclude" ]] && where="$where AND id<>$exclude"
     _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
@@ -503,6 +514,8 @@ update_duration_session() {
     local id="$1" duration="$3"
     local project; project=$(sanitize_pipe "$2")
     _validate_project_name "$project" || return 2
+    _require_uint "id" "$id" || return 2
+    _require_uint "duration" "$duration" || return 2
     _exec "UPDATE sessions SET project='$(_sql_quote "$project")', duration_seconds=$duration WHERE id=$id;"
 }
 

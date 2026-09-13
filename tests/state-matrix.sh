@@ -1097,6 +1097,19 @@ bad_out=$(periods_focus past list abc 2>&1)
 chk "past list abc: no SQL fragment leaks" "0" \
     "$([[ "$bad_out" != *"Error: in prepare"* && "$bad_out" != *"ORDER BY"* ]]; echo $?)"
 
+# CONV-ID's adapter face: the file that interpolates defends the
+# interpolation. Direct abuse — bypassing every handler — must return 2 at the
+# guard, never reach sqlite. Payloads are deliberately non-destructive: if a
+# guard ever disappears, these fail as rc≠2 instead of eating the fixture.
+chk "adapter: get_session refuses an injection-shaped id" "2" \
+    "$(bash -c 'source env.sh; source services/database.sh; get_session "1 OR 1=1"' >/dev/null 2>&1; echo $?)"
+chk "adapter: delete_session refuses a non-numeric id" "2" \
+    "$(bash -c 'source env.sh; source services/database.sh; delete_session "../x"' >/dev/null 2>&1; echo $?)"
+chk "adapter: record_session refuses a non-numeric duration" "2" \
+    "$(bash -c 'source env.sh; source services/database.sh; record_session "guard/proj" "2026-01-01T00:00:00" "2026-01-01T01:00:00" "3600x" ""' >/dev/null 2>&1; echo $?)"
+chk "adapter: get_session_by_project refuses a non-numeric exclude" "2" \
+    "$(bash -c 'source env.sh; source services/database.sh; get_session_by_project "guard/proj" "0; DROP TABLE sessions"' >/dev/null 2>&1; echo $?)"
+
 # The boundary payoff [#46]: the ~50-char label used to overflow the %-22s
 # project column and shove that row's Start/End/Duration right. A break takes
 # no table row at all now, and the canned note stays silent — only a note that
@@ -1310,6 +1323,65 @@ chk "edit-time: null-end receipt untouched" "$label_before" \
 null_out=$(REFOCUS_DB_PATH="$ndb" ./focus report cycle 2>/dev/null)
 chk "report cycle: null-end opener reads unknown, not midnight" "0" \
     "$([[ "$null_out" == *"Period: unknown → now"* ]]; echo $?)"
+
+# ── absent values: named, never dated [CONV-ABSENT] ──────────────────────────
+# A damaged row — flagged timestamped but carrying no timestamps, which only
+# import/surgery/history can produce — keeps its listing and its counted
+# duration in views that don't ask it for a date, and gets an absence marker
+# where the clock detail would be. JSON import refuses the shape outright:
+# named, atomic, live DB untouched.
+echo "── absent values [CONV-ABSENT] ──"
+
+absent_db="$SANDBOX/absent.db"
+absent_focus() { REFOCUS_DB_PATH="$absent_db" ./focus "$@"; }
+REFOCUS_DB_PATH="$absent_db" bash -c '
+    source env.sh; source core/time.sh; source core/text.sh; source services/database.sh
+    db_ensure
+    record_session "abs/good" "$(now_iso)" "$(now_iso)" 600 ""
+    db_import_session_row "abs/damaged" "" "" 900 "" 0 ""
+' >/dev/null
+
+absent_list=$(absent_focus past list 2>/dev/null)
+chk "damaged row: still listed, duration intact" "0" \
+    "$([[ "$absent_list" == *"abs/damaged"* && "$absent_list" == *"15m"* ]]; echo $?)"
+chk "damaged row: absence named, never dated" "0" \
+    "$([[ "$absent_list" == *"(no timestamps)"* && "$absent_list" != *"$(date +%Y-%m-%d) 00:00"* ]]; echo $?)"
+
+# The id-window view counts the row; a time-range view legitimately omits it
+# (it has no date to place) — both honest, neither fabricated.
+absent_report=$(absent_focus report cycle 2>/dev/null)
+chk "report cycle: damaged row counted in the total" "0" \
+    "$([[ "$absent_report" == *"across 2 sessions"* ]]; echo $?)"
+chk "report cycle: damaged row says no timestamps" "0" \
+    "$([[ "$absent_report" == *"(no timestamps)"* ]]; echo $?)"
+
+# The damaged row as the only Last: candidate — duration is real, recency
+# would be fabrication.
+status_absent_db="$SANDBOX/status-absent.db"
+REFOCUS_DB_PATH="$status_absent_db" bash -c '
+    source env.sh; source services/database.sh; db_ensure
+    db_import_session_row "abs/only" "" "" 900 "" 0 ""
+' >/dev/null
+status_absent=$(REFOCUS_DB_PATH="$status_absent_db" ./focus status 2>&1)
+chk "status: damaged Last names absence, fabricates no recency" "0" \
+    "$([[ "$status_absent" == *"no timestamp"* && "$status_absent" != *"m ago"* ]]; echo $?)"
+
+absent_json="$SANDBOX/absent-import.json"
+cat > "$absent_json" <<EOF
+{"sessions": [
+  {"project": "imp/good", "start_time": "2026-06-11T10:00:00-03:00", "end_time": "2026-06-11T11:00:00-03:00", "duration_seconds": 3600, "notes": "", "duration_only": 0, "session_date": ""},
+  {"project": "imp/impossible", "start_time": null, "end_time": null, "duration_seconds": 900, "notes": "", "duration_only": 0, "session_date": null}
+]}
+EOF
+import_target_db="$SANDBOX/import-target.db"
+REFOCUS_DB_PATH="$import_target_db" ./focus status >/dev/null 2>&1
+printf 'n\n' | REFOCUS_DB_PATH="$import_target_db" ./focus past add imp/existing 2026/06/10-10:00 2026/06/10-11:00 >/dev/null 2>&1
+import_msg=$(printf 'yes\n' | REFOCUS_DB_PATH="$import_target_db" ./focus import "$absent_json" 2>&1)
+chk "import: impossible shape refused (rc=1)" "1" "$?"
+chk "import: refusal names the row" "0" \
+    "$([[ "$import_msg" == *"Row 2"* && "$import_msg" == *"imp/impossible"* ]]; echo $?)"
+chk "import: live DB untouched by the refusal" "1" \
+    "$(sqlite3 "$import_target_db" "SELECT COUNT(*) FROM sessions;")"
 
 # ── result ───────────────────────────────────────────────────────────────────
 echo

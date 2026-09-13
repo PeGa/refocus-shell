@@ -63,6 +63,12 @@ _render_rows() {
         if [[ "$duration_only" == "1" ]]; then
             start_str="(manual: $session_date)"
             end_str=""
+        elif [[ -z "$start" || -z "$end" ]]; then
+            # Flagged timestamped but missing its times — import damage. Name
+            # the absence; the row stays listed and its stored duration still
+            # counts (DM-SESSION), but nothing here dates it (CONV-ABSENT).
+            start_str="(no timestamps)"
+            end_str=""
         else
             start_str=$(ts_format "$start" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$start")
             end_str=$(ts_format "$end"   "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$end")
