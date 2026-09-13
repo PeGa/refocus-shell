@@ -64,27 +64,31 @@ Three-tier taxonomy: **infrastructure** (database, cron — essential), **integr
 mechanism). ARCH-COMPOSER added: when two handlers need the same domain rule, it
 becomes a composer service, not a copy. Landed in START_HERE §3 and MAIN.md ARCH.
 
+### A11 — landed, dead-knob rule
+
+CONV-DEADKNOB added: every config key has a live reader; when the last reader is
+removed, the key goes with it. Stale REPORT_LIMIT references deleted from MAIN.md,
+CHECKIN_INTERVAL added to exports list. App debt #40 (config unset validation)
+deferred to bug-fix pass after contract reconciliation.
+
+### A12 — landed, three oracles
+
+time-portability.sh added to acceptance oracle (MAIN.md test list, ARCH, BUILD-VERIFY,
+ACCEPT as item 3). AGENTS.md updated: oracle references, build order (step 26),
+per-task format. Principle: if a convention can be grepped by the oracle, it belongs
+in the oracle, not just in prose.
+
+### A13 — landed, test-authoring norms
+
+Added to AGENTS.md §3b (not MAIN.md — build guidance, not app behavior). Three norms:
+capture-then-match (avoid SIGPIPE under pipefail), fixtures through app's gears
+(use parse_time/cycle_label), determinism by config-coarsening (match on coarse keys).
+
 ---
 
 ## Pending (still to be decided)
 
-### A11 — Dead-knob rule
-
-Every config key has a live reader; a knob controlling nothing gets removed,
-not left lying. Material: REPORT_LIMIT removal (`b14d669`); adjacent debt #40.
-
-### A12 — Three oracles + oracle-as-enforcer
-
-`tests/time-portability.sh` absent from BUILD-VERIFY/ACCEPT/ARCH (both say
-"both test scripts"). Principle behind the naming guard: a convention the
-oracle can grep belongs in the oracle, not prose alone.
-
-### A13 — Test-authoring norms
-
-Capture-then-match (never pipe into `grep -q` under pipefail — SIGPIPE→141);
-fixtures built through the app's own gears (`parse_time`/`cycle_label`) so
-stored shape matches reality; determinism by config-coarsening
-(DATE_SHORT_FORMAT→`%Y`) instead of racing clocks.
+(All A-items settled. See "Decided" section above.)
 
 ---
 

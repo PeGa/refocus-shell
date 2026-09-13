@@ -11,10 +11,11 @@
 **Audience.** An agent (or developer) rebuilding refocus-shell from scratch, or
 modifying it without drifting from its design.
 
-**Acceptance oracle.** A correct build passes both:
+**Acceptance oracle.** A correct build passes all three:
 - `tests/audit.sh` — shellcheck clean across all scripts.
 - `tests/state-matrix.sh` — the behavioural regression suite.
-If your output fails either, it is wrong regardless of how reasonable it looks.
+- `tests/time-portability.sh` — GNU/BSD date(1) portability probe (on macOS, run twice: with and without `gdate`).
+If your output fails any, it is wrong regardless of how reasonable it looks.
 Note the oracle's blind spot (see [INT]): install, shell integration, cron
 delivery, and desktop notifications are *not* exercised by it.
 
@@ -243,7 +244,7 @@ services/focus-function.sh  shell integration: prompt hook + focus() wrapper.
 env.sh                      environment loader. reads .env, exports config.
 focus-nudge                 self-contained cron payload. sources env.sh + database.sh.
 docs/help/<cmd>.txt         per-command help, served verbatim by lib/help.sh.
-tests/                      audit.sh (shellcheck) + state-matrix.sh (behaviour).
+tests/                      audit.sh (shellcheck) + state-matrix.sh (behaviour) + time-portability.sh (GNU/BSD date).
 ```
 
 - ARCH-ROUTABLE: the dispatcher routes only to `lib/`, by filename, with no case
@@ -373,7 +374,7 @@ here controls.
 - `delete_session <id>`.
 
 **Session reads** (all 8-field rows: `id|project|start|end|dur|notes|duration_only|session_date`):
-- `list_sessions [limit]` — newest first, `limit` defaults to `REPORT_LIMIT`.
+- `list_sessions <limit>` — newest first, limit is the caller's (no house default).
 - `list_sessions_in_range <start> <end>` — timestamped rows by `end_time`;
   duration-only rows by `session_date`.
 - `get_session <id>`.
@@ -464,14 +465,18 @@ dispatcher, by `focus-nudge`, and by the shell hook.
 - Bootstrap: before `DB_PATH` is known, source `"$(dirname "${REFOCUS_DB_PATH:-<default>}")/.env"`
   if present, so a relocated DB's `.env` is honoured.
 - Then set and **export** exactly: `DB_PATH`, `ENV_FILE`, `NUDGE_INTERVAL`,
-  `MAX_PROJECT_LENGTH`, `DATE_FORMAT`, `DATE_SHORT_FORMAT`, `REPORT_LIMIT`.
-  Defaults: DB `~/.local/refocus/refocus.db`, interval `10`, max-len `100`,
-  date `%Y-%m-%d`, short `%Y-%m-%d %H:%M`, limit `20`.
+  `CHECKIN_INTERVAL`, `MAX_PROJECT_LENGTH`, `DATE_FORMAT`, `DATE_SHORT_FORMAT`.
+  Defaults: DB `~/.local/refocus/refocus.db`, nudge `10`, checkin `60`, max-len `100`,
+  date `%Y-%m-%d`, short `%Y-%m-%d %H:%M`.
 - `ENV_FILE` = `"$(dirname "$DB_PATH")/.env"`, computed **here, once**, exported.
 - Precedence (high→low): `REFOCUS_*` shell env vars → `.env` → these defaults.
 - CONV-ENVFILE: `ENV_FILE` is never re-derived elsewhere; `lib/config.sh` uses
   this export. WHY: re-deriving after a `DB_PATH` change splits reads and writes
   across two `.env` files (the split-brain bug).
+- CONV-DEADKNOB: every config key has a live reader. When the last reader of a
+  config key is removed, the key goes with it — from code, from config display,
+  from contract. A key the tool accepts but never reads is a lie: the user sets
+  a value expecting behavior, and nothing changes.
 
 ---
 
@@ -917,9 +922,9 @@ recurring class of self-inflicted defects.
   delimiters get silently mangled (a broken `sed` delimiter, dropped UTF-8,
   unquoted heredocs all shipped this way). Prefer surgical edits to exact strings
   read immediately before editing; when writing a whole file, write it directly.
-- BUILD-VERIFY: after any change, run `tests/audit.sh` and `tests/state-matrix.sh`.
-  A test harness is code too — assert by stable keys (project name), never by
-  volatile row id, or the oracle lies.
+- BUILD-VERIFY: after any change, run `tests/audit.sh`, `tests/state-matrix.sh`,
+  and `tests/time-portability.sh`. A test harness is code too — assert by stable
+  keys (project name), never by volatile row id, or the oracle lies.
 - BUILD-UTF8: run shellcheck under `LC_ALL=C.UTF-8`; its output encoder crashes on
   multibyte glyphs otherwise.
 - BUILD-SCOPE: one concern per change. Touch only the files the task names.
@@ -935,10 +940,12 @@ A rebuild or change is correct when:
    the full on/pause/continue/off cycle, duration-only storage + modify guards
    (including `modify <id> --duration` with no project), import state
    normalisation, config round-trip, help dispatch.
-3. `grep -rl sqlite3` over application files (excluding `tests/`) shows only
+3. `tests/time-portability.sh` exits 0 — GNU/BSD date(1) portability verified.
+   On macOS, run twice: with and without `gdate` on PATH.
+4. `grep -rl sqlite3` over application files (excluding `tests/`) shows only
    `services/database.sh` (+ the `setup.sh` probe).
-4. No symbol from DM-DEAD reappears.
-5. Hand-verified (oracle blind spot, [INT]): install arms cron and leaves state
+5. No symbol from DM-DEAD reappears.
+6. Hand-verified (oracle blind spot, [INT]): install arms cron and leaves state
    consistent; the shell hook shows the prompt marker; `focus nudge test` lands a
    notification in history.
 

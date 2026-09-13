@@ -149,6 +149,7 @@ by its bullet in [CONV] and referenced from the commands it governs.
 | CONV-NOTES-CLEAR| clearing a note requires $EDITOR; never inferred from silence | 828 | CONV |
 | CONV-PORTABLE| GNU+BSD+bash-3.2; no date(1)/sed -i/sed t;/declare -A | 842 | CONV |
 | CONV-ENVFILE| ENV_FILE computed once in env.sh | 462 | ENV |
+| CONV-DEADKNOB| every config key has a live reader; dead keys removed | 475 | ENV |
 | CRON-BIN| payload paths resolved at call time (nudge + checkin) | 482 | CRON |
 | CRON-ENV| entry embeds REFOCUS_ROOT + display env | 485 | CRON |
 | CRON-STRIP| fixed-string crontab strip, live only | 489 | CRON |
