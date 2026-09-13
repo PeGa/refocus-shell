@@ -576,7 +576,8 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
 ### CMD-CONFIG · `focus config <show|set|unset>`
 - `show`: effective values + overrides from `$ENV_FILE`.
 - `set <KEY> <VAL>`: validate KEY against the known set; write `REFOCUS_<KEY>` to
-  `$ENV_FILE`. `unset`: remove the line. `$ENV_FILE` from env.sh (CONV-ENVFILE).
+  `$ENV_FILE`. `unset`: validate KEY, remove the line. Unknown key → exit 2.
+  `$ENV_FILE` from env.sh (CONV-ENVFILE).
 - Both edits go through `_rewrite_env` (CONV-PORTABLE): `sed` into a temp file,
   then `cat` the temp file's contents back into `$ENV_FILE` — never `mv` the
   temp file over it. `mv` swaps the inode in, and mktemp's default mode is
@@ -711,8 +712,12 @@ active          1 0 0      paused          0 1 0
 
 - CONV-EXIT: `0` success · `1` runtime/state error (wrong state, not found) ·
   `2` usage/argument error. Used consistently; the test suite asserts them.
-- CONV-YES: destructive ops (`reset`, `import`) require the user to type the
-  literal word `yes`. Anything else cancels cleanly with exit 0 (cancel ≠ error).
+- CONV-YES: three-tier confirmation. App-wide destructive ops (`reset`, `import`)
+  require the user to type the literal word `yes`. Simple/recoverable destructive
+  ops (cycle delete, cycle add replace-prompt, past delete) use `y/N` default-no.
+  Simple/recoverable non-destructive confirmations (on continue last, on typo
+  guard, continue) use `Y/n` default-yes. Anything else cancels cleanly with
+  exit 0 (cancel ≠ error). EOF at a prompt is a decline (exit 0), never an abort.
 - CONV-REARM: `reset` and `import` leave the tool **disabled**. Re-arming is a
   conscious `focus enable`. WHY: destroying or replacing data must not silently
   resume nudging behind the user.

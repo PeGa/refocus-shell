@@ -33,11 +33,17 @@ _rewrite_env() {
     # <sed-expr> -> apply it to ENV_FILE in place. Writes into the original
     # file rather than `mv`-replacing it: mktemp defaults to mode 0600, and
     # `mv` would swap the inode in, silently dropping ENV_FILE's real
-    # permissions to 0600 on every edit.
+    # permissions to 0600 on every edit. Returns the rewrite's status, not
+    # rm's — a failed sed must reach the caller (#40).
     local expr="$1" tmp
     tmp=$(mktemp "${ENV_FILE}.XXXXXX")
-    sed "$expr" "$ENV_FILE" > "$tmp" && cat "$tmp" > "$ENV_FILE"
-    rm -f "$tmp"
+    if sed "$expr" "$ENV_FILE" > "$tmp" && cat "$tmp" > "$ENV_FILE"; then
+        rm -f "$tmp"
+        return 0
+    else
+        rm -f "$tmp"
+        return 1
+    fi
 }
 
 _show() {
@@ -48,7 +54,6 @@ _show() {
     printf "  %-24s = %s\n" "MAX_PROJECT_LENGTH"  "$MAX_PROJECT_LENGTH"
     printf "  %-24s = %s\n" "DATE_FORMAT"         "$DATE_FORMAT"
     printf "  %-24s = %s\n" "DATE_SHORT_FORMAT"   "$DATE_SHORT_FORMAT"
-    printf "  %-24s = %s\n" "REPORT_LIMIT"        "$REPORT_LIMIT"
     echo ""
     if [[ -f "$ENV_FILE" && -s "$ENV_FILE" ]]; then
         echo "Overrides ($ENV_FILE):"
@@ -64,7 +69,7 @@ _show() {
 
 _valid_key() {
     case "$1" in
-        NUDGE_INTERVAL|CHECKIN_INTERVAL|MAX_PROJECT_LENGTH|DATE_FORMAT|DATE_SHORT_FORMAT|REPORT_LIMIT|DB_PATH) return 0 ;;
+        NUDGE_INTERVAL|CHECKIN_INTERVAL|MAX_PROJECT_LENGTH|DATE_FORMAT|DATE_SHORT_FORMAT|DB_PATH) return 0 ;;
         *) return 1 ;;
     esac
 }
@@ -79,7 +84,7 @@ case "$sub" in
         key="${1:-}"; val="${2:-}"
         [[ -z "$key" || -z "$val" ]] && usage_error config
         _valid_key "$key" || { echo "❌ Unknown key: $key" >&2
-            echo "Valid: NUDGE_INTERVAL CHECKIN_INTERVAL MAX_PROJECT_LENGTH DATE_FORMAT DATE_SHORT_FORMAT REPORT_LIMIT DB_PATH" >&2
+            echo "Valid: NUDGE_INTERVAL CHECKIN_INTERVAL MAX_PROJECT_LENGTH DATE_FORMAT DATE_SHORT_FORMAT DB_PATH" >&2
             exit 2; }
         env_key="REFOCUS_${key}"
         quoted=$(_shell_quote "$val")
@@ -93,6 +98,9 @@ case "$sub" in
         ;;
     unset)
         key="${1:-}"; [[ -z "$key" ]] && usage_error config
+        _valid_key "$key" || { echo "❌ Unknown key: $key" >&2
+            echo "Valid: NUDGE_INTERVAL CHECKIN_INTERVAL MAX_PROJECT_LENGTH DATE_FORMAT DATE_SHORT_FORMAT DB_PATH" >&2
+            exit 2; }
         env_key="REFOCUS_${key}"
         [[ -f "$ENV_FILE" ]] && _rewrite_env "/^${env_key}=/d"
         echo "✅ Unset $key (reverts to default)"

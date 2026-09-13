@@ -263,10 +263,11 @@ printf 'r3\n' | ./focus past add rep/y 2026/06/12-13:00 2026/06/12-13:30 >/dev/n
 out=$(./focus report custom 90000 2>&1)
 # The breakdown is a markdown table row now, so the count stands alone in its
 # own cell rather than reading "N session(s)".
+# Match exact lines, not substrings across the output (#28).
 chk "report: multi-session project total" "0" \
-    "$([[ "$out" == *'| `rep/x` | 3h 0m | 2 |'* ]]; echo $?)"
+    "$(echo "$out" | grep -qF '| `rep/x` | 3h 0m | 2 |'; echo $?)"
 chk "report: single-session project total" "0" \
-    "$([[ "$out" == *'| `rep/y` | 30m | 1 |'* ]]; echo $?)"
+    "$(echo "$out" | grep -qF '| `rep/y` | 30m | 1 |'; echo $?)"
 
 # ── report: markdown structure ────────────────────────────────────────────────
 # Notes are hand-written markdown. The old layout indented every note line
@@ -277,16 +278,17 @@ printf -- '- bullet one\n- bullet two\n' | ./focus past add md/notes 2026/06/13-
 printf 'manual note\n' | ./focus past add md/manual --duration 45m --date 2026/06/13 >/dev/null 2>&1
 md=$(./focus report custom 90000 2>&1)
 
-chk "md: document header"     "0" "$([[ "$md" == *"# Focus report"*        ]]; echo $?)"
-chk "md: projects section"    "0" "$([[ "$md" == *"## Projects"*          ]]; echo $?)"
-chk "md: table delimiter row" "0" "$([[ "$md" == *"|---|---:|---:|"*      ]]; echo $?)"
-chk "md: sessions section"    "0" "$([[ "$md" == *"## Sessions"*          ]]; echo $?)"
+# Match exact lines or patterns, not substrings across the output (#28).
+chk "md: document header"     "0" "$(echo "$md" | grep -qF '# Focus report'; echo $?)"
+chk "md: projects section"    "0" "$(echo "$md" | grep -qF '## Projects'; echo $?)"
+chk "md: table delimiter row" "0" "$(echo "$md" | grep -qF '|---|---:|---:|'; echo $?)"
+chk "md: sessions section"    "0" "$(echo "$md" | grep -qF '## Sessions'; echo $?)"
 chk "md: heading carries id and project" "0" \
-    "$([[ "$md" == *'### ['*'] `md/notes`'* ]]; echo $?)"
+    "$(echo "$md" | grep -qE '### \[[0-9]+\] `md/notes`'; echo $?)"
 chk "md: timestamped time line" "0" \
-    "$([[ "$md" == *"**2026-06-13 09:00–10:30 · 1h 30m**"* ]]; echo $?)"
+    "$(echo "$md" | grep -qF '**2026-06-13 09:00–10:30 · 1h 30m**'; echo $?)"
 chk "md: duration-only time line" "0" \
-    "$([[ "$md" == *"**45m on 2026-06-13 (manual)**"* ]]; echo $?)"
+    "$(echo "$md" | grep -qF '**45m on 2026-06-13 (manual)**'; echo $?)"
 
 # The regression the format exists for: a note's own markdown must survive at
 # column 0, not behind an indent.

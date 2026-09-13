@@ -17,7 +17,7 @@ IFS='|' read -r _ project _ _ _ previous_elapsed _ _ <<< "$(get_state)"
 prev_min=$(( previous_elapsed / 60 ))
 
 echo -n "▶ Continue '$project' (${prev_min}m before pause)? (Y/n): "
-read -r ans
+read -r ans || true
 if [[ "${ans:-Y}" =~ ^[Nn]$ ]]; then
     echo "Session remains paused. Use 'focus off' to end it."
     exit 0

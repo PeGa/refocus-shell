@@ -193,7 +193,7 @@ case "$sub" in
         [[ -z "$row" ]] && { echo "❌ Session $id not found." >&2; exit 1; }
         IFS="|" read -r _ project _ _ dur _ <<< "$row"
         echo -n "🗑  Delete session $id ($project, $(fmt_duration "$dur"))? (y/N): "
-        read -r ans
+        read -r ans || true
         [[ "${ans:-N}" =~ ^[Yy]$ ]] || { echo "Cancelled."; exit 0; }
         delete_session "$id"
         echo "✅ Deleted."
