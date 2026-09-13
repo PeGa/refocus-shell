@@ -137,7 +137,7 @@ by its bullet in [CONV] and referenced from the commands it governs.
 | CHECKIN-TIER3-HANDOFF| terminal tier hands back two bare lines, never pipe-delimited | 723 | CHECKIN |
 | SM-INVARIANT| disabled ⇒ idle; active+disabled illegal | 742 | SM |
 | CONV-EXIT| exit codes 0/1/2 | 756 | CONV |
-| CONV-YES| destructive ops need literal "yes" | 764 | CONV |
+| CONV-YES| two-tier: app-wide destructive needs "yes", simple ops use y/N | 764 | CONV |
 | CONV-REARM| reset/import leave disabled | 766 | CONV |
 | CONV-IDEMPOTENT-ENABLE| enable-when-enabled is a no-op | 769 | CONV |
 | CONV-DURONLY| duration-only rows have no timestamps | 772 | CONV |

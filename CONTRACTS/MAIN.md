@@ -761,8 +761,10 @@ active          1 0 0      paused          0 1 0
   value that names nothing** is state (`1`) — "Session 7 not found", "Cycle
   not found". A declined confirmation is `0`, never an error (CONV-YES). Not
   new law: the initial release already split it this way; this names it.
-- CONV-YES: destructive ops (`reset`, `import`) require the user to type the
-  literal word `yes`. Anything else cancels cleanly with exit 0 (cancel ≠ error).
+- CONV-YES: two-tier confirmation. App-wide destructive ops (`reset`, `import`)
+  require the user to type the literal word `yes`. Simple/recoverable ops (cycle
+  delete, cycle add replace-prompt) use `y/N` default-no. Anything else cancels
+  cleanly with exit 0 (cancel ≠ error).
 - CONV-REARM: `reset` and `import` leave the tool **disabled**. Re-arming is a
   conscious `focus enable`. WHY: destroying or replacing data must not silently
   resume nudging behind the user.
