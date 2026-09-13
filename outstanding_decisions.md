@@ -33,8 +33,8 @@ to undo.
 
 ### Vocabulary discipline queued for #47
 
-- One shipped phrase to fix: "id-window period views" in CONV-ABSENT
-  (MAIN.md:785) → "the period listings".
+- ~~One shipped phrase to fix: "id-window period views" in CONV-ABSENT
+  (MAIN.md:785) → "the period listings".~~ **Done.**
 - CMD-PERIOD, when written, uses the spec language ("the events between that
   break and the next"). The id-ordering mechanism appears once, as an
   implementation note carrying the duration-only WHY — never as a domain noun.
@@ -116,10 +116,11 @@ capture-then-match (avoid SIGPIPE under pipefail), fixtures through app's gears
 - START_HERE.md sync: §1 DM rows (cycles table/kind column; period-as-time-cut
   phrasing per the vocabulary discipline), §3 map (+3 services), §5
   CONV-PORTABLE narrowing, §7 third oracle, naming-line digest.
-- AGENTS.md: §5 DM-DEAD grep comment-skip (`^[^#]*`), §2 build-order
-  additions, oracle wording.
-- App-debt clauses (#40, #41, #42, #43, #44, #28): contract states intent +
-  `(app debt: #NN)` marker, issues stay open.
+- AGENTS.md: §5 DM-DEAD grep comment-skip (`^[^#]*`) — **Done**, §2 build-order
+  additions — **Done**, oracle wording — **Done**.
+- App-debt clauses (#40, #41, #42, #43, #44, #28): **Done.** Contract states intent +
+  `(app debt: #NN)` marker, issues stay open. Added to CMD-CONFIG (#40), CRON-STRIP
+  (#41), CONV-YES (#42), CMD-ON (#43), CONV-IDEMPOTENT-ENABLE (#44), BUILD-VERIFY (#28).
 - Not contractualized, deliberately: message voice/emoji, boundary glyph,
   "Current cycle" label wording, note prose — UI texture lives in help docs.
   Exception: the `Cycle break. Period:` prefix (identification mechanism).

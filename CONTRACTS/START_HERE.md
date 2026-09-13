@@ -11,9 +11,9 @@
 
 A terminal focus/time tracker. Bash over one SQLite DB. No daemon. A **cron job**
 nudges; a **shell hook** shows state in the prompt. Hexagonal: handlers name
-intent, one file speaks SQL. You are correct iff `tests/audit.sh` **and**
-`tests/state-matrix.sh` both exit 0 — no matter how reasonable your change looks.
-`[ACCEPT]`
+intent, one file speaks SQL. You are correct iff `tests/audit.sh`,
+`tests/state-matrix.sh`, **and** `tests/time-portability.sh` all exit 0 — no
+matter how reasonable your change looks. `[ACCEPT]`
 
 ### Shortcuts to the CONTRACT
 
@@ -127,11 +127,16 @@ wall-time is never counted. `[CMD-CONTINUE]`
 
 - **Exit codes:** `0` success · `1` runtime/state error · `2` usage/arg error.
   The suite asserts these. `[CONV-EXIT]`
-- **Destructive ops** (`reset`, `import`) require the literal word `yes`; anything
-  else cancels cleanly with exit 0 (cancel ≠ error). `[CONV-YES]`
+- **Destructive ops** use two-tier confirmation: app-wide destructive (`reset`,
+  `import`) require the literal word `yes`; simple/recoverable ops (cycle delete,
+  cycle add replace-prompt) use `y/N` default-no. Anything else cancels cleanly
+  with exit 0 (cancel ≠ error). `[CONV-YES]`
 - **`reset`/`import` leave the tool disabled.** Re-arming is a conscious
   `focus enable`. `[CONV-REARM]`
 - **`enable` while enabled** is a no-op that says so (don't re-phase cron). `[CONV-IDEMPOTENT-ENABLE]`
+- **Every config key has a live reader.** When the last reader of a config key
+  is removed, the key goes with it — from code, from config display, from
+  contract. A key the tool accepts but never reads is a lie. `[CONV-DEADKNOB]`
 - **duration-only rows** have no timestamps — never feed an empty date to
   `date(1)` (parses as today-midnight → silent zero duration). `modify` on them
   accepts rename + `--duration`, plus `--notes` (a note bolts on no
@@ -167,7 +172,8 @@ wall-time is never counted. `[CMD-CONTINUE]`
   get silently mangled. Surgical edits to exact strings read immediately before
   editing; when writing a whole file, write it directly. *(This is the #1 way
   local models corrupt this repo.)*
-- **BUILD-VERIFY:** after any change run both test scripts. Assert by stable keys
+- **BUILD-VERIFY:** after any change run all three test scripts: `tests/audit.sh`,
+  `tests/state-matrix.sh`, and `tests/time-portability.sh`. Assert by stable keys
   (project name), never volatile row id.
 - **BUILD-UTF8:** run shellcheck under `LC_ALL=C.UTF-8`.
 - **BUILD-SCOPE:** one concern per change; touch only the files the task names.
@@ -178,9 +184,10 @@ wall-time is never counted. `[CMD-CONTINUE]`
 
 1. `tests/audit.sh` exits 0 (shellcheck clean).
 2. `tests/state-matrix.sh` exits 0.
-3. `grep -rl sqlite3` over app files (excl. `tests/`) → only `services/database.sh`.
-4. No DM-DEAD symbol reappeared.
-5. Hand-verify the oracle's blind spot `[INT]`: install arms cron + leaves state
+3. `tests/time-portability.sh` exits 0 (GNU/BSD date(1) portability).
+4. `grep -rl sqlite3` over app files (excl. `tests/`) → only `services/database.sh`.
+5. No DM-DEAD symbol reappeared.
+6. Hand-verify the oracle's blind spot `[INT]`: install arms cron + leaves state
    consistent; shell hook shows the prompt marker; `focus nudge test` lands a
    notification in history.
 

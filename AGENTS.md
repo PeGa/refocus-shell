@@ -149,7 +149,7 @@ grep -rl sqlite3 lib/ core/ focus focus-nudge services/cron.sh \
 # Expected: no output
 
 # DM-DEAD: dead symbols must not reappear
-grep -rn "nudging_enabled\|pause_notes\|\bprojects\b\|focus describe\|nudge enable\|nudge disable\|db_flip_flag\|db_nudging_on\|db_is_active\|db_is_paused\|db_is_disabled" \
+grep -rn '^[^#]*\(nudging_enabled\|pause_notes\|\bprojects\b\|focus describe\|nudge enable\|nudge disable\|db_flip_flag\|db_nudging_on\|db_is_active\|db_is_paused\|db_is_disabled\)' \
      lib/ services/ core/ focus focus-nudge 2>/dev/null
 # Expected: no output
 

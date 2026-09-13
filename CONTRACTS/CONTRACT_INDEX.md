@@ -44,6 +44,7 @@
 | DM-PROJECT| Project is a label, not an entity         | 77–85   |
 | DM-STATE| State is runtime, not data                | 87–105  |
 | DM-DEAD| Negative space — never re-add             | 107–122 |
+| DM-CYCLE| Cycle breaks are informational delimiters, not periods | 123–143 |
 
 ---
 
@@ -77,7 +78,9 @@
 | CMD-CONFIG   | focus config <show\|set\|unset> | 607–618 |
 | CMD-EXPORT| focus export [basename] | 624–625 |
 | CMD-IMPORT| focus import <file> | 627–641 |
-| CMD-INIT| focus init | 643–644 |
+| CMD-CYCLE| focus cycle <add\|modify\|delete> | 686–707 |
+| CMD-PERIOD| Period resolution (services/period.sh) | 709–726 |
+| CMD-INIT| focus init | 728–729 |
 | CMD-RESET| focus reset | 646–649 |
 | CMD-HELP| focus help [cmd] | 651–662 |
 
