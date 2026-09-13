@@ -115,9 +115,10 @@ by its bullet in [CONV] and referenced from the commands it governs.
 |---|---|---|---|
 | NAME-UNDERSCORE| underscore marks file-private scope; never a license for cryptic names | 201 | NAME |
 | NAME-BREVITY| identifiers state intent; short-name allowlist id/rc/n/lo/hi, oracle-enforced | 207 | NAME |
-| ARCH-ROUTABLE| dispatcher routes only to lib/ | 244 | ARCH |
-| ARCH-ROOT| REFOCUS_ROOT via realpath(BASH_SOURCE) | 248 | ARCH |
-| ARCH-SOURCE| handler source order | 253 | ARCH |
+| ARCH-ROUTABLE| dispatcher routes only to lib/ | 249 | ARCH |
+| ARCH-ROOT| REFOCUS_ROOT via realpath(BASH_SOURCE) | 253 | ARCH |
+| ARCH-SOURCE| handler source order | 258 | ARCH |
+| ARCH-COMPOSER| shared domain rule → composer service, not copy | 260 | ARCH |
 | PORT-VOCAB| adapter never hardcodes domain vocabulary; literals arrive as arguments | 268 | PORT |
 | PORT-PROJVALID| project names sanitize (¦); notes encode (\x7c); CHECK backstops both | 278 | PORT |
 | PORT-NOTES| notes encode newlines/pipe on read | 374 | PORT |

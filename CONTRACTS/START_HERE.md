@@ -67,12 +67,15 @@ Old DBs may carry `pause_notes` / `nudging_enabled` columns. **Leave them.**
 
 ```
 focus                     dispatcher: sets+exports REFOCUS_ROOT, routes focus <cmd> → exec lib/<cmd>.sh
-lib/<cmd>.sh              PRIMARY adapter, one per command, routable, drives core via intent calls
-core/<topic>.sh           DOMAIN helpers, pure str/int→str/int, NO sql/cron/state, NOT routable
-services/database.sh      SECONDARY adapter, the ONLY file that speaks SQL (INV-1)
-services/help.sh          SECONDARY adapter, renders docs/help/<cmd>.txt (show_help/usage_error)
-services/editor.sh        SECONDARY adapter, captures notes through $EDITOR
-services/cron.sh          SECONDARY adapter, arms/disarms nudge schedule
+lib/<cmd>.sh              handler, one per command, routable, drives core via intent calls
+core/<topic>.sh           domain helpers, pure str/int→str/int, NO sql/cron/state, NOT routable
+services/database.sh      infrastructure, the ONLY file that speaks SQL (INV-1)
+services/cron.sh          infrastructure, arms/disarms nudge and checkin schedules
+services/desktop.sh       integration, desktop notifications (kdialog/zenity)
+services/editor.sh        integration, captures notes through $EDITOR
+services/help.sh          integration, renders docs/help/<cmd>.txt (show_help/usage_error)
+services/merge.sh         composer, duplicate-session merge rule (shared by off/past add/past modify)
+services/period.sh        composer, period resolution rule (shared by past cycles/report cycle)
 services/focus-function.sh shell integration: prompt hook + focus() wrapper
 env.sh                    config loader, sourced first everywhere, exports DB_PATH etc.
 focus-nudge               self-contained cron payload, sources env.sh + database.sh + time.sh

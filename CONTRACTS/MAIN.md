@@ -228,12 +228,17 @@ Hexagonal / ports-and-adapters. Three layers plus entry points.
 ```
 focus                       dispatcher. resolves REFOCUS_ROOT, sources env.sh,
                             routes `focus <cmd> [args]` → exec lib/<cmd>.sh
-lib/<cmd>.sh                PRIMARY ADAPTERS. one file per command. receive user
-                            input, drive the core via intent calls. routable.
-core/<topic>.sh             DOMAIN HELPERS. pure functions, string→string/int.
+lib/<cmd>.sh                handler. one file per command. receive user input,
+                            drive the core via intent calls. routable.
+core/<topic>.sh             domain helpers. pure functions, string→string/int.
                             no SQL, no cron, no state, no side effects. NOT routable.
-services/database.sh        SECONDARY ADAPTER. the only file that speaks SQL (INV-1).
-services/cron.sh            SECONDARY ADAPTER. arms/disarms the nudge schedule.
+services/database.sh        infrastructure. the only file that speaks SQL (INV-1).
+services/cron.sh            infrastructure. arms/disarms nudge and checkin schedules.
+services/desktop.sh         integration. desktop notifications (kdialog/zenity).
+services/editor.sh          integration. captures notes through $EDITOR.
+services/help.sh            integration. renders docs/help/<cmd>.txt.
+services/merge.sh           composer. duplicate-session merge rule.
+services/period.sh          composer. period resolution rule.
 services/focus-function.sh  shell integration: prompt hook + focus() wrapper.
 env.sh                      environment loader. reads .env, exports config.
 focus-nudge                 self-contained cron payload. sources env.sh + database.sh.
@@ -252,6 +257,11 @@ tests/                      audit.sh (shellcheck) + state-matrix.sh (behaviour).
   `cd "$PWD"` or `$0` games — `realpath` on `BASH_SOURCE` is the one correct form.)
 - ARCH-SOURCE: every `lib/` handler begins by sourcing `env.sh`, then whatever
   services/core it needs, then calls `db_ensure` if it touches the DB.
+- ARCH-COMPOSER: when two handlers need the same domain rule, it becomes a
+  composer service (`services/`), not a copy. Composers have no mechanism of
+  their own, document their scope assumptions (what the caller must source),
+  and are never sourced by another service. Duplication is reserved for trivial
+  guards.
 
 ---
 

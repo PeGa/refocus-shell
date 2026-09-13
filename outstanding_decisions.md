@@ -57,17 +57,16 @@ literal `yes`; simple/recoverable ops (cycle delete, cycle add replace-prompt)
 use `y/N` default-no. Landed in MAIN.md CONV-YES definition. App already
 matches — no code changes needed.
 
+### A10 — landed, services taxonomy settled
+
+Three-tier taxonomy: **infrastructure** (database, cron — essential), **integration**
+(desktop, editor, help — optional), **composer** (merge, period — domain logic, no
+mechanism). ARCH-COMPOSER added: when two handlers need the same domain rule, it
+becomes a composer service, not a copy. Landed in START_HERE §3 and MAIN.md ARCH.
+
 ---
 
 ## Pending (still to be decided)
-
-### A10 — Service-promotion rule
-
-Two handlers needing one rule ⇒ a service, not a copy (`merge.sh`,
-`period.sh`); duplication reserved for trivial guards; services don't source —
-they document scope assumptions. Plus the services/ taxonomy gap: mechanism
-adapters (database, cron, editor, desktop, help) vs domain composers (merge,
-period). Settle together with the taxonomy (item B of the reconcile ledger).
 
 ### A11 — Dead-knob rule
 
