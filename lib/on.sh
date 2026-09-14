@@ -3,6 +3,7 @@ set -euo pipefail
 source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/database.sh"
 source "$REFOCUS_ROOT/core/time.sh"
+source "$REFOCUS_ROOT/core/text.sh"
 source "$REFOCUS_ROOT/services/help.sh"
 
 wants_help "$@" && show_help on
@@ -24,7 +25,9 @@ fi
 project="${1:-}"
 
 if [[ -z "$project" ]]; then
-    last=$(get_last_project)
+    # Cycle-break markers are excluded: a bare `focus on` must offer the last
+    # real project, never the boundary a `cycle add` just wrote. [#46]
+    last=$(get_last_project "$(cycle_prefix)")
     if [[ -n "$last" ]]; then
         total=$(get_total_time "$last")
         total_min=$(( total / 60 ))

@@ -189,7 +189,6 @@ focus config unset NUDGE_INTERVAL     # back to default
 | `MAX_PROJECT_LENGTH` | `100`                          | Longest allowed project name          |
 | `DATE_FORMAT`        | `%Y-%m-%d`                     | Date format in reports                |
 | `DATE_SHORT_FORMAT`  | `%Y-%m-%d %H:%M`               | Datetime in the session list          |
-| `REPORT_LIMIT`       | `20`                           | Default rows in `past list`           |
 | `DB_PATH`            | `~/.local/refocus/refocus.db`  | Where your data lives                 |
 
 Overrides live in a `.env` file next to your database. A new nudge interval takes effect the next time you `enable` (or `disable` then `enable`).

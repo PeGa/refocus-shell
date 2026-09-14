@@ -26,8 +26,8 @@ If any of these files is missing, stop and say so. Do not infer their content.
 - **One file per task.** One concern per change. Do not touch files not named in
   the current task, even if you think they need updating.
 - **Run the oracle before declaring done.** Every task ends with
-  `bash tests/audit.sh`. Report its exit code and stderr. A task is not done
-  until the oracle exits 0.
+  `bash tests/audit.sh && bash tests/state-matrix.sh && bash tests/time-portability.sh`.
+  Report exit codes and stderr. A task is not done until all three exit 0.
 - **Read before writing.** Use the file-read tool on any file you are about to
   edit. Your in-context version may be stale.
 - **No whole-file regeneration through escaping layers.** No heredoc inside
@@ -72,6 +72,7 @@ passes `tests/audit.sh`.
 23. services/focus-function.sh      prompt hook + focus() wrapper
 24. setup.sh                        install/uninstall; arms cron on fresh install
 25. tests/state-matrix.sh           full behavioral oracle; written after all lib/ exists
+26. tests/time-portability.sh       GNU/BSD date(1) portability probe; tests core/time.sh
 ```
 
 ---
@@ -89,14 +90,40 @@ Constraints:
 - Calls permitted: [explicit list of intent functions]
 - No sqlite3 calls. No db_* domain calls. [INV-1] [INV-2]
 - Exit codes: 0 success / 1 state error / 2 usage error. [CONV-EXIT]
-- After writing, run: bash tests/audit.sh
-  Report exit code and full stderr before responding.
+- After writing, run: bash tests/audit.sh && bash tests/state-matrix.sh && bash tests/time-portability.sh
+  Report exit codes and full stderr before responding.
 
 Do not touch any other file.
 ```
 
 If the task spec is ambiguous, ask for clarification before writing a single line.
 Do not infer unstated scope.
+
+---
+
+## 3b · Test-authoring norms
+
+Learned from incidents. Apply when writing or modifying tests:
+
+- **Capture-then-match**: never pipe into `grep -q` under `pipefail`. The upstream
+  command gets SIGPIPE when `grep -q` exits early. Capture output first, then match:
+  ```bash
+  # Bad: SIGPIPE risk
+  chk "description" "0" "$(command | grep -q 'pattern'; echo $?)"
+  
+  # Good: capture first
+  local output
+  output="$(command)"
+  chk "description" "0" "$([[ "$output" == *pattern* ]]; echo $?)"
+  ```
+
+- **Fixtures through app's gears**: use `parse_time`, `cycle_label`, etc. to build
+  test data. Hand-crafted timestamps may not match what the app actually stores
+  (e.g., "2025-09-05 14:30:00" vs "2025-09-05 14:30"), so tests pass on broken output.
+
+- **Determinism by config-coarsening**: match on coarse keys (year, project name),
+  not exact timestamps. Tests that match "2025-09-05 14:30" fail when run at 14:31.
+  Set `DATE_SHORT_FORMAT='%Y'` or match on stable identifiers.
 
 ---
 
@@ -122,7 +149,7 @@ grep -rl sqlite3 lib/ core/ focus focus-nudge services/cron.sh \
 # Expected: no output
 
 # DM-DEAD: dead symbols must not reappear
-grep -rn "nudging_enabled\|pause_notes\|\bprojects\b\|focus describe\|nudge enable\|nudge disable\|db_flip_flag\|db_nudging_on\|db_is_active\|db_is_paused\|db_is_disabled" \
+grep -rn '^[^#]*\(nudging_enabled\|pause_notes\|\bprojects\b\|focus describe\|nudge enable\|nudge disable\|db_flip_flag\|db_nudging_on\|db_is_active\|db_is_paused\|db_is_disabled\)' \
      lib/ services/ core/ focus focus-nudge 2>/dev/null
 # Expected: no output
 

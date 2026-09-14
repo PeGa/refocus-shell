@@ -5,6 +5,7 @@ source "$REFOCUS_ROOT/services/database.sh"
 source "$REFOCUS_ROOT/core/time.sh"
 source "$REFOCUS_ROOT/core/text.sh"
 source "$REFOCUS_ROOT/services/help.sh"
+source "$REFOCUS_ROOT/services/period.sh"
 
 wants_help "$@" && show_help report
 
@@ -18,8 +19,30 @@ db_ensure
 # Nothing here reformats a note; it is emitted verbatim and the structure
 # survives.
 
+# The two range kinds read from different functions but render identically,
+# so the mode is resolved once here rather than threaded through the body.
+# Cycle breaks are never listed by report: they delimit periods, they are not
+# work. The breakdown drops them in SQL because it aggregates there; the row
+# loops drop them here, which is safe only because neither applies a LIMIT.
+_rows() {
+    if [[ "$_mode" == "window" ]]; then
+        list_sessions_by_id_range "$_range_lo" "$_range_hi"
+    else
+        list_sessions_in_range "$_range_lo" "$_range_hi"
+    fi
+}
+
+_totals() {
+    if [[ "$_mode" == "window" ]]; then
+        get_project_totals_by_id_range "$_range_lo" "$_range_hi" "$(cycle_prefix)"
+    else
+        get_project_totals_in_range "$_range_lo" "$_range_hi" "$(cycle_prefix)"
+    fi
+}
+
 _report() {
-    local label="$1" start="$2" end="$3"
+    local label="$1"
+    _mode="$2" _range_lo="$3" _range_hi="$4"
 
     echo "# Focus report"
     echo "## $label"
@@ -30,13 +53,14 @@ _report() {
     # instead. This loop only sums scalars, which every bash version supports.
     local total=0 sessions=0
     while IFS='|' read -r id project start_t end_t dur notes duration_only session_date; do
+        is_cycle_label "$project" && continue
         total=$(( total + dur ))
         sessions=$(( sessions + 1 ))
-    done < <(list_sessions_in_range "$start" "$end")
+    done < <(_rows)
 
     local noun="sessions"
     [[ $sessions -eq 1 ]] && noun="session"
-    echo "Period: $(ts_format "$start" "$DATE_FORMAT") → $(ts_format "$end" "$DATE_FORMAT") Total: $(fmt_duration $total) across $sessions $noun"
+    echo "Period: $_range_from → $_range_to Total: $(fmt_duration $total) across $sessions $noun"
 
     # An empty period stops here: a header, the period line, and no rules
     # trailing off the end of an otherwise blank document.
@@ -49,7 +73,7 @@ _report() {
     # Project names cannot contain '|' — the sessions table CHECKs for it — so
     # no table cell needs escaping.
     local have_projects=0
-    while IFS='|' read -r p pdur pcnt; do
+    while IFS='|' read -r proj pdur pcnt; do
         if [[ $have_projects -eq 0 ]]; then
             echo "## Projects"
             echo ""
@@ -57,12 +81,13 @@ _report() {
             echo "|---|---:|---:|"
             have_projects=1
         fi
-        printf "| \`%s\` | %s | %s |\n" "$p" "$(fmt_duration "$pdur")" "$pcnt"
-    done < <(get_project_totals_in_range "$start" "$end")
+        printf "| \`%s\` | %s | %s |\n" "$proj" "$(fmt_duration "$pdur")" "$pcnt"
+    done < <(_totals)
     [[ $have_projects -eq 1 ]] && { echo ""; echo "---"; echo ""; }
 
-    local have_sessions=0 s e
+    local have_sessions=0 start_str end_str
     while IFS='|' read -r id project start_t end_t dur notes duration_only session_date; do
+        is_cycle_label "$project" && continue
         if [[ $have_sessions -eq 0 ]]; then
             echo "## Sessions"
             echo ""
@@ -79,13 +104,17 @@ _report() {
         echo "### [$id] \`$project\`"
         if [[ "$duration_only" == "1" ]]; then
             echo "**$(fmt_duration "$dur") on $session_date (manual)**"
+        elif [[ -z "$start_t" || -z "$end_t" ]]; then
+            # Import damage: duration is real, the clock detail is absent.
+            # Counted in the totals, dated never (CONV-ABSENT).
+            echo "**$(fmt_duration "$dur") (no timestamps)**"
         else
             # Fall back to the stored string when it won't parse, the way
             # `past list` does — under set -e a bare command substitution here
             # would abort the whole report over one unreadable timestamp.
-            s=$(ts_format "$start_t" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$start_t")
-            e=$(ts_format "$end_t"   "%H:%M"             2>/dev/null || echo "$end_t")
-            echo "**$s–$e · $(fmt_duration "$dur")**"
+            start_str=$(ts_format "$start_t" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$start_t")
+            end_str=$(ts_format "$end_t"   "%H:%M"             2>/dev/null || echo "$end_t")
+            echo "**$start_str–$end_str · $(fmt_duration "$dur")**"
         fi
 
         if [[ -n "$notes" ]]; then
@@ -98,35 +127,65 @@ _report() {
             notes_decode "$notes"
             echo ""
         fi
-    done < <(list_sessions_in_range "$start" "$end")
+    done < <(_rows)
+}
+
+_date_range() {
+    _range_from=$(ts_format "$1" "$DATE_FORMAT")
+    _range_to=$(ts_format "$2" "$DATE_FORMAT")
 }
 
 period="${1:-today}"
 
 case "$period" in
     today)
-        start=$(iso_days_ago 0)
-        end=$(now_iso)
-        _report "Today" "$start" "$end"
+        start=$(iso_days_ago 0); end=$(now_iso)
+        _date_range "$start" "$end"
+        _report "Today" range "$start" "$end"
         ;;
     week)
-        start=$(iso_days_ago 7)
-        end=$(now_iso)
-        _report "This week" "$start" "$end"
+        start=$(iso_days_ago 7); end=$(now_iso)
+        _date_range "$start" "$end"
+        _report "This week" range "$start" "$end"
         ;;
     month)
-        start=$(iso_month_start)
-        end=$(now_iso)
-        _report "This month" "$start" "$end"
+        start=$(iso_month_start); end=$(now_iso)
+        _date_range "$start" "$end"
+        _report "This month" range "$start" "$end"
         ;;
     custom)
         days="${2:-7}"
         [[ ! "$days" =~ ^[0-9]+$ ]] && usage_error report
-        start=$(iso_days_ago "$days")
-        end=$(now_iso)
+        start=$(iso_days_ago "$days"); end=$(now_iso)
+        _date_range "$start" "$end"
         day_noun="days"
         [[ "$days" -eq 1 ]] && day_noun="day"
-        _report "Last ${days} ${day_noun}" "$start" "$end"
+        _report "Last ${days} ${day_noun}" range "$start" "$end"
+        ;;
+    cycle)
+        sel="${2:-0}"
+        is_period_selector "$sel" || usage_error report
+        window=$(get_period_window "$sel") || exit 1
+        lo="${window%|*}"; hi="${window#*|}"
+
+        # The window is ids; the period line still wants human bounds, so read
+        # them off the breaks that open and close it.
+        _cycle_moment() {
+            local row; row=$(get_session "$1")
+            [[ -z "$row" ]] && { printf 'now'; return 0; }
+            local end_t; IFS='|' read -r _ _ _ end_t _ <<< "$row"
+            # An import-damaged row with no end_time has no moment to name:
+            # date(1) handed an empty date answers today-midnight, not an
+            # error, so the emptiness is checked before formatting.
+            [[ -z "$end_t" ]] && { printf 'unknown'; return 0; }
+            ts_format "$end_t" "$DATE_SHORT_FORMAT" 2>/dev/null || printf '%s' "$end_t"
+        }
+        if [[ -n "$lo" ]]; then _range_from=$(_cycle_moment "$lo"); else _range_from="Beginning"; fi
+        if [[ -n "$hi" ]]; then _range_to=$(_cycle_moment "$hi");   else _range_to="now"; fi
+
+        label="Cycle ${sel}"
+        [[ "$sel" == "0" ]] && label="Current cycle"
+        _report "$label" window "$lo" "$hi"
         ;;
     *)
         usage_error report

@@ -29,10 +29,10 @@ TARGETS=(
 )
 
 fail=0
-for f in "${TARGETS[@]}"; do
-    [[ -f "$f" ]] || continue
-    if shellcheck -x -e SC1090,SC1091 "$f"; then
-        echo "  ok  $f"
+for target in "${TARGETS[@]}"; do
+    [[ -f "$target" ]] || continue
+    if shellcheck -x -e SC1090,SC1091 "$target"; then
+        echo "  ok  $target"
     else
         fail=1
     fi

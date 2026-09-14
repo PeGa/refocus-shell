@@ -2,7 +2,7 @@ refocus — tracks where your attention went, without an opinion about it.
 
   focus <command> [args]
 
-the focus cycle
+tracking a session
   on [project]    start (no project = continue your last)
   pause           pause — silent, the timer remembers
   continue        resume, carrying elapsed time forward
@@ -10,12 +10,21 @@ the focus cycle
   status          what's happening right now
 
 history
-  past list [n]                          recent sessions
+  past list [n]                          full history, or the last n
   past add <project> <start> <end>       log one with times
   past add <project> --duration 2h       log one by duration
   past modify <id> ...                   fix a session
   past delete <id>                       remove one
   report today|week|month|custom <n>     where the time went
+  report cycle [id|-n]                   where a period's time went
+
+periods — a marker for "here starts the new count"
+  cycle add                              mark the end of a period
+  cycle modify --edit-notes <id>         write what the period was
+  cycle modify --edit-time <id> <time>   move a marker (receipts regenerate)
+  cycle delete <id>                      remove a marker
+  past cycles                            every marker
+  past cycles show [id|-n]               what happened in a period
 
 nudging — the periodic reminder; an external clock for time-blindness
   enable          arm it (install already does this)

@@ -8,7 +8,6 @@ focus config — settings
   MAX_PROJECT_LENGTH   100               longest project name
   DATE_FORMAT          %Y-%m-%d          date format in reports
   DATE_SHORT_FORMAT    %Y-%m-%d %H:%M    datetime in the session list
-  REPORT_LIMIT         20                rows in 'past list'
   DB_PATH              ~/.local/refocus/refocus.db
 
 Overrides live in a .env file beside your database. Precedence: shell env vars,

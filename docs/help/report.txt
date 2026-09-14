@@ -2,6 +2,7 @@ focus report — where the time went
 
   focus report today|week|month
   focus report custom <days>
+  focus report cycle [id|-n]
 
 Total time, a per-project breakdown, and every session with its notes.
 Plain facts — no score attached.
@@ -10,6 +11,13 @@ Plain facts — no score attached.
   month    last 30 days            custom   last <days>
 
 Duration-only sessions are included by their date.
+
+  cycle       the current period — everything since the last cycle break
+  cycle -1    the period before it, -2 the one before that
+  cycle <id>  the period that break opened
+
+Cycle breaks never appear in a report, in any mode: they mark where a period
+ends, they aren't time you worked. They don't count toward the totals either.
 
 Output is markdown on stdout — a period line, a project table, then every
 session as its own section. Redirect it to keep one:

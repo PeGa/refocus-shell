@@ -14,9 +14,22 @@
 
 # ── Internal engine ──────────────────────────────────────────────────────────
 
-_q() {
+_sql_quote() {
     # Escape single quotes for SQL literals.
     printf '%s' "${1//\'/\'\'}"
+}
+
+_require_uint() {
+    # <label> <value> [empty-ok] -> 0 when the value can be interpolated into
+    # SQL as a bare integer. Handlers validate first [CONV-ID], but the file
+    # that interpolates is the file that defends: past these checks a word
+    # becomes a sqlite parse error and a negative becomes an unbounded LIMIT.
+    # [#51]
+    if [[ "${3:-}" == "empty-ok" && -z "$2" ]]; then return 0; fi
+    [[ "$2" =~ ^[0-9]+$ ]] || {
+        echo "❌ DB $1 must be a non-negative integer (got: $2)" >&2
+        return 2
+    }
 }
 
 _exec() {
@@ -150,7 +163,7 @@ start_session() {
     local project; project=$(sanitize_pipe "$1")
     _validate_project_name "$project" || return 2
     _exec "UPDATE state SET
-        active=1, project='$(_q "$project")', start_time='$(_q "$start_time")',
+        active=1, project='$(_sql_quote "$project")', start_time='$(_sql_quote "$start_time")',
         paused=0, pause_start_time=NULL, previous_elapsed=0
         WHERE id=1;"
 }
@@ -160,15 +173,16 @@ end_session() {
     _exec "UPDATE state SET
         active=0, project=NULL, start_time=NULL,
         paused=0, pause_start_time=NULL, previous_elapsed=0,
-        last_off_time='$(_q "$now")'
+        last_off_time='$(_sql_quote "$now")'
         WHERE id=1;"
 }
 
 pause_session() {
     local elapsed="$1" now="$2"
+    _require_uint "elapsed" "$elapsed" || return 2
     _exec "UPDATE state SET
         active=0, paused=1,
-        pause_start_time='$(_q "$now")',
+        pause_start_time='$(_sql_quote "$now")',
         previous_elapsed=$elapsed
         WHERE id=1;"
 }
@@ -177,7 +191,7 @@ resume_session() {
     local new_start="$1"
     _exec "UPDATE state SET
         active=1, paused=0,
-        start_time='$(_q "$new_start")',
+        start_time='$(_sql_quote "$new_start")',
         pause_start_time=NULL, previous_elapsed=0
         WHERE id=1;"
 }
@@ -188,26 +202,30 @@ record_session() {
     local start_time="$2" end_time="$3" duration="$4" notes="${5:-}"
     local project; project=$(sanitize_pipe "$1")
     _validate_project_name "$project" || return 2
+    _require_uint "duration" "$duration" || return 2
     _exec "INSERT INTO sessions (project, start_time, end_time, duration_seconds, notes)
-           VALUES ('$(_q "$project")', '$(_q "$start_time")', '$(_q "$end_time")',
-                   $duration, '$(_q "$notes")');"
+           VALUES ('$(_sql_quote "$project")', '$(_sql_quote "$start_time")', '$(_sql_quote "$end_time")',
+                   $duration, '$(_sql_quote "$notes")');"
 }
 
 record_duration_session() {
     local duration="$2" date="$3" notes="${4:-}"
     local project; project=$(sanitize_pipe "$1")
     _validate_project_name "$project" || return 2
+    _require_uint "duration" "$duration" || return 2
     _exec "INSERT INTO sessions (project, duration_seconds, notes, duration_only, session_date)
-           VALUES ('$(_q "$project")', $duration, '$(_q "$notes")', 1, '$(_q "$date")');"
+           VALUES ('$(_sql_quote "$project")', $duration, '$(_sql_quote "$notes")', 1, '$(_sql_quote "$date")');"
 }
 
 update_session() {
     local id="$1" start_time="$3" end_time="$4" duration="$5"
     local project; project=$(sanitize_pipe "$2")
     _validate_project_name "$project" || return 2
+    _require_uint "id" "$id" || return 2
+    _require_uint "duration" "$duration" || return 2
     _exec "UPDATE sessions SET
-        project='$(_q "$project")', start_time='$(_q "$start_time")',
-        end_time='$(_q "$end_time")', duration_seconds=$duration
+        project='$(_sql_quote "$project")', start_time='$(_sql_quote "$start_time")',
+        end_time='$(_sql_quote "$end_time")', duration_seconds=$duration
         WHERE id=$id;"
 }
 
@@ -216,7 +234,8 @@ update_session_notes() {
     # on duration-only rows too, since it bolts no timestamps onto them
     # [CONV-DURONLY].
     local id="$1" notes="$2"
-    _exec "UPDATE sessions SET notes='$(_q "$notes")' WHERE id=$id;"
+    _require_uint "id" "$id" || return 2
+    _exec "UPDATE sessions SET notes='$(_sql_quote "$notes")' WHERE id=$id;"
 }
 
 fold_session_into() {
@@ -227,15 +246,18 @@ fold_session_into() {
     # the caller writes the dropped times into the note first, which is the
     # only record of them that survives.
     local id="$1" duration="$2" date="$3" notes="${4:-}"
+    _require_uint "id" "$id" || return 2
+    _require_uint "duration" "$duration" || return 2
     _exec "UPDATE sessions SET
-        duration_seconds=$duration, notes='$(_q "$notes")',
-        duration_only=1, session_date='$(_q "$date")',
+        duration_seconds=$duration, notes='$(_sql_quote "$notes")',
+        duration_only=1, session_date='$(_sql_quote "$date")',
         start_time=NULL, end_time=NULL
         WHERE id=$id;"
 }
 
 delete_session() {
     local id="$1"
+    _require_uint "id" "$id" || return 2
     _exec "DELETE FROM sessions WHERE id=$id;"
 }
 
@@ -252,11 +274,70 @@ delete_session() {
 _NOTES_ENCODED="REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(notes,''), char(92), char(92,92)), char(10), char(92,110)), char(13), char(92,114)), char(124), char(92,120,55,99))"
 
 list_sessions() {
-    local limit="${1:-$REPORT_LIMIT}"
+    # <limit> [exclude-prefix] -> newest rows first. Limit is the caller's:
+    # there is no house default — `past list` with no count asks for the full
+    # history through list_sessions_by_id_range instead, and nothing else
+    # reads without saying how much it wants.
+    #
+    # The exclusion has to happen in SQL rather than in the caller's loop: the
+    # LIMIT is applied by the database, so filtering afterwards would return
+    # fewer rows than were asked for.
+    local limit="$1" exclude="${2:-}" where=""
+    _require_uint "limit" "$limit" || return 2
+    [[ -n "$exclude" ]] && where="WHERE project NOT LIKE '$(_sql_quote "$exclude")%'"
     _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
                    duration_seconds, $_NOTES_ENCODED, duration_only, COALESCE(session_date,'')
             FROM sessions
+            $where
             ORDER BY id DESC LIMIT $limit;"
+}
+
+list_cycles() {
+    # <marker-prefix> -> every cycle break, newest first, in the same 8-field
+    # shape as any other session read.
+    local prefix="$1"
+    _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
+                   duration_seconds, $_NOTES_ENCODED, duration_only, COALESCE(session_date,'')
+            FROM sessions
+            WHERE project LIKE '$(_sql_quote "$prefix")%'
+            ORDER BY id DESC;"
+}
+
+list_sessions_by_id_range() {
+    # <lo> <hi> -> rows with lo <= id < hi, newest first. Either bound may be
+    # empty for "unbounded".
+    #
+    # A period is an id window, not a time window: ids record the order things
+    # were logged, and comparing timestamps instead would put a duration-only
+    # row — which carries a date and no clock time — on both sides of a
+    # boundary that falls inside its day.
+    local lo="${1:-}" hi="${2:-}" where="WHERE 1=1"
+    _require_uint "id bound" "$lo" empty-ok || return 2
+    _require_uint "id bound" "$hi" empty-ok || return 2
+    [[ -n "$lo" ]] && where="$where AND id >= $lo"
+    [[ -n "$hi" ]] && where="$where AND id < $hi"
+    _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
+                   duration_seconds, $_NOTES_ENCODED, duration_only, COALESCE(session_date,'')
+            FROM sessions
+            $where
+            ORDER BY id DESC;"
+}
+
+get_project_totals_by_id_range() {
+    # <lo> <hi> <exclude-prefix> -> project|seconds|count over an id window,
+    # longest first. Same aggregate-in-SQL rule as the date-range version
+    # (PORT-BASH32), and the same reason the exclusion is a WHERE clause.
+    local lo="${1:-}" hi="${2:-}" exclude="${3:-}" where="WHERE 1=1"
+    _require_uint "id bound" "$lo" empty-ok || return 2
+    _require_uint "id bound" "$hi" empty-ok || return 2
+    [[ -n "$lo" ]] && where="$where AND id >= $lo"
+    [[ -n "$hi" ]] && where="$where AND id < $hi"
+    [[ -n "$exclude" ]] && where="$where AND project NOT LIKE '$(_sql_quote "$exclude")%'"
+    _query "SELECT project, SUM(duration_seconds), COUNT(*)
+            FROM sessions
+            $where
+            GROUP BY project
+            ORDER BY SUM(duration_seconds) DESC;"
 }
 
 _range_where() {
@@ -276,9 +357,9 @@ _range_where() {
     # string, no timezone interpretation involved.
     local start="$1" end="$2"
     echo "(
-                (duration_only=0 AND end_time >= '$(_q "$start")' AND end_time <= '$(_q "$end")')
+                (duration_only=0 AND end_time >= '$(_sql_quote "$start")' AND end_time <= '$(_sql_quote "$end")')
                 OR
-                (duration_only=1 AND session_date >= substr('$(_q "$start")', 1, 10) AND session_date <= substr('$(_q "$end")', 1, 10))
+                (duration_only=1 AND session_date >= substr('$(_sql_quote "$start")', 1, 10) AND session_date <= substr('$(_sql_quote "$end")', 1, 10))
             )"
 }
 
@@ -296,16 +377,18 @@ get_project_totals_in_range() {
     # project, ordered by duration_seconds descending. Aggregating in SQL
     # rather than bash means `focus report` has no associative-array
     # dependency — macOS ships bash 3.2, which has none.
-    local start="$1" end="$2"
+    local start="$1" end="$2" exclude="${3:-}" extra=""
+    [[ -n "$exclude" ]] && extra="AND project NOT LIKE '$(_sql_quote "$exclude")%'"
     _query "SELECT project, SUM(duration_seconds), COUNT(*)
             FROM sessions
-            WHERE $(_range_where "$start" "$end")
+            WHERE $(_range_where "$start" "$end") $extra
             GROUP BY project
             ORDER BY SUM(duration_seconds) DESC;"
 }
 
 get_session() {
     local id="$1"
+    _require_uint "id" "$id" || return 2
     _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
                    duration_seconds, $_NOTES_ENCODED, duration_only, COALESCE(session_date,'')
             FROM sessions WHERE id=$id;"
@@ -320,7 +403,8 @@ get_session_by_project() {
     # lookup would miss the row it is about to duplicate.
     local project; project=$(sanitize_pipe "$1")
     local exclude="${2:-}" where
-    where="project='$(_q "$project")'"
+    _require_uint "exclude id" "$exclude" empty-ok || return 2
+    where="project='$(_sql_quote "$project")'"
     [[ -n "$exclude" ]] && where="$where AND id<>$exclude"
     _query "SELECT id, project, COALESCE(start_time,''), COALESCE(end_time,''),
                    duration_seconds, $_NOTES_ENCODED, duration_only, COALESCE(session_date,'')
@@ -330,21 +414,60 @@ get_session_by_project() {
 get_total_time() {
     local project="$1"
     _query "SELECT COALESCE(SUM(duration_seconds),0)
-            FROM sessions WHERE project='$(_q "$project")';"
+            FROM sessions WHERE project='$(_sql_quote "$project")';"
+}
+
+list_session_ids_by_project() {
+    # <project> -> every id carrying that exact project name, newest first,
+    # one per line. Deliberately not get_session_by_project, which answers a
+    # different question — "which row is the original" (lowest id), for the
+    # duplicate fold. A caller that wants the row it just wrote needs the
+    # newest, and a caller clearing a name needs all of them.
+    local project; project=$(sanitize_pipe "$1")
+    _query "SELECT id FROM sessions WHERE project='$(_sql_quote "$project")' ORDER BY id DESC;"
+}
+
+get_last_cycle_end() {
+    # <marker-prefix> -> end_time of the most recent cycle break that has one,
+    # or empty when there is no such row. The prefix comes from the caller
+    # (core/text.sh owns what a cycle break looks like) so this stays a plain
+    # "newest row whose project starts with X" question and the adapter never
+    # has to know what a cycle is.
+    #
+    # Rows with no end_time are skipped rather than read as "no previous
+    # break": an import can carry one, and treating it as absent would date
+    # the next period from the beginning of the record.
+    local prefix="$1"
+    _query "SELECT end_time FROM sessions
+            WHERE project LIKE '$(_sql_quote "$prefix")%'
+              AND end_time IS NOT NULL AND end_time <> ''
+            ORDER BY id DESC LIMIT 1;"
 }
 
 get_last_session() {
-    # Returns: project|end_time-or-session_date|duration_seconds
+    # [exclude-prefix] -> project|end_time-or-session_date|duration_seconds
     # A duration-only row (past add --duration, check-in) has no end_time —
     # order by whichever of the two it has, same fallback list_sessions_in_range
     # already uses, so a check-in-logged session isn't invisible to `focus status`.
+    # The exclusion skips cycle-break markers: they delimit periods, they are
+    # not work, and "what was I last doing?" must not answer with one. [#46]
+    local exclude="${1:-}" where=""
+    [[ -n "$exclude" ]] && where="WHERE project NOT LIKE '$(_sql_quote "$exclude")%'"
     _query "SELECT project, COALESCE(end_time, session_date, ''), duration_seconds
             FROM sessions
+            $where
             ORDER BY COALESCE(end_time, session_date) DESC LIMIT 1;"
 }
 
 get_last_project() {
+    # [exclude-prefix] as in get_last_session: a bare `focus on` offers to
+    # continue the last project, and the marker a `cycle add` just wrote is
+    # the newest row — answering "continue 'Cycle break…'?" starts a real
+    # session named after a boundary. [#46]
+    local exclude="${1:-}" where=""
+    [[ -n "$exclude" ]] && where="WHERE project NOT LIKE '$(_sql_quote "$exclude")%'"
     _query "SELECT project FROM sessions
+            $where
             ORDER BY id DESC LIMIT 1;"
 }
 
@@ -377,13 +500,13 @@ db_import_session_row() {
     local project="$1" start_time="$2" end_time="$3" duration="$4" \
           notes="$5" duration_only="$6" session_date="$7"
     local start_sql end_sql date_sql
-    [[ -n "$start_time"   ]] && start_sql="'$(_q "$start_time")'"  || start_sql="NULL"
-    [[ -n "$end_time"     ]] && end_sql="'$(_q "$end_time")'"      || end_sql="NULL"
-    [[ -n "$session_date" ]] && date_sql="'$(_q "$session_date")'" || date_sql="NULL"
+    [[ -n "$start_time"   ]] && start_sql="'$(_sql_quote "$start_time")'"  || start_sql="NULL"
+    [[ -n "$end_time"     ]] && end_sql="'$(_sql_quote "$end_time")'"      || end_sql="NULL"
+    [[ -n "$session_date" ]] && date_sql="'$(_sql_quote "$session_date")'" || date_sql="NULL"
     _exec "INSERT INTO sessions
         (project, start_time, end_time, duration_seconds, notes, duration_only, session_date)
-        VALUES ('$(_q "$project")', $start_sql, $end_sql,
-                $duration, '$(_q "$notes")', $duration_only, $date_sql);"
+        VALUES ('$(_sql_quote "$project")', $start_sql, $end_sql,
+                $duration, '$(_sql_quote "$notes")', $duration_only, $date_sql);"
 }
 
 update_duration_session() {
@@ -391,7 +514,9 @@ update_duration_session() {
     local id="$1" duration="$3"
     local project; project=$(sanitize_pipe "$2")
     _validate_project_name "$project" || return 2
-    _exec "UPDATE sessions SET project='$(_q "$project")', duration_seconds=$duration WHERE id=$id;"
+    _require_uint "id" "$id" || return 2
+    _require_uint "duration" "$duration" || return 2
+    _exec "UPDATE sessions SET project='$(_sql_quote "$project")', duration_seconds=$duration WHERE id=$id;"
 }
 
 reset_state_post_import() {

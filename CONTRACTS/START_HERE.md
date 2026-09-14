@@ -11,9 +11,9 @@
 
 A terminal focus/time tracker. Bash over one SQLite DB. No daemon. A **cron job**
 nudges; a **shell hook** shows state in the prompt. Hexagonal: handlers name
-intent, one file speaks SQL. You are correct iff `tests/audit.sh` **and**
-`tests/state-matrix.sh` both exit 0 — no matter how reasonable your change looks.
-`[ACCEPT]`
+intent, one file speaks SQL. You are correct iff `tests/audit.sh`,
+`tests/state-matrix.sh`, **and** `tests/time-portability.sh` all exit 0 — no
+matter how reasonable your change looks. `[ACCEPT]`
 
 ### Shortcuts to the CONTRACT
 
@@ -67,12 +67,15 @@ Old DBs may carry `pause_notes` / `nudging_enabled` columns. **Leave them.**
 
 ```
 focus                     dispatcher: sets+exports REFOCUS_ROOT, routes focus <cmd> → exec lib/<cmd>.sh
-lib/<cmd>.sh              PRIMARY adapter, one per command, routable, drives core via intent calls
-core/<topic>.sh           DOMAIN helpers, pure str/int→str/int, NO sql/cron/state, NOT routable
-services/database.sh      SECONDARY adapter, the ONLY file that speaks SQL (INV-1)
-services/help.sh          SECONDARY adapter, renders docs/help/<cmd>.txt (show_help/usage_error)
-services/editor.sh        SECONDARY adapter, captures notes through $EDITOR
-services/cron.sh          SECONDARY adapter, arms/disarms nudge schedule
+lib/<cmd>.sh              handler, one per command, routable, drives core via intent calls
+core/<topic>.sh           domain helpers, pure str/int→str/int, NO sql/cron/state, NOT routable
+services/database.sh      infrastructure, the ONLY file that speaks SQL (INV-1)
+services/cron.sh          infrastructure, arms/disarms nudge and checkin schedules
+services/desktop.sh       integration, desktop notifications (kdialog/zenity)
+services/editor.sh        integration, captures notes through $EDITOR
+services/help.sh          integration, renders docs/help/<cmd>.txt (show_help/usage_error)
+services/merge.sh         composer, duplicate-session merge rule (shared by off/past add/past modify)
+services/period.sh        composer, period resolution rule (shared by past cycles/report cycle)
 services/focus-function.sh shell integration: prompt hook + focus() wrapper
 env.sh                    config loader, sourced first everywhere, exports DB_PATH etc.
 focus-nudge               self-contained cron payload, sources env.sh + database.sh + time.sh
@@ -124,14 +127,16 @@ wall-time is never counted. `[CMD-CONTINUE]`
 
 - **Exit codes:** `0` success · `1` runtime/state error · `2` usage/arg error.
   The suite asserts these. `[CONV-EXIT]`
-- **Destructive ops** use three-tier confirmation: app-wide destructive (`reset`,
-  `import`) require the literal word `yes`; simple/recoverable destructive ops
-  (cycle delete, past delete) use `y/N` default-no; simple/recoverable
-  non-destructive confirmations (on continue, continue) use `Y/n` default-yes.
-  Anything else cancels cleanly with exit 0 (cancel ≠ error). `[CONV-YES]`
+- **Destructive ops** use two-tier confirmation: app-wide destructive (`reset`,
+  `import`) require the literal word `yes`; simple/recoverable ops (cycle delete,
+  cycle add replace-prompt) use `y/N` default-no. Anything else cancels cleanly
+  with exit 0 (cancel ≠ error). `[CONV-YES]`
 - **`reset`/`import` leave the tool disabled.** Re-arming is a conscious
   `focus enable`. `[CONV-REARM]`
 - **`enable` while enabled** is a no-op that says so (don't re-phase cron). `[CONV-IDEMPOTENT-ENABLE]`
+- **Every config key has a live reader.** When the last reader of a config key
+  is removed, the key goes with it — from code, from config display, from
+  contract. A key the tool accepts but never reads is a lie. `[CONV-DEADKNOB]`
 - **duration-only rows** have no timestamps — never feed an empty date to
   `date(1)` (parses as today-midnight → silent zero duration). `modify` on them
   accepts rename + `--duration`, plus `--notes` (a note bolts on no
@@ -167,7 +172,8 @@ wall-time is never counted. `[CMD-CONTINUE]`
   get silently mangled. Surgical edits to exact strings read immediately before
   editing; when writing a whole file, write it directly. *(This is the #1 way
   local models corrupt this repo.)*
-- **BUILD-VERIFY:** after any change run both test scripts. Assert by stable keys
+- **BUILD-VERIFY:** after any change run all three test scripts: `tests/audit.sh`,
+  `tests/state-matrix.sh`, and `tests/time-portability.sh`. Assert by stable keys
   (project name), never volatile row id.
 - **BUILD-UTF8:** run shellcheck under `LC_ALL=C.UTF-8`.
 - **BUILD-SCOPE:** one concern per change; touch only the files the task names.
@@ -178,9 +184,10 @@ wall-time is never counted. `[CMD-CONTINUE]`
 
 1. `tests/audit.sh` exits 0 (shellcheck clean).
 2. `tests/state-matrix.sh` exits 0.
-3. `grep -rl sqlite3` over app files (excl. `tests/`) → only `services/database.sh`.
-4. No DM-DEAD symbol reappeared.
-5. Hand-verify the oracle's blind spot `[INT]`: install arms cron + leaves state
+3. `tests/time-portability.sh` exits 0 (GNU/BSD date(1) portability).
+4. `grep -rl sqlite3` over app files (excl. `tests/`) → only `services/database.sh`.
+5. No DM-DEAD symbol reappeared.
+6. Hand-verify the oracle's blind spot `[INT]`: install arms cron + leaves state
    consistent; shell hook shows the prompt marker; `focus nudge test` lands a
    notification in history.
 
