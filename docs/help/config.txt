@@ -5,6 +5,7 @@ focus config — settings
   focus config unset <key>
 
   NUDGE_INTERVAL       10                minutes between nudges (1–60)
+  CHECKIN_INTERVAL     60                minutes between check-in popups (0 disables, 1–60 or whole hours up to 1440)
   MAX_PROJECT_LENGTH   100               longest project name
   DATE_FORMAT          %Y-%m-%d          date format in reports
   DATE_SHORT_FORMAT    %Y-%m-%d %H:%M    datetime in the session list

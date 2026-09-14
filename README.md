@@ -186,6 +186,7 @@ focus config unset NUDGE_INTERVAL     # back to default
 | Key                  | Default                        | What it does                          |
 |----------------------|--------------------------------|---------------------------------------|
 | `NUDGE_INTERVAL`     | `10`                           | Minutes between nudges (1–60)         |
+| `CHECKIN_INTERVAL`   | `60`                           | Minutes between check-in popups (0 disables, 1–60 or whole hours up to 1440) |
 | `MAX_PROJECT_LENGTH` | `100`                          | Longest allowed project name          |
 | `DATE_FORMAT`        | `%Y-%m-%d`                     | Date format in reports                |
 | `DATE_SHORT_FORMAT`  | `%Y-%m-%d %H:%M`               | Datetime in the session list          |
