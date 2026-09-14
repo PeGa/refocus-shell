@@ -307,16 +307,16 @@ printf -- '- bullet one\n- bullet two\n' | ./focus past add md/notes 2026/06/13-
 printf 'manual note\n' | ./focus past add md/manual --duration 45m --date 2026/06/13 >/dev/null 2>&1
 report_md=$(./focus report custom 90000 2>&1)
 
-chk "md: document header"     "0" "$([[ "$report_md" == *"# Focus report"*        ]]; echo $?)"
-chk "md: projects section"    "0" "$([[ "$report_md" == *"## Projects"*          ]]; echo $?)"
-chk "md: table delimiter row" "0" "$([[ "$report_md" == *"|---|---:|---:|"*      ]]; echo $?)"
-chk "md: sessions section"    "0" "$([[ "$report_md" == *"## Sessions"*          ]]; echo $?)"
+chk "md: document header"     "0" "$(echo "$report_md" | grep -qF '# Focus report'; echo $?)"
+chk "md: projects section"    "0" "$(echo "$report_md" | grep -qF '## Projects'; echo $?)"
+chk "md: table delimiter row" "0" "$(echo "$report_md" | grep -qF '|---|---:|---:|'; echo $?)"
+chk "md: sessions section"    "0" "$(echo "$report_md" | grep -qF '## Sessions'; echo $?)"
 chk "md: heading carries id and project" "0" \
-    "$([[ "$report_md" == *'### ['*'] `md/notes`'* ]]; echo $?)"
+    "$(echo "$report_md" | grep -qE '### \[[0-9]+\] `md/notes`'; echo $?)"
 chk "md: timestamped time line" "0" \
-    "$([[ "$report_md" == *"**2026-06-13 09:00–10:30 · 1h 30m**"* ]]; echo $?)"
+    "$(echo "$report_md" | grep -qF '**2026-06-13 09:00–10:30 · 1h 30m**'; echo $?)"
 chk "md: duration-only time line" "0" \
-    "$([[ "$report_md" == *"**45m on 2026-06-13 (manual)**"* ]]; echo $?)"
+    "$(echo "$report_md" | grep -qF '**45m on 2026-06-13 (manual)**'; echo $?)"
 
 # The regression the format exists for: a note's own markdown must survive at
 # column 0, not behind an indent.
