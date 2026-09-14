@@ -34,7 +34,7 @@ if [[ -z "$project" ]]; then
         suffix=""
         [[ $total_min -gt 0 ]] && suffix=" (${total_min}m logged)"
         echo -n "▶ Continue '$last'${suffix}? (Y/n): "
-        read -r ans
+        read -r ans || true
         if [[ "${ans:-Y}" =~ ^[Nn]$ ]]; then
             echo "Run 'focus on <project>' to focus on something else."
             exit 0
@@ -59,7 +59,7 @@ else
     total_min=$(( total / 60 ))
     if [[ $total_min -gt 0 ]]; then
         echo -n "▶ '$project' has ${total_min}m logged. Continue? (Y/n): "
-        read -r ans
+        read -r ans || true
         if [[ "${ans:-Y}" =~ ^[Nn]$ ]]; then
             echo "Run 'focus on <project>' with the correct project name."
             exit 0

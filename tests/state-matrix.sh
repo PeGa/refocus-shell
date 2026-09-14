@@ -292,10 +292,11 @@ printf 'r3\n' | ./focus past add rep/y 2026/06/12-13:00 2026/06/12-13:30 >/dev/n
 out=$(./focus report custom 90000 2>&1)
 # The breakdown is a markdown table row now, so the count stands alone in its
 # own cell rather than reading "N session(s)".
+# Match exact lines, not substrings across the output (#28).
 chk "report: multi-session project total" "0" \
-    "$([[ "$out" == *'| `rep/x` | 3h 0m | 2 |'* ]]; echo $?)"
+    "$(echo "$out" | grep -qF '| `rep/x` | 3h 0m | 2 |'; echo $?)"
 chk "report: single-session project total" "0" \
-    "$([[ "$out" == *'| `rep/y` | 30m | 1 |'* ]]; echo $?)"
+    "$(echo "$out" | grep -qF '| `rep/y` | 30m | 1 |'; echo $?)"
 
 # ── report: markdown structure ────────────────────────────────────────────────
 # Notes are hand-written markdown. The old layout indented every note line

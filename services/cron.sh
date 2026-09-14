@@ -13,6 +13,29 @@ _cron_checkin_bin() {
     echo "${REFOCUS_ROOT:-$HOME/.local/refocus}/focus-checkin"
 }
 
+_cron_list() {
+    # List the current crontab, handling the "no crontab" case.
+    # Returns 0 on success (crontab exists or is empty), 1 on real error.
+    local output rc
+    output=$(crontab -l 2>&1)
+    rc=$?
+    if [[ $rc -eq 0 ]]; then
+        # Success: output the crontab
+        printf '%s\n' "$output"
+        return 0
+    fi
+    # Check if it's "no crontab" (which is fine, treat as empty)
+    # Both GNU and BSD crontab output "no crontab for" when there's no crontab.
+    # The test shim exits 1 with no message, so we also treat empty output as "no crontab".
+    if [[ "$output" == *"no crontab for"* ]] || [[ -z "$output" ]]; then
+        # No crontab exists, treat as empty
+        return 0
+    fi
+    # Real error: propagate it
+    echo "$output" >&2
+    return 1
+}
+
 _cron_env_prefix() {
     # cron strips the environment; the payloads need enough of it back to
     # reach the desktop session. Two rules, both learned from #35:
@@ -108,7 +131,7 @@ cron_install() {
     local entry="$pattern * * * * $env_prefix $nudge_bin"
 
     local tmp; tmp=$(mktemp)
-    crontab -l 2>/dev/null | grep -vF "$nudge_bin" > "$tmp" || true
+    _cron_list | grep -vF "$nudge_bin" > "$tmp" || true
     echo "$entry" >> "$tmp"
     crontab "$tmp"
     rm -f "$tmp"
@@ -117,7 +140,7 @@ cron_install() {
 cron_remove() {
     local nudge_bin; nudge_bin=$(_cron_nudge_bin)
     local tmp; tmp=$(mktemp)
-    crontab -l 2>/dev/null | grep -vF "$nudge_bin" > "$tmp" || true
+    _cron_list | grep -vF "$nudge_bin" > "$tmp" || true
     crontab "$tmp"
     rm -f "$tmp"
 }
@@ -151,7 +174,7 @@ cron_checkin_install() {
     fi
 
     local tmp; tmp=$(mktemp)
-    crontab -l 2>/dev/null | grep -vF "$checkin_bin" > "$tmp" || true
+    _cron_list | grep -vF "$checkin_bin" > "$tmp" || true
     echo "$entry" >> "$tmp"
     crontab "$tmp"
     rm -f "$tmp"
@@ -160,7 +183,7 @@ cron_checkin_install() {
 cron_checkin_remove() {
     local checkin_bin; checkin_bin=$(_cron_checkin_bin)
     local tmp; tmp=$(mktemp)
-    crontab -l 2>/dev/null | grep -vF "$checkin_bin" > "$tmp" || true
+    _cron_list | grep -vF "$checkin_bin" > "$tmp" || true
     crontab "$tmp"
     rm -f "$tmp"
 }

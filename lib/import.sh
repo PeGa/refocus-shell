@@ -31,7 +31,7 @@ elif is_session_paused; then
 fi
 
 echo -n "⚠  Import will overwrite all data. Continue? (yes/N): "
-read -r ans
+read -r ans || true
 [[ "$ans" == "yes" ]] || { echo "Cancelled."; exit 0; }
 
 # Backup current DB if it exists

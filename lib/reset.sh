@@ -18,7 +18,7 @@ elif is_session_paused; then
 fi
 
 echo -n "⚠  This deletes ALL focus data. Are you sure? (yes/N): "
-read -r ans
+read -r ans || true
 [[ "$ans" == "yes" ]] || { echo "Cancelled."; exit 0; }
 
 cron_remove 2>/dev/null || true
