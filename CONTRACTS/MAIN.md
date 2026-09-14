@@ -265,6 +265,7 @@ services/period.sh          composer. period resolution rule.
 services/focus-function.sh  shell integration: prompt hook + focus() wrapper.
 env.sh                      environment loader. reads .env, exports config.
 focus-nudge                 self-contained cron payload. sources env.sh + database.sh.
+focus-checkin               self-contained cron payload. sources env.sh + database.sh + core/time.sh.
 docs/help/<cmd>.txt         per-command help, served verbatim by lib/help.sh.
 tests/                      audit.sh (shellcheck) + state-matrix.sh (behaviour) + time-portability.sh (GNU/BSD date).
 ```

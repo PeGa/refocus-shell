@@ -19,7 +19,7 @@ focus report today          # where did the day actually go?
 ```
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Platform: Linux](https://img.shields.io/badge/Platform-Linux-lightgrey.svg)](https://www.linux.org/)
+[![Platform: Linux | macOS](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS-lightgrey.svg)](https://www.linux.org/)
 [![Shell: Bash](https://img.shields.io/badge/Shell-Bash-green.svg)](https://www.gnu.org/software/bash/)
 [![Database: SQLite](https://img.shields.io/badge/Database-SQLite-yellow.svg)](https://www.sqlite.org/)
 
@@ -87,7 +87,7 @@ Removes the program, the symlink, the desktop entry, the shell integration, and 
 | `cron`          | the periodic nudge          | yes            |
 | `jq`            | JSON import only            | no             |
 
-Works on Debian/Ubuntu (`apt`), Arch (`pacman`), and Fedora (`dnf`).
+Works on Debian/Ubuntu (`apt`), Arch (`pacman`), Fedora (`dnf`), and macOS (`brew`).
 
 ---
 
@@ -138,9 +138,24 @@ focus past add <project> --duration 2h30m [--date YYYY/MM/DD]   # log one by dur
 focus past modify <id> [project] [start] [end]       # fix a timestamped session
 focus past modify <id> [project] [--duration 2h]     # fix a duration-only session
 focus past delete <id>
+focus past cycles list                               # show cycle breaks
+focus past cycles show <id>                          # show one period's sessions
 ```
 
 Forgot to start the timer? Log it after the fact. Duration-only entries (for time you tracked in your head, or retroactively) carry a date but no clock times — and Refocus won't let you accidentally corrupt one by bolting fake timestamps onto it later.
+
+### Cycle breaks
+
+```bash
+focus cycle add                          # mark the end of a work period
+focus cycle modify --edit-notes <id>     # rewrite a break's note
+focus cycle modify --edit-time <id> <time>  # move a break to a different time
+focus cycle delete <id>                  # remove a break (asks first)
+```
+
+Cycle breaks mark where one period of work ends and the next begins — "sent the invoice", "quarter closed", "switched projects". A break is an ordinary session with zero duration and a receipt label that names the period it closes. `focus past cycles list` shows all breaks; `focus report cycle <id>` reports on one period.
+
+`focus cycle add` refuses while a session is running — close it first with `focus off`.
 
 ### Reports
 
@@ -149,6 +164,7 @@ focus report today
 focus report week
 focus report month
 focus report custom 14      # last 14 days
+focus report cycle <id>     # one period (between cycle breaks)
 focus report custom 14 > report.md
 ```
 
@@ -174,6 +190,19 @@ focus nudge test      # fire a test notification, check it lands
 ```
 
 `focus disable` won't let you turn off tracking while a session is still running — a live timer with no reminders is exactly the state that loses you an afternoon. Close the session first.
+
+### Check-in
+
+The check-in is the other half of the external clock. While the nudge tells you what you're tracking, the check-in catches the sessions you forgot to start entirely.
+
+Every `CHECKIN_INTERVAL` minutes, but only while idle, a popup asks: *"Did you focus on anything in the last hour?"* Say yes, name the project, and Refocus logs a duration-only session — a rough retroactive entry, not a claim about exact clock times. Say no or dismiss it, and nothing happens.
+
+```bash
+focus checkin status    # is it on? what's scheduled? which popup tool?
+focus checkin test      # fire a test popup, confirm it lands
+```
+
+Check-in is armed by `focus enable` and silenced by `focus disable`, same as the nudge. Set `CHECKIN_INTERVAL` to `0` to disable it without turning off the nudge.
 
 ### Configuration
 
@@ -251,29 +280,9 @@ Destructive commands (`reset`, `import`) require you to type the literal word `y
 
 ---
 
-## For developers
+## Contributing
 
-Refocus is a small Bash program over SQLite, laid out hexagonally (ports and adapters):
-
-```
-focus                       dispatcher — routes `focus <cmd>` to lib/<cmd>.sh
-lib/*.sh                    command handlers (primary adapters)
-core/time.sh                pure helpers — duration/time parsing, no I/O
-core/text.sh                pure helpers — decodes and indents stored notes
-services/database.sh        the ONLY file that speaks SQL (secondary adapter)
-services/help.sh            renders docs/help/*.txt for --help and usage errors
-services/editor.sh          opens $EDITOR to capture a note
-services/cron.sh            arms and disarms the nudge schedule
-services/focus-function.sh  shell integration (prompt + focus() wrapper)
-env.sh                      loads defaults and .env, exports config
-focus-nudge                 the self-contained payload cron runs
-docs/help/*.txt             per-command reference (also served by `focus help`)
-tests/                      shellcheck wrapper + state-machine regression suite
-```
-
-Two rules keep it honest: **no SQL lives outside `services/database.sh`**, and **domain code never calls storage by name** — handlers ask for intent (`start_session`, `is_session_paused`, `set_focus_disabled`) and the adapter decides which column moves. Two more keep it portable and predictable: **`date(1)` is called only from `core/time.sh`** (GNU and BSD disagree on nearly all of its flags), and **no handler spells its own usage string** — `--help` and argument errors both render `docs/help/<cmd>.txt`, so they can never drift apart.
-
-Run `tests/audit.sh` for static analysis and `tests/state-matrix.sh` for the behavioural regression suite. On macOS, also run `tests/time-portability.sh` — twice, with and without `gdate` on `PATH` — since the BSD branch of the time layer is unreachable on Linux.
+Architecture, testing, and the contribution workflow are documented in [`docs/reference/DEVELOPMENT.md`](docs/reference/DEVELOPMENT.md) and [`docs/reference/CONTRIBUTING.md`](docs/reference/CONTRIBUTING.md).
 
 ---
 

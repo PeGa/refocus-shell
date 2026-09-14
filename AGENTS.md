@@ -4,6 +4,11 @@
 > Covers HOW to build — task discipline, build order, verification, drift detection.
 > Domain constraints live in `CONTRACTS/START_HERE.md`. Load both before acting.
 
+**See also:** `docs/reference/DEVELOPMENT.md` (architecture, file layout, testing)
+and `docs/reference/CONTRIBUTING.md` (contribution workflow, naming, commit discipline).
+This file is self-contained for agent use; the reference docs are the human-facing
+versions of the same material.
+
 ---
 
 ## 0 · Session start (mandatory)
