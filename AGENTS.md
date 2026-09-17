@@ -29,7 +29,16 @@ If any of these files is missing, stop and say so. Do not infer their content.
 ## 1 · Prime directives
 
 - **One file per task.** One concern per change. Do not touch files not named in
-  the current task, even if you think they need updating.
+  the current task, even if you think they need updating. Found-but-out-of-scope
+  defects are logged, never folded in — name the file:line and the defect, defer
+  it as a separate task, do not fix it in the current diff however small it
+  looks. If the task genuinely needs a file not in scope, stop and name it
+  before editing rather than absorbing it silently. `[BUILD-SCOPE]`
+- **Grep before relocating.** Moving or renaming a cross-file symbol, command
+  surface, or file: grep the full repo for every existing spelling of it before
+  scoping the task, so the file list is complete, not assembled from memory.
+  After the change, grep for the old name again — zero hits, or every hit is a
+  deliberately-kept historical reference. `[BUILD-RELOCATE]`
 - **Run the oracle before declaring done.** Every task ends with
   `bash tests/audit.sh && bash tests/state-matrix.sh && bash tests/time-portability.sh`.
   Report exit codes and stderr. A task is not done until all three exit 0.

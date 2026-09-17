@@ -285,9 +285,13 @@ tests/                      audit.sh (shellcheck) + state-matrix.sh (behaviour) 
   services/core it needs, then calls `db_ensure` if it touches the DB.
 - ARCH-COMPOSER: when two handlers need the same domain rule, it becomes a
   composer service (`services/`), not a copy. Composers have no mechanism of
-  their own, document their scope assumptions (what the caller must source),
-  and are never sourced by another service. Duplication is reserved for trivial
-  guards.
+  their own — "mechanism" means domain/decision logic (a merge rule, a window
+  resolution), not output formatting. A composer whose shared concern is
+  presentation only (row/header rendering — no SQL, no cron, no state
+  mutation) is still a composer, not a special case: the duplication it
+  prevents is the same class ARCH-COMPOSER exists for. Composers document
+  their scope assumptions (what the caller must source), and are never
+  sourced by another service. Duplication is reserved for trivial guards.
 
 ---
 
@@ -1023,6 +1027,15 @@ active          1 0 0      paused          0 1 0
     warning. Aggregate in SQL instead (PORT-BASH32) — this is not a style
     preference, `focus report` had zero working subcommands on macOS until it
     moved the per-project breakdown into `get_project_totals_in_range`.
+- CONV-SURFACE: removing or renaming a documented, user-facing command or
+  subcommand requires explicit human sign-off named in the task brief — never
+  inferred from a broader instruction ("clean this up," "fix the
+  architecture"). Default to a one-release deprecation shim (the old
+  invocation prints where it moved, exits 2) unless the human explicitly
+  waives it. WHY: an internal refactor's blast radius is bounded by the
+  oracle; a CLI surface is a promise to whatever the human already has
+  memorized or scripted — a risk class the oracle can't see, same blind spot
+  as `[INT]`.
 - (CONV-ENVFILE lives in [ENV]; CRON-STRIP / CRON-INTERVAL live in [CRON].)
 
 ---
@@ -1082,6 +1095,24 @@ recurring class of self-inflicted defects.
 - BUILD-UTF8: run shellcheck under `LC_ALL=C.UTF-8`; its output encoder crashes on
   multibyte glyphs otherwise.
 - BUILD-SCOPE: one concern per change. Touch only the files the task names.
+  Found-but-out-of-scope defects are logged, never folded in: name the
+  file:line and the defect, defer it as a separate task — do not fix it in
+  the current diff, however small the fix looks. If completing the task
+  genuinely requires touching a file not named in scope, stop and name that
+  file before editing it; do not absorb it silently because it's "obviously
+  needed." WHY: "while I'm at it" is how a documentation-reorg branch grew an
+  unrelated architecture audit, which grew a full bug list, none of it asked
+  for in that scope — the size of the eventual cleanup is the cost of not
+  drawing this line up front.
+- BUILD-RELOCATE: moving or renaming a cross-file symbol, command surface, or
+  file — grep the full repo for every existing spelling of it *before*
+  scoping the task, so the file list is complete, not assembled from memory.
+  After the change, grep for the old name again: zero hits, or every hit is a
+  deliberately-kept historical reference — anything else is an incomplete
+  move. WHY: a memory-based touch-point list misses real files (a help-index
+  line naming a moved subcommand, found only by grep, not recall); this
+  generalizes CONTRACT_INDEX.md's own "a stale index is worse than none"
+  warning to any relocated symbol, not just the index.
 
 ---
 
