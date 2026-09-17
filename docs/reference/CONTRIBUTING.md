@@ -18,15 +18,18 @@ Dependencies run bottom-up. Don't implement step N before step N−1 exists and 
  4b. core/text.sh                   pure functions; decodes/indents stored notes
  4c. services/help.sh               renders docs/help/<cmd>.txt
  4d. services/editor.sh             captures notes through $EDITOR
+ 4e. services/desktop.sh            desktop dialog adapter (kdialog/zenity); needed by focus-checkin
  5. services/cron.sh                deps: env.sh
+ 5b. services/merge.sh              composer; duplicate-session merge rule; used by off.sh, past.sh add
+ 5c. services/period.sh             composer; cycle selector → id window; used by past.sh cycles, report.sh cycle
  6. focus (dispatcher)              skeleton: set REFOCUS_ROOT, exec lib/$1.sh
  7–21. lib/*.sh                     handlers, one per command (see order in AGENTS.md)
 22. focus-nudge                     self-contained; sources env+db+time independently
-23. focus-checkin                   self-contained; sources env+db+time independently
-24. services/focus-function.sh      prompt hook + focus() wrapper
-25. setup.sh                        install/uninstall; arms cron on fresh install
-26. tests/state-matrix.sh           full behavioural oracle
-27. tests/time-portability.sh       GNU/BSD date(1) portability probe
+22b. focus-checkin                  self-contained; sources env+db+time independently
+23. services/focus-function.sh      prompt hook + focus() wrapper
+24. setup.sh                        install/uninstall; arms cron on fresh install
+25. tests/state-matrix.sh           full behavioural oracle
+26. tests/time-portability.sh       GNU/BSD date(1) portability probe
 ```
 
 ---

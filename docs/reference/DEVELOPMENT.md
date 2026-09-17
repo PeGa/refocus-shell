@@ -12,7 +12,7 @@ For the contribution workflow (build order, naming, commit discipline), see [CON
 focus                       dispatcher — sets REFOCUS_ROOT, routes focus <cmd> → exec lib/<cmd>.sh
 focus-nudge                 self-contained cron payload (nudge). sources env.sh + database.sh + core/time.sh
 focus-checkin               self-contained cron payload (check-in). sources env.sh + database.sh + core/time.sh
-lib/*.sh                    command handlers (primary adapters) — one file per command
+lib/*.sh                    command handlers — one file per command
 core/time.sh                pure helpers — duration/time parsing, owns the GNU/BSD date(1) split
 core/text.sh                pure helpers — decodes and indents stored notes
 services/database.sh        infrastructure — the ONLY file that speaks SQL
@@ -25,6 +25,7 @@ services/period.sh          composer — period resolution (cycle selector → i
 services/focus-function.sh  shell integration (prompt hook + focus() wrapper)
 env.sh                      config loader — reads .env, exports DB_PATH, NUDGE_INTERVAL, etc.
 docs/help/<cmd>.txt         per-command help, served verbatim by services/help.sh
+setup.sh                    install/uninstall — arms cron on fresh install
 tests/                      three test oracles (see below)
 ```
 

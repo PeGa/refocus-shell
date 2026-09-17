@@ -79,8 +79,10 @@ services/period.sh        composer, period resolution rule (shared by past cycle
 services/focus-function.sh shell integration: prompt hook + focus() wrapper
 env.sh                    config loader, sourced first everywhere, exports DB_PATH etc.
 focus-nudge               self-contained cron payload, sources env.sh + database.sh + time.sh
-focus-checkin             self-contained cron payload, sources env.sh + database.sh + core/time.sh
+focus-checkin             self-contained cron payload, sources env.sh + database.sh +
+                          core/time.sh + services/desktop.sh
 docs/help/<cmd>.txt       help served verbatim by services/help.sh, never duplicated in code
+setup.sh                  install/uninstall; arms cron on fresh install (see INT-INSTALL)
 ```
 
 - Dispatch is **dynamic by filename, no case table**. Adding a command = adding

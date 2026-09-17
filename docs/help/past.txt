@@ -5,8 +5,8 @@ focus past — log and fix sessions
   focus past cycles show [id|-n]
   focus past add <project> <start> <end>
   focus past add <project> --duration 2h30m [--date YYYY/MM/DD]
-  focus past modify <id> [project] [start] [end]      timestamped session
-  focus past modify <id> [project] [--duration 2h]    duration-only session
+  focus past modify <id> [project] [start] [end]              timestamped session
+  focus past modify <id> [project] [--duration 2h] [--date YYYY/MM/DD]  duration-only session
   focus past modify <id> --notes                      rewrite the note
   focus past delete <id>
 
@@ -34,9 +34,10 @@ Forgot to start the timer? Log it after the fact.
   with times    duration is computed for you
   --duration    no clock times — just a length and a date (default today)
 
-A duration-only session has no timestamps: modify can rename it or change its
-length, but won't bolt fake times onto it. --notes works on either kind — a
-note carries no timestamps. list shows the most recent first.
+A duration-only session has no timestamps: modify can rename it, change its
+length, or re-date it with --duration/--date (either or both, any order), but
+won't bolt fake times onto it. --notes works on either kind — a note carries
+no timestamps. list shows the most recent first.
 
 One project name, one row. add — and modify, when it renames onto a name
 another session already holds — offers to append to that original instead of

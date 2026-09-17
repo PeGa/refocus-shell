@@ -264,9 +264,11 @@ services/merge.sh           composer. duplicate-session merge rule.
 services/period.sh          composer. period resolution rule.
 services/focus-function.sh  shell integration: prompt hook + focus() wrapper.
 env.sh                      environment loader. reads .env, exports config.
-focus-nudge                 self-contained cron payload. sources env.sh + database.sh.
-focus-checkin               self-contained cron payload. sources env.sh + database.sh + core/time.sh.
-docs/help/<cmd>.txt         per-command help, served verbatim by lib/help.sh.
+focus-nudge                 self-contained cron payload. sources env.sh + database.sh + core/time.sh.
+focus-checkin               self-contained cron payload. sources env.sh + database.sh +
+                            core/time.sh + services/desktop.sh.
+docs/help/<cmd>.txt         per-command help, served verbatim by services/help.sh.
+setup.sh                    install/uninstall; arms cron on fresh install (see INT-INSTALL).
 tests/                      audit.sh (shellcheck) + state-matrix.sh (behaviour) + time-portability.sh (GNU/BSD date).
 ```
 
@@ -283,9 +285,13 @@ tests/                      audit.sh (shellcheck) + state-matrix.sh (behaviour) 
   services/core it needs, then calls `db_ensure` if it touches the DB.
 - ARCH-COMPOSER: when two handlers need the same domain rule, it becomes a
   composer service (`services/`), not a copy. Composers have no mechanism of
-  their own, document their scope assumptions (what the caller must source),
-  and are never sourced by another service. Duplication is reserved for trivial
-  guards.
+  their own — "mechanism" means domain/decision logic (a merge rule, a window
+  resolution), not output formatting. A composer whose shared concern is
+  presentation only (row/header rendering — no SQL, no cron, no state
+  mutation) is still a composer, not a special case: the duplication it
+  prevents is the same class ARCH-COMPOSER exists for. Composers document
+  their scope assumptions (what the caller must source), and are never
+  sourced by another service. Duplication is reserved for trivial guards.
 
 ---
 
@@ -392,7 +398,8 @@ here controls.
 - `record_session <project> <start> <end> <dur> [notes]` — timestamped row.
 - `record_duration_session <project> <dur> <date> [notes]` — `duration_only=1`.
 - `update_session <id> <project> <start> <end> <dur>` — timestamped edit.
-- `update_duration_session <id> <project> <dur>` — never touches timestamps (CONV-DURONLY).
+- `update_duration_session <id> <project> <dur> [date]` — never touches timestamps (CONV-DURONLY).
+  Optional 4th arg updates `session_date`; when empty, date is left unchanged.
 - `update_session_notes <id> <notes>` — notes only; legal on either kind of row.
 - `delete_session <id>`.
 
@@ -639,15 +646,17 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
   If the row is a cycle break, this is the rename-out-of-cycle-hood mechanism:
   changing the project out of the `Cycle break. Period:` prefix stops it being
   a marker (DM-CYCLE).
-- `modify <id> [project] [--duration <D>]` (duration-only row) — rename and/or
-  re-duration ONLY; any timestamp arg → exit 2 (CONV-DURONLY).
+- `modify <id> [project] [--duration <D>] [--date <date>]` (duration-only row) — rename,
+  re-duration, and/or re-date; any timestamp arg → exit 2 (CONV-DURONLY).
+  Flags are order-independent.
 - `modify <id> --notes` (either kind of row) — reopen the note in `$EDITOR`,
   pre-loaded with the existing one, then `update_session_notes`. Legal on
   duration-only rows: a note bolts no timestamps onto them (CONV-DURONLY).
 - CMD-PAST-ARGS: the leading `[project]` is optional. Detect it as "the next arg
-  that is not the `--duration` flag" — never consume `--duration` as the project
-  name. So `modify <id> --duration 1h` updates duration and keeps the project;
-  `modify <id> newname` renames only; `modify <id> newname --duration 1h` does both.
+  that is not a flag (`--duration`, `--date`)" — never consume a flag as the
+  project name. So `modify <id> --duration 1h` updates duration and keeps the
+  project; `modify <id> newname` renames only; `modify <id> newname --duration 1h`
+  does both. `--date` re-dates a duration-only row. Flags are order-independent.
   `--notes` is lifted out of the argument list before this split, so it composes
   with either form.
 - CMD-PAST-ID: `modify`/`delete` validate the id against `^[0-9]+$` **before**
@@ -931,8 +940,8 @@ active          1 0 0      paused          0 1 0
 - CONV-DURONLY: a `duration_only=1` row has no timestamps. Never feed an empty
   date string to `date(1)` (it parses as today-midnight and silently yields a
   zero/garbage duration — the data-loss bug). `modify` on such a row accepts
-  rename, `--duration` (see CMD-PAST-ARGS), and `--notes`. This is the first
-  instance of CONV-ABSENT.
+  rename, `--duration`, `--date` (see CMD-PAST-ARGS), and `--notes`. Flags are
+  order-independent. This is the first instance of CONV-ABSENT.
 - CONV-ABSENT: an absent value is data to branch on — never parser input,
   never a silent default, never repaired in place. Three boundaries, one law.
   **Time layer:** `iso_to_epoch` refuses the empty string identically on both
@@ -1018,6 +1027,15 @@ active          1 0 0      paused          0 1 0
     warning. Aggregate in SQL instead (PORT-BASH32) — this is not a style
     preference, `focus report` had zero working subcommands on macOS until it
     moved the per-project breakdown into `get_project_totals_in_range`.
+- CONV-SURFACE: removing or renaming a documented, user-facing command or
+  subcommand requires explicit human sign-off named in the task brief — never
+  inferred from a broader instruction ("clean this up," "fix the
+  architecture"). Default to a one-release deprecation shim (the old
+  invocation prints where it moved, exits 2) unless the human explicitly
+  waives it. WHY: an internal refactor's blast radius is bounded by the
+  oracle; a CLI surface is a promise to whatever the human already has
+  memorized or scripted — a risk class the oracle can't see, same blind spot
+  as `[INT]`.
 - (CONV-ENVFILE lives in [ENV]; CRON-STRIP / CRON-INTERVAL live in [CRON].)
 
 ---
@@ -1077,6 +1095,24 @@ recurring class of self-inflicted defects.
 - BUILD-UTF8: run shellcheck under `LC_ALL=C.UTF-8`; its output encoder crashes on
   multibyte glyphs otherwise.
 - BUILD-SCOPE: one concern per change. Touch only the files the task names.
+  Found-but-out-of-scope defects are logged, never folded in: name the
+  file:line and the defect, defer it as a separate task — do not fix it in
+  the current diff, however small the fix looks. If completing the task
+  genuinely requires touching a file not named in scope, stop and name that
+  file before editing it; do not absorb it silently because it's "obviously
+  needed." WHY: "while I'm at it" is how a documentation-reorg branch grew an
+  unrelated architecture audit, which grew a full bug list, none of it asked
+  for in that scope — the size of the eventual cleanup is the cost of not
+  drawing this line up front.
+- BUILD-RELOCATE: moving or renaming a cross-file symbol, command surface, or
+  file — grep the full repo for every existing spelling of it *before*
+  scoping the task, so the file list is complete, not assembled from memory.
+  After the change, grep for the old name again: zero hits, or every hit is a
+  deliberately-kept historical reference — anything else is an incomplete
+  move. WHY: a memory-based touch-point list misses real files (a help-index
+  line naming a moved subcommand, found only by grep, not recall); this
+  generalizes CONTRACT_INDEX.md's own "a stale index is worse than none"
+  warning to any relocated symbol, not just the index.
 
 ---
 

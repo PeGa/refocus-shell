@@ -136,7 +136,7 @@ focus past list [n]                                  # recent sessions
 focus past add <project> <start> <end>               # log one with timestamps
 focus past add <project> --duration 2h30m [--date YYYY/MM/DD]   # log one by duration
 focus past modify <id> [project] [start] [end]       # fix a timestamped session
-focus past modify <id> [project] [--duration 2h]     # fix a duration-only session
+focus past modify <id> [project] [--duration 2h] [--date YYYY/MM/DD]  # fix a duration-only session
 focus past delete <id>
 focus past cycles list                               # show cycle breaks
 focus past cycles show <id>                          # show one period's sessions
