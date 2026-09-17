@@ -264,9 +264,11 @@ services/merge.sh           composer. duplicate-session merge rule.
 services/period.sh          composer. period resolution rule.
 services/focus-function.sh  shell integration: prompt hook + focus() wrapper.
 env.sh                      environment loader. reads .env, exports config.
-focus-nudge                 self-contained cron payload. sources env.sh + database.sh.
-focus-checkin               self-contained cron payload. sources env.sh + database.sh + core/time.sh.
-docs/help/<cmd>.txt         per-command help, served verbatim by lib/help.sh.
+focus-nudge                 self-contained cron payload. sources env.sh + database.sh + core/time.sh.
+focus-checkin               self-contained cron payload. sources env.sh + database.sh +
+                            core/time.sh + services/desktop.sh.
+docs/help/<cmd>.txt         per-command help, served verbatim by services/help.sh.
+setup.sh                    install/uninstall; arms cron on fresh install (see INT-INSTALL).
 tests/                      audit.sh (shellcheck) + state-matrix.sh (behaviour) + time-portability.sh (GNU/BSD date).
 ```
 
@@ -392,7 +394,8 @@ here controls.
 - `record_session <project> <start> <end> <dur> [notes]` — timestamped row.
 - `record_duration_session <project> <dur> <date> [notes]` — `duration_only=1`.
 - `update_session <id> <project> <start> <end> <dur>` — timestamped edit.
-- `update_duration_session <id> <project> <dur>` — never touches timestamps (CONV-DURONLY).
+- `update_duration_session <id> <project> <dur> [date]` — never touches timestamps (CONV-DURONLY).
+  Optional 4th arg updates `session_date`; when empty, date is left unchanged.
 - `update_session_notes <id> <notes>` — notes only; legal on either kind of row.
 - `delete_session <id>`.
 
@@ -639,15 +642,17 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
   If the row is a cycle break, this is the rename-out-of-cycle-hood mechanism:
   changing the project out of the `Cycle break. Period:` prefix stops it being
   a marker (DM-CYCLE).
-- `modify <id> [project] [--duration <D>]` (duration-only row) — rename and/or
-  re-duration ONLY; any timestamp arg → exit 2 (CONV-DURONLY).
+- `modify <id> [project] [--duration <D>] [--date <date>]` (duration-only row) — rename,
+  re-duration, and/or re-date; any timestamp arg → exit 2 (CONV-DURONLY).
+  Flags are order-independent.
 - `modify <id> --notes` (either kind of row) — reopen the note in `$EDITOR`,
   pre-loaded with the existing one, then `update_session_notes`. Legal on
   duration-only rows: a note bolts no timestamps onto them (CONV-DURONLY).
 - CMD-PAST-ARGS: the leading `[project]` is optional. Detect it as "the next arg
-  that is not the `--duration` flag" — never consume `--duration` as the project
-  name. So `modify <id> --duration 1h` updates duration and keeps the project;
-  `modify <id> newname` renames only; `modify <id> newname --duration 1h` does both.
+  that is not a flag (`--duration`, `--date`)" — never consume a flag as the
+  project name. So `modify <id> --duration 1h` updates duration and keeps the
+  project; `modify <id> newname` renames only; `modify <id> newname --duration 1h`
+  does both. `--date` re-dates a duration-only row. Flags are order-independent.
   `--notes` is lifted out of the argument list before this split, so it composes
   with either form.
 - CMD-PAST-ID: `modify`/`delete` validate the id against `^[0-9]+$` **before**
@@ -931,8 +936,8 @@ active          1 0 0      paused          0 1 0
 - CONV-DURONLY: a `duration_only=1` row has no timestamps. Never feed an empty
   date string to `date(1)` (it parses as today-midnight and silently yields a
   zero/garbage duration — the data-loss bug). `modify` on such a row accepts
-  rename, `--duration` (see CMD-PAST-ARGS), and `--notes`. This is the first
-  instance of CONV-ABSENT.
+  rename, `--duration`, `--date` (see CMD-PAST-ARGS), and `--notes`. Flags are
+  order-independent. This is the first instance of CONV-ABSENT.
 - CONV-ABSENT: an absent value is data to branch on — never parser input,
   never a silent default, never repaired in place. Three boundaries, one law.
   **Time layer:** `iso_to_epoch` refuses the empty string identically on both

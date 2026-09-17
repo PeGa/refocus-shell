@@ -56,7 +56,10 @@ passes `tests/audit.sh`.
  4b. core/text.sh                   pure functions; decodes/indents stored notes
  4c. services/help.sh               renders docs/help/<cmd>.txt [CONV-HELP]
  4d. services/editor.sh             captures notes through $EDITOR
+ 4e. services/desktop.sh            desktop dialog adapter (kdialog/zenity); needed by focus-checkin
  5. services/cron.sh                deps: env.sh
+ 5b. services/merge.sh              composer; duplicate-session merge rule; used by off.sh, past.sh add
+ 5c. services/period.sh             composer; cycle selector → id window; used by past.sh cycles, report.sh cycle
  6. focus (dispatcher)              skeleton: set REFOCUS_ROOT, exec lib/$1.sh $@
  7. lib/enable.sh                   first handler; exercises cron + db boundary
  8. lib/disable.sh
@@ -66,6 +69,7 @@ passes `tests/audit.sh`.
 12. lib/continue.sh                 previous_elapsed math; common arithmetic failure point
 13. lib/status.sh
 14. lib/past.sh                     most complex arg parsing; CONV-DURONLY strictly
+14b. lib/cycle.sh                   manage cycle breaks; deps: services/period.sh for cycles show
 15. lib/report.sh
 16. lib/config.sh
 17. lib/reset.sh
@@ -74,10 +78,13 @@ passes `tests/audit.sh`.
 20. lib/init.sh
 21. lib/help.sh + docs/help/*.txt   thin wrapper over services/help.sh
 22. focus-nudge                     self-contained; sources env+db+time independently
-23. services/focus-function.sh      prompt hook + focus() wrapper
-24. setup.sh                        install/uninstall; arms cron on fresh install
-25. tests/state-matrix.sh           full behavioral oracle; written after all lib/ exists
-26. tests/time-portability.sh       GNU/BSD date(1) portability probe; tests core/time.sh
+22b. lib/nudge.sh                   diagnostics only: nudge status/test [DM-DEAD: no enable/disable]
+23. focus-checkin                   self-contained; sources env+db+time+desktop independently
+23b. lib/checkin.sh                 diagnostics only: checkin status/test, same shape as nudge
+24. services/focus-function.sh      prompt hook + focus() wrapper
+25. setup.sh                        install/uninstall; arms cron on fresh install
+26. tests/state-matrix.sh           full behavioral oracle; written after all lib/ exists
+27. tests/time-portability.sh       GNU/BSD date(1) portability probe; tests core/time.sh
 ```
 
 ---
@@ -149,18 +156,18 @@ Learned from incidents. Apply when writing or modifying tests:
 
 ```bash
 # INV-1: only the adapter speaks SQL
-grep -rl sqlite3 lib/ core/ focus focus-nudge services/cron.sh \
+grep -rl sqlite3 lib/ core/ focus focus-nudge focus-checkin services/cron.sh \
      services/focus-function.sh env.sh 2>/dev/null
 # Expected: no output
 
 # DM-DEAD: dead symbols must not reappear
 grep -rn '^[^#]*\(nudging_enabled\|pause_notes\|\bprojects\b\|focus describe\|nudge enable\|nudge disable\|db_flip_flag\|db_nudging_on\|db_is_active\|db_is_paused\|db_is_disabled\)' \
-     lib/ services/ core/ focus focus-nudge 2>/dev/null
+     lib/ services/ core/ focus focus-nudge focus-checkin 2>/dev/null
 # Expected: no output
 
 # CONV-HELP: help text lives in docs/, never inline in a handler.
 # services/help.sh is exempt — it owns the no-doc-found fallback.
-grep -rn '"Usage:' lib/ focus focus-nudge 2>/dev/null
+grep -rn '"Usage:' lib/ focus focus-nudge focus-checkin 2>/dev/null
 # Expected: no output
 
 # CONV-PORTABLE: only core/time.sh calls date(1), nobody uses GNU-only `sed -i`
@@ -168,14 +175,17 @@ grep -rn '"Usage:' lib/ focus focus-nudge 2>/dev/null
 # bash 3.2, which has no associative arrays; `focus report` had zero working
 # subcommands on macOS until this was enforced. All three skip comment lines,
 # so the notes explaining a rule don't trip the check that enforces it.
+# KNOWN GAP: this pattern only catches GNU-flag date(1) calls, not plain
+# `date +FMT` (POSIX-portable but still a CORE-DATE violation) — see MAIN.md's
+# CONV-PORTABLE debt list. A clean run here is not proof CORE-DATE holds.
 grep -rn '^[^#]*\(date --date\|date -d \|date +%s\|date -Iseconds\)' \
-     lib/ services/ focus focus-nudge env.sh 2>/dev/null
-grep -rn '^[^#]*sed -i' lib/ services/ core/ focus focus-nudge setup.sh 2>/dev/null
-grep -rn '^[^#]*declare -A' lib/ services/ core/ focus focus-nudge 2>/dev/null
-# Expected: no output for all three
+     lib/ services/ focus focus-nudge focus-checkin env.sh 2>/dev/null
+grep -rn '^[^#]*sed -i' lib/ services/ core/ focus focus-nudge focus-checkin setup.sh 2>/dev/null
+grep -rn '^[^#]*declare -A' lib/ services/ core/ focus focus-nudge focus-checkin 2>/dev/null
+# Expected: no output for all six greps above (four checks, CONV-PORTABLE runs three)
 ```
 
-If either returns output, stop, fix the violation, rerun before proceeding.
+If any of these greps returns output, stop, fix the violation, rerun before proceeding.
 Do not carry drift forward into the next task.
 
 ---
