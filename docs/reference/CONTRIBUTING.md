@@ -21,7 +21,8 @@ Dependencies run bottom-up. Don't implement step N before step N−1 exists and 
  4e. services/desktop.sh            desktop dialog adapter (kdialog/zenity); needed by focus-checkin
  5. services/cron.sh                deps: env.sh
  5b. services/merge.sh              composer; duplicate-session merge rule; used by off.sh, past.sh add
- 5c. services/period.sh             composer; cycle selector → id window; used by past.sh cycles, report.sh cycle
+ 5c. services/period.sh             composer; cycle selector → id window; used by cycle.sh show, report.sh cycle
+ 5d. services/listing.sh            composer; shared 8-field-row table renderer; used by past.sh list, cycle.sh list/show
  6. focus (dispatcher)              skeleton: set REFOCUS_ROOT, exec lib/$1.sh
  7–21. lib/*.sh                     handlers, one per command (see order in AGENTS.md)
 22. focus-nudge                     self-contained; sources env+db+time independently

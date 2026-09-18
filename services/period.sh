@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Refocus Shell - Period resolution (composer)
 #
-# Turns a cycle selector into the id window it names. `focus past cycles show`
+# Turns a cycle selector into the id window it names. `focus cycle show`
 # and `focus report cycle` take the same selector, so the rule for reading one
 # lives here rather than being spelled twice — handlers are self-contained and
 # cannot source each other.

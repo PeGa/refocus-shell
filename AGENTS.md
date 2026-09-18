@@ -68,7 +68,8 @@ passes `tests/audit.sh`.
  4e. services/desktop.sh            desktop dialog adapter (kdialog/zenity); needed by focus-checkin
  5. services/cron.sh                deps: env.sh
  5b. services/merge.sh              composer; duplicate-session merge rule; used by off.sh, past.sh add
- 5c. services/period.sh             composer; cycle selector → id window; used by past.sh cycles, report.sh cycle
+ 5c. services/period.sh             composer; cycle selector → id window; used by cycle.sh show, report.sh cycle
+ 5d. services/listing.sh            composer; shared 8-field-row table renderer; used by past.sh list, cycle.sh list/show
  6. focus (dispatcher)              skeleton: set REFOCUS_ROOT, exec lib/$1.sh $@
  7. lib/enable.sh                   first handler; exercises cron + db boundary
  8. lib/disable.sh
@@ -78,7 +79,8 @@ passes `tests/audit.sh`.
 12. lib/continue.sh                 previous_elapsed math; common arithmetic failure point
 13. lib/status.sh
 14. lib/past.sh                     most complex arg parsing; CONV-DURONLY strictly
-14b. lib/cycle.sh                   manage cycle breaks; deps: services/period.sh for cycles show
+14b. lib/cycle.sh                   manage cycle breaks; deps: services/period.sh for show,
+                                    services/listing.sh for list/show
 15. lib/report.sh
 16. lib/config.sh
 17. lib/reset.sh

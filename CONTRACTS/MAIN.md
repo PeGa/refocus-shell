@@ -262,6 +262,7 @@ services/editor.sh          integration. captures notes through $EDITOR.
 services/help.sh            integration. renders docs/help/<cmd>.txt.
 services/merge.sh           composer. duplicate-session merge rule.
 services/period.sh          composer. period resolution rule.
+services/listing.sh         composer. shared 8-field-row table renderer.
 services/focus-function.sh  shell integration: prompt hook + focus() wrapper.
 env.sh                      environment loader. reads .env, exports config.
 focus-nudge                 self-contained cron payload. sources env.sh + database.sh + core/time.sh.
@@ -687,7 +688,7 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
   session, not the last marker. `get_last_session` is called with the cycle
   prefix as an exclude argument.
 
-### CMD-PAST · `focus past <list|add|modify|delete|cycles>`
+### CMD-PAST · `focus past <list|add|modify|delete>`
 - `list [n]` — table via `list_sessions`. `n` is validated as a non-negative
   integer before reaching SQL (#51). Default: full history via
   `list_sessions_by_id_range`.
@@ -721,14 +722,10 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
 - `delete <id>` — confirm, `delete_session`. If the row is a cycle break, this
   deletes the marker; the next break's receipt may be regenerated (cascade,
   enhancement #56).
-- `cycles list` — list all cycle breaks (no table header; every line is a
-  boundary, not a row).
-- `cycles show [selector]` — show sessions in a period (CMD-PERIOD). Selector
-  is `0` (current), `-N` (N periods back), or `<id>` (period opened by that
-  break). Uses `list_sessions_by_id_range` with the id window from
-  `get_period_window`.
 - `list --show-cycles` — include cycle breaks in the listing (rendered as
-  boundary lines, not session rows).
+  boundary lines, not session rows). Browsing breaks and periods on their own
+  is `focus cycle list`/`show` (CMD-CYCLE) — `past` only decorates its own
+  full log with the boundaries; it has no period-composition logic of its own.
 
 ### CMD-REPORT · `focus report <today|week|month|custom N|cycle [selector]>`
 - Output is **markdown** on stdout — `focus report custom 14 > report.md` (#39).
@@ -811,9 +808,13 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
   per row, not refused. Then `reset_state_post_import` (INV-5). Leaves
   disabled (CONV-REARM).
 
-### CMD-CYCLE · `focus cycle <add|modify|delete>`
+### CMD-CYCLE · `focus cycle <add|list|show|modify|delete>`
 Manage cycle breaks (DM-CYCLE). A break is a zero-duration session marking a
-boundary between periods.
+boundary between periods. `list`/`show` are the read side — relocated from
+`focus past cycles`/`cycles show` (`past` had no period-composition logic of
+its own; `cycle` is where the breaks that define periods already live) — and
+share `services/listing.sh`'s row renderer with `focus past list`
+[ARCH-COMPOSER].
 
 - **add**: active or paused → error naming the open session (exit 1). Idle
   succeeds whether enabled or disabled — a break touches no state either way.
@@ -822,6 +823,11 @@ boundary between periods.
   last break's end time (or "Beginning") and `<to>` is now. If a break with the
   same receipt already exists (same minute), offer to replace (y/N, CONV-YES
   simple tier). Exit 0 with the new break's id.
+- **list**: every cycle break, newest first (no table header; every line is a
+  boundary, not a row).
+- **show [selector]**: sessions in a period (CMD-PERIOD). Selector is `0`
+  (current), `-N` (N periods back), or `<id>` (period opened by that break).
+  Uses `list_sessions_by_id_range` with the id window from `get_period_window`.
 - **modify --edit-notes <id>**: open `$EDITOR` to edit the break's notes
   (CONV-NOTES-CLEAR). Exit 0 on success.
 - **modify --edit-time <id> <time>**: move the break to `<time>`. Reject future
@@ -832,8 +838,9 @@ boundary between periods.
 - **delete <id>**: confirm (y/N, CONV-YES simple tier), delete the break,
   regenerate the next break's receipt if it exists (cascade, enhancement #56).
   Exit 0 on success.
-- All subcommands reject non-cycle sessions (exit 1) and malformed ids (exit 2,
-  CONV-ID).
+- Every subcommand taking an id (`add`'s replace-prompt aside, `modify`,
+  `delete`, and `show`'s id-selector form via CMD-PERIOD) rejects non-cycle
+  sessions (exit 1) and malformed ids (exit 2, CONV-ID). `list` takes none.
 
 ### CMD-PERIOD · Period resolution (services/period.sh)
 A **period** is comprised of the sessions between two cycle breaks (DM-CYCLE).

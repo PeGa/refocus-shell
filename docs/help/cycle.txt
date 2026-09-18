@@ -1,6 +1,8 @@
 focus cycle — mark where one period of work ends and the next begins
 
   focus cycle add
+  focus cycle list
+  focus cycle show [id|-n]
   focus cycle modify --edit-notes <id>
   focus cycle modify --edit-time <id> <time>
   focus cycle delete <id>
@@ -18,12 +20,20 @@ break renamed to something else stops being one, and a session named to match
 becomes one. Visual identification, no bookkeeping.
 
   add       records the break and prints its id
+  list      every break you've recorded, newest first, as boundaries
+  show      the current period — everything since the last break
+  show -1   the period before it, -2 the one before that
+  show <id> the period that break opened
   --edit-notes   replaces the placeholder note; timestamps aren't touched
   --edit-time    moves the marker to <time>; the receipts regenerate
   delete    asks first; the next break's receipt re-anchors to the
             nearest survivor, so no receipt outlives its boundary
 
-The note is what the period was: 'focus past cycles' and 'focus past list
+A period runs from the break that opens it up to the next one. Counting back
+past the oldest break reaches the work that came before it; going further
+than that is an error.
+
+The note is what the period was: 'focus cycle list' and 'focus past list
 --show-cycles' print it under the boundary line they render the break as.
 The placeholder itself is never printed.
 
