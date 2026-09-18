@@ -1147,7 +1147,15 @@ and **hand-verified** — the test suite will not catch a regression here.
   install must leave both jobs consistent with the DB state, not just one.
   (Arming before the shell-hook/desktop-entry steps is fine either way — that
   invariant is about DB-state-vs-cron-state, not install-step ordering.)
-- Reinstall preserves the existing `refocus.db` and `.env` (stash, wipe, restore).
+- **`install` unconditionally enables, fresh or reinstall — this is
+  deliberate, not a gap.** Reinstall preserves the existing `refocus.db` and
+  `.env` (stash, wipe, restore), but *not* `focus_disabled`: running `install`
+  is itself the explicit, conscious act of arming Refocus, the same as
+  running `focus enable` by hand (CONV-REARM's "re-arming is a conscious act"
+  — installing counts as one). A prior `focus disable` does not survive a
+  reinstall, and it is not supposed to. If this surprises a `git pull &&
+  ./setup.sh install` habit, the fix is running `focus disable` again after,
+  not a change here.
 - `uninstall` → `cron_remove` + `cron_checkin_remove`, remove the install dir,
   the symlink, the desktop entry, and the three `.bashrc` lines it added
   (blank separator, comment, source line — anchored sed, not loose regex).

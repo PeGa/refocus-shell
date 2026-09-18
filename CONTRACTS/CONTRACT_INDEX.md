@@ -1,6 +1,6 @@
 # CONTRACT_INDEX.md — refocus-shell
 
-> Line-range index into `MAIN.md` (1230 lines). Lets an agent load a single
+> Line-range index into `MAIN.md` (1238 lines). Lets an agent load a single
 > section or rule by range instead of the whole spec — context budget for small-
 > window models, precise citation for everyone else.
 >
@@ -30,9 +30,9 @@
 | CHECKIN| Check-in payload (focus-checkin)            | 925–973   |
 | SM| State machine                               | 974–994   |
 | CONV| Conventions                                 | 995–1131  |
-| INT| Install & shell integration                 | 1132–1170 |
-| BUILD| Build guardrails                            | 1171–1210 |
-| ACCEPT| Acceptance                                  | 1211–1230 |
+| INT| Install & shell integration                 | 1132–1178 |
+| BUILD| Build guardrails                            | 1179–1218 |
+| ACCEPT| Acceptance                                  | 1219–1238 |
 
 ---
 
@@ -98,9 +98,9 @@
 | CRON| cron.sh — nudge + check-in install/remove + entry format | 594–647 |
 | NUDGE| focus-nudge — the cron payload | 905–924 |
 | CHECKIN| focus-checkin — the check-in cron payload | 925–973 |
-| INT-INSTALL| setup.sh | 1139–1154 |
-| INT-DESKTOP| refocus.desktop | 1155–1159 |
-| INT-SHELL| focus-function.sh | 1160–1170 |
+| INT-INSTALL| setup.sh | 1139–1162 |
+| INT-DESKTOP| refocus.desktop | 1163–1167 |
+| INT-SHELL| focus-function.sh | 1168–1178 |
 
 Note: `services/help.sh` and `services/editor.sh` have no surface section of
 their own — specified where they're used, at CMD-HELP (883–904) and
@@ -162,11 +162,11 @@ by its bullet in [CONV] and referenced from the commands it governs.
 | CRON-INTERVAL| nudge: validate 1–60 numeric | 624 | CRON |
 | CRON-CHECKIN-INTERVAL| checkin: 0 disables, 1–60 minute-stepped, >60 whole hours only | 626 | CRON |
 | CRON-CHECKIN-FAILCLOSED| invalid checkin interval fails closed, no stale entry left | 638 | CRON |
-| BUILD-NO-REGEN| no whole-file regen through escaping | 1176 | BUILD |
-| BUILD-VERIFY| run all three test scripts after changes | 1181 | BUILD |
-| BUILD-UTF8| shellcheck under LC_ALL=C.UTF-8 | 1187 | BUILD |
-| BUILD-SCOPE| one concern per change; found-but-out-of-scope is logged, never folded in | 1189 | BUILD |
-| BUILD-RELOCATE| grep full repo before AND after relocating/renaming a cross-file symbol or surface | 1199 | BUILD |
+| BUILD-NO-REGEN| no whole-file regen through escaping | 1184 | BUILD |
+| BUILD-VERIFY| run all three test scripts after changes | 1189 | BUILD |
+| BUILD-UTF8| shellcheck under LC_ALL=C.UTF-8 | 1195 | BUILD |
+| BUILD-SCOPE| one concern per change; found-but-out-of-scope is logged, never folded in | 1197 | BUILD |
+| BUILD-RELOCATE| grep full repo before AND after relocating/renaming a cross-file symbol or surface | 1207 | BUILD |
 
 ---
 
@@ -177,4 +177,4 @@ by its bullet in [CONV] and referenced from the commands it governs.
 - Implementing one command → load its `CMD-*` row + `PORT` (299–493) + `CONV` (995–1131).
 - Resolving an ambiguity → load the relevant rule's line ± its parent section, and
   decide by the WHY, never by local convenience (READ, 9–39).
-- Checking your work → `ACCEPT` (1211–1230).
+- Checking your work → `ACCEPT` (1219–1238).
