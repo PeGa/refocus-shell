@@ -499,6 +499,8 @@ db_import_session_row() {
     # purpose: it reconstructs a stored row exactly, NULLs preserved.
     local project="$1" start_time="$2" end_time="$3" duration="$4" \
           notes="$5" duration_only="$6" session_date="$7"
+    _require_uint "duration" "$duration" || return 2
+    _require_uint "duration_only" "$duration_only" || return 2
     local start_sql end_sql date_sql
     [[ -n "$start_time"   ]] && start_sql="'$(_sql_quote "$start_time")'"  || start_sql="NULL"
     [[ -n "$end_time"     ]] && end_sql="'$(_sql_quote "$end_time")'"      || end_sql="NULL"
@@ -511,12 +513,17 @@ db_import_session_row() {
 
 update_duration_session() {
     # Rename and/or re-duration a duration-only session. Never touches timestamps.
-    local id="$1" duration="$3"
+    # Optional 4th arg: new session_date (for --date on modify).
+    local id="$1" duration="$3" new_date="${4:-}"
     local project; project=$(sanitize_pipe "$2")
     _validate_project_name "$project" || return 2
     _require_uint "id" "$id" || return 2
     _require_uint "duration" "$duration" || return 2
-    _exec "UPDATE sessions SET project='$(_sql_quote "$project")', duration_seconds=$duration WHERE id=$id;"
+    if [[ -n "$new_date" ]]; then
+        _exec "UPDATE sessions SET project='$(_sql_quote "$project")', duration_seconds=$duration, session_date='$(_sql_quote "$new_date")' WHERE id=$id;"
+    else
+        _exec "UPDATE sessions SET project='$(_sql_quote "$project")', duration_seconds=$duration WHERE id=$id;"
+    fi
 }
 
 reset_state_post_import() {

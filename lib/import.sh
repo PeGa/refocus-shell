@@ -101,6 +101,19 @@ jq empty "$file" 2>/dev/null || {
     exit 1
 }
 
+# A refocus JSON import always carries a top-level "sessions" array — a real
+# export always has one, and a hand-built minimal file only needs one. {},
+# [], or an unrelated JSON document have no such key, but `.sessions[]?`
+# below iterates zero times for any of them silently, which looks identical
+# to importing a real, empty history [CONV-ABSENT].
+jq -e 'type == "object" and has("sessions") and (.sessions | type == "array")' \
+    "$file" >/dev/null 2>&1 || {
+    echo "❌ Not a refocus JSON export: $file" >&2
+    echo "   Expected a top-level \"sessions\" array; found something else." >&2
+    echo "   Nothing was changed; your data is untouched." >&2
+    exit 1
+}
+
 db_init
 
 # Sessions — verbatim, full fidelity. Older exports may carry a 'projects' array;

@@ -9,6 +9,21 @@ wants_help "$@" && show_help export
 
 db_ensure
 
+_json_escape() {
+    # Minimal string escaper for the hand-built JSON header below — db_path
+    # is a filesystem path the user configured, not app-generated data, so
+    # unlike exported_at (algorithmic, no special characters) it needs
+    # escaping before going inside a quoted JSON string. Backslash first, so
+    # later substitutions' own backslashes are never re-escaped.
+    local str="$1"
+    str="${str//\\/\\\\}"
+    str="${str//\"/\\\"}"
+    str="${str//$'\n'/\\n}"
+    str="${str//$'\r'/\\r}"
+    str="${str//$'\t'/\\t}"
+    printf '%s' "$str"
+}
+
 timestamp=$(date +%Y%m%d_%H%M%S)
 base="${1:-refocus-export-$timestamp}"
 sql_file="${base}.sql"
@@ -22,7 +37,7 @@ echo "✅ SQL:  $sql_file"
 {
     echo "{"
     echo "  \"exported_at\": \"$(now_iso)\","
-    echo "  \"db_path\": \"$DB_PATH\","
+    echo "  \"db_path\": \"$(_json_escape "$DB_PATH")\","
     echo "  \"state\":"
     db_export_state_json
     echo ","
