@@ -71,7 +71,7 @@ install_files() {
 
     if [[ -d "$INSTALL_DIR" ]]; then
         echo -n "Existing installation found. Code will be updated; data and config preserved. Continue? (yes/N): "
-        read -r ans
+        read -r ans || true
         [[ "$ans" == "yes" ]] || { echo "Aborted."; exit 0; }
 
         # Stash data before the code wipe
@@ -184,7 +184,7 @@ case "${1:-install}" in
         ;;
     uninstall)
         echo -n "Remove $INSTALL_DIR and shell integration? (yes/N): "
-        read -r ans
+        read -r ans || true
         [[ "$ans" == "yes" ]] || { echo "Cancelled."; exit 0; }
         if [[ -f "$INSTALL_DIR/services/cron.sh" ]]; then
             export REFOCUS_ROOT="$INSTALL_DIR"
