@@ -1,6 +1,6 @@
 # CONTRACT_INDEX.md — refocus-shell
 
-> Line-range index into `MAIN.md` (1213 lines). Lets an agent load a single
+> Line-range index into `MAIN.md` (1216 lines). Lets an agent load a single
 > section or rule by range instead of the whole spec — context budget for small-
 > window models, precise citation for everyone else.
 >
@@ -25,14 +25,14 @@
 | CORE| Domain-helper surface (core/*.sh)           | 493–558   |
 | ENV| Environment loader (env.sh)                 | 559–592   |
 | CRON| Nudge and check-in scheduling (cron.sh)     | 593–644   |
-| CMD| Command surface (lib/)                      | 645–894   |
-| NUDGE| Nudge payload (focus-nudge)                 | 895–914   |
-| CHECKIN| Check-in payload (focus-checkin)            | 915–963   |
-| SM| State machine                               | 964–984   |
-| CONV| Conventions                                 | 985–1116  |
-| INT| Install & shell integration                 | 1117–1153 |
-| BUILD| Build guardrails                            | 1154–1193 |
-| ACCEPT| Acceptance                                  | 1194–1213 |
+| CMD| Command surface (lib/)                      | 645–897   |
+| NUDGE| Nudge payload (focus-nudge)                 | 898–917   |
+| CHECKIN| Check-in payload (focus-checkin)            | 918–966   |
+| SM| State machine                               | 967–987   |
+| CONV| Conventions                                 | 988–1119  |
+| INT| Install & shell integration                 | 1120–1156 |
+| BUILD| Build guardrails                            | 1157–1196 |
+| ACCEPT| Acceptance                                  | 1197–1216 |
 
 ---
 
@@ -70,19 +70,19 @@
 | CMD-CONTINUE| focus continue | 677–682 |
 | CMD-STATUS| focus status | 683–690 |
 | CMD-PAST     | focus past <list\|add\|modify\|delete> | 691–729 |
-| CMD-REPORT   | focus report <today\|week\|month\|custom N\|cycle [selector]> | 730–746 |
-| CMD-ENABLE| focus enable | 747–753 |
-| CMD-DISABLE| focus disable | 754–757 |
-| CMD-NUDGE    | focus nudge <status\|test> | 758–761 |
-| CMD-CHECKIN  | focus checkin <status\|test> | 762–777 |
-| CMD-CONFIG   | focus config <show\|set\|unset> | 778–791 |
-| CMD-EXPORT| focus export [basename] | 792–794 |
-| CMD-IMPORT| focus import <file> | 795–810 |
-| CMD-CYCLE| focus cycle <add\|list\|show\|modify\|delete> | 811–844 |
-| CMD-PERIOD| Period resolution (services/period.sh) | 845–864 |
-| CMD-INIT| focus init | 865–867 |
-| CMD-RESET| focus reset | 868–872 |
-| CMD-HELP| focus help [cmd] | 873–894 |
+| CMD-REPORT   | focus report <today\|week\|month\|custom N\|cycle [selector]> | 730–749 |
+| CMD-ENABLE| focus enable | 750–756 |
+| CMD-DISABLE| focus disable | 757–760 |
+| CMD-NUDGE    | focus nudge <status\|test> | 761–764 |
+| CMD-CHECKIN  | focus checkin <status\|test> | 765–780 |
+| CMD-CONFIG   | focus config <show\|set\|unset> | 781–794 |
+| CMD-EXPORT| focus export [basename] | 795–797 |
+| CMD-IMPORT| focus import <file> | 798–813 |
+| CMD-CYCLE| focus cycle <add\|list\|show\|modify\|delete> | 814–847 |
+| CMD-PERIOD| Period resolution (services/period.sh) | 848–867 |
+| CMD-INIT| focus init | 868–870 |
+| CMD-RESET| focus reset | 871–875 |
+| CMD-HELP| focus help [cmd] | 876–897 |
 
 ---
 
@@ -96,16 +96,16 @@
 | CORE-TEXT| core/text.sh — notes decode + block rendering | 524–558 |
 | ENV| env.sh — loader + exports + precedence | 559–592 |
 | CRON| cron.sh — nudge + check-in install/remove + entry format | 593–644 |
-| NUDGE| focus-nudge — the cron payload | 895–914 |
-| CHECKIN| focus-checkin — the check-in cron payload | 915–963 |
-| INT-INSTALL| setup.sh | 1124–1137 |
-| INT-DESKTOP| refocus.desktop | 1138–1142 |
-| INT-SHELL| focus-function.sh | 1143–1153 |
+| NUDGE| focus-nudge — the cron payload | 898–917 |
+| CHECKIN| focus-checkin — the check-in cron payload | 918–966 |
+| INT-INSTALL| setup.sh | 1127–1140 |
+| INT-DESKTOP| refocus.desktop | 1141–1145 |
+| INT-SHELL| focus-function.sh | 1146–1156 |
 
 Note: `services/help.sh`, `services/editor.sh` and `services/listing.sh` have
 no surface section of their own — `listing.sh` (the shared row renderer for
 `past list` / `cycle list` / `cycle show`) is specified at CMD-PAST and
-CMD-CYCLE where it's used; `help.sh`/`editor.sh` at CMD-HELP (873–894) and
+CMD-CYCLE where it's used; `help.sh`/`editor.sh` at CMD-HELP (876–897) and
 CMD-OFF / CMD-PAST respectively.
 
 ---
@@ -134,26 +134,26 @@ by its bullet in [CONV] and referenced from the commands it governs.
 | CMD-PAST-ARGS| optional leading project; don't eat --duration/--date | 709 | CMD-PAST |
 | CMD-PAST-ID| numeric id guard before the adapter | 716 | CMD-PAST |
 | CMD-PAST-NOOP| a modify that changes nothing is exit 2 | 720 | CMD-PAST |
-| CMD-HELP-INTERCEPT| wants_help runs before parsing and db_ensure; lib/help.sh is the deliberate exception | 879 | CMD-HELP |
-| NUDGE-HISTORY| desktop-entry hint → logged in history | 909 | NUDGE |
-| CHECKIN-GUARDS| five silent early exits: no DB, disabled, active, paused, interval=0 | 924 | CHECKIN |
-| CHECKIN-DURONLY| logs via record_duration_session, never a timestamped session | 931 | CHECKIN |
-| CHECKIN-CASCADE| kdialog → zenity → terminal+dialog → terminal+read → silent | 939 | CHECKIN |
-| CHECKIN-RETRY| project prompt loops on blank; note prompt does not | 946 | CHECKIN |
-| CHECKIN-TIER3-HANDOFF| terminal tier hands back two bare lines, never pipe-delimited | 954 | CHECKIN |
-| SM-INVARIANT| disabled ⇒ idle; active+disabled illegal | 973 | SM |
-| CONV-EXIT| exit codes 0/1/2 | 987 | CONV |
-| CONV-YES| three-tier confirmation: literal yes / y-N / Y-n, EOF covered per-tier | 995 | CONV |
-| CONV-REARM| reset/import leave disabled | 1006 | CONV |
-| CONV-IDEMPOTENT-ENABLE| enable-when-enabled is a no-op | 1009 | CONV |
-| CONV-DURONLY| duration-only rows have no timestamps | 1014 | CONV |
-| CONV-ABSENT| absence branched at boundaries, named by renderers, never parsed, never repaired in-app | 1019 | CONV |
-| CONV-HELP| help is data; no inline usage strings | 1043 | CONV |
-| CONV-ID| session ids validated in the handler | 1048 | CONV |
-| CONV-NOTES| encode/decode notes (incl. pipe) across the read boundary | 1063 | CONV |
-| CONV-NOTES-CLEAR| clearing a note requires $EDITOR; never inferred from silence | 1070 | CONV |
-| CONV-PORTABLE| GNU+BSD+bash-3.2; no date(1)/sed -i/sed t;/declare -A | 1084 | CONV |
-| CONV-SURFACE| removing/renaming a user-facing command needs explicit sign-off + default deprecation shim | 1104 | CONV |
+| CMD-HELP-INTERCEPT| wants_help runs before parsing and db_ensure; lib/help.sh is the deliberate exception | 882 | CMD-HELP |
+| NUDGE-HISTORY| desktop-entry hint → logged in history | 912 | NUDGE |
+| CHECKIN-GUARDS| five silent early exits: no DB, disabled, active, paused, interval=0 | 927 | CHECKIN |
+| CHECKIN-DURONLY| logs via record_duration_session, never a timestamped session | 934 | CHECKIN |
+| CHECKIN-CASCADE| kdialog → zenity → terminal+dialog → terminal+read → silent | 942 | CHECKIN |
+| CHECKIN-RETRY| project prompt loops on blank; note prompt does not | 949 | CHECKIN |
+| CHECKIN-TIER3-HANDOFF| terminal tier hands back two bare lines, never pipe-delimited | 957 | CHECKIN |
+| SM-INVARIANT| disabled ⇒ idle; active+disabled illegal | 976 | SM |
+| CONV-EXIT| exit codes 0/1/2 | 990 | CONV |
+| CONV-YES| three-tier confirmation: literal yes / y-N / Y-n, EOF covered per-tier | 998 | CONV |
+| CONV-REARM| reset/import leave disabled | 1009 | CONV |
+| CONV-IDEMPOTENT-ENABLE| enable-when-enabled is a no-op | 1012 | CONV |
+| CONV-DURONLY| duration-only rows have no timestamps | 1017 | CONV |
+| CONV-ABSENT| absence branched at boundaries, named by renderers, never parsed, never repaired in-app | 1022 | CONV |
+| CONV-HELP| help is data; no inline usage strings | 1046 | CONV |
+| CONV-ID| session ids validated in the handler | 1051 | CONV |
+| CONV-NOTES| encode/decode notes (incl. pipe) across the read boundary | 1066 | CONV |
+| CONV-NOTES-CLEAR| clearing a note requires $EDITOR; never inferred from silence | 1073 | CONV |
+| CONV-PORTABLE| GNU+BSD+bash-3.2; no date(1)/sed -i/sed t;/declare -A | 1087 | CONV |
+| CONV-SURFACE| removing/renaming a user-facing command needs explicit sign-off + default deprecation shim | 1107 | CONV |
 | CONV-ENVFILE| ENV_FILE computed once in env.sh; DB_PATH-change split-brain confirmed live, not fixed | 572 | ENV |
 | CONV-DEADKNOB| every config key has a live reader; dead keys removed | 586 | ENV |
 | CRON-BIN| payload paths resolved at call time (nudge + checkin) | 607 | CRON |
@@ -162,11 +162,11 @@ by its bullet in [CONV] and referenced from the commands it governs.
 | CRON-INTERVAL| nudge: validate 1–60 numeric | 621 | CRON |
 | CRON-CHECKIN-INTERVAL| checkin: 0 disables, 1–60 minute-stepped, >60 whole hours only | 623 | CRON |
 | CRON-CHECKIN-FAILCLOSED| invalid checkin interval fails closed, no stale entry left | 635 | CRON |
-| BUILD-NO-REGEN| no whole-file regen through escaping | 1159 | BUILD |
-| BUILD-VERIFY| run all three test scripts after changes | 1164 | BUILD |
-| BUILD-UTF8| shellcheck under LC_ALL=C.UTF-8 | 1170 | BUILD |
-| BUILD-SCOPE| one concern per change; found-but-out-of-scope is logged, never folded in | 1172 | BUILD |
-| BUILD-RELOCATE| grep full repo before AND after relocating/renaming a cross-file symbol or surface | 1182 | BUILD |
+| BUILD-NO-REGEN| no whole-file regen through escaping | 1162 | BUILD |
+| BUILD-VERIFY| run all three test scripts after changes | 1167 | BUILD |
+| BUILD-UTF8| shellcheck under LC_ALL=C.UTF-8 | 1173 | BUILD |
+| BUILD-SCOPE| one concern per change; found-but-out-of-scope is logged, never folded in | 1175 | BUILD |
+| BUILD-RELOCATE| grep full repo before AND after relocating/renaming a cross-file symbol or surface | 1185 | BUILD |
 
 ---
 
@@ -174,7 +174,7 @@ by its bullet in [CONV] and referenced from the commands it governs.
 
 - Rebuilding a single component → load its surface row from *Component surfaces*
   plus every `INV-*` (147–211) and `NAME` (212–246). The invariants bind all of them.
-- Implementing one command → load its `CMD-*` row + `PORT` (299–492) + `CONV` (985–1116).
+- Implementing one command → load its `CMD-*` row + `PORT` (299–492) + `CONV` (988–1119).
 - Resolving an ambiguity → load the relevant rule's line ± its parent section, and
   decide by the WHY, never by local convenience (READ, 9–39).
-- Checking your work → `ACCEPT` (1194–1213).
+- Checking your work → `ACCEPT` (1197–1216).

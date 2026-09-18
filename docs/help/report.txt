@@ -8,7 +8,7 @@ Total time, a per-project breakdown, and every session with its notes.
 Plain facts — no score attached.
 
   today    since midnight          week     last 7 days
-  month    last 30 days            custom   last <days>
+  month    since the 1st           custom   last <days>
 
 Duration-only sessions are included by their date.
 

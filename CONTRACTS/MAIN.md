@@ -740,8 +740,11 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
   row loops drop them here.
 - `cycle [selector]` — report for a period (CMD-PERIOD). Selector is `0`
   (current), `-N` (N periods back), or `<id>` (period opened by that break).
-  Duration-only rows with no timestamps render as `(no timestamps)`; projects
-  with no sessions in the period render as `unknown` (CONV-ABSENT).
+  Duration-only rows with no timestamps render as `(no timestamps)`; a period
+  boundary named by a cycle break whose own `end_time` is damaged (import
+  damage — no moment to name) renders as `unknown` rather than fabricating
+  today-midnight (CONV-ABSENT). A project with no sessions in the period
+  never appears in the breakdown at all — it isn't placed, not `unknown`.
 - Facts only, no score.
 
 ### CMD-ENABLE · `focus enable`
