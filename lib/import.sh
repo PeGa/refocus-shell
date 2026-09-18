@@ -60,7 +60,7 @@ DB_PATH="$incoming"
 _swap_in() {
     # Refuse to install anything that isn't a complete database, whatever the
     # loader thought of it.
-    if ! db_has_schema; then
+    if ! is_schema_present; then
         echo "❌ Import produced no usable database — $file is incomplete or not a refocus export." >&2
         echo "   Nothing was changed; your data is untouched." >&2
         exit 1
@@ -101,6 +101,19 @@ jq empty "$file" 2>/dev/null || {
     exit 1
 }
 
+# A refocus JSON import always carries a top-level "sessions" array — a real
+# export always has one, and a hand-built minimal file only needs one. {},
+# [], or an unrelated JSON document have no such key, but `.sessions[]?`
+# below iterates zero times for any of them silently, which looks identical
+# to importing a real, empty history [CONV-ABSENT].
+jq -e 'type == "object" and has("sessions") and (.sessions | type == "array")' \
+    "$file" >/dev/null 2>&1 || {
+    echo "❌ Not a refocus JSON export: $file" >&2
+    echo "   Expected a top-level \"sessions\" array; found something else." >&2
+    echo "   Nothing was changed; your data is untouched." >&2
+    exit 1
+}
+
 db_init
 
 # Sessions — verbatim, full fidelity. Older exports may carry a 'projects' array;
@@ -122,7 +135,7 @@ _bad_import_row() {
 while IFS= read -r row; do
     import_row_num=$(( import_row_num + 1 ))
     project=$(jq -r '.project'            <<< "$row")
-    project="${project//|/¦}"
+    project=$(sanitize_pipe "$project")
     # db_import_session_row skips _validate_project_name on purpose, but the
     # DB's own CHECK constraint still rejects a newline/CR — which would take
     # down every row after it. Fold them here, same as '|' above.

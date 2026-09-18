@@ -75,7 +75,8 @@ services/desktop.sh       integration, desktop notifications (kdialog/zenity)
 services/editor.sh        integration, captures notes through $EDITOR
 services/help.sh          integration, renders docs/help/<cmd>.txt (show_help/usage_error)
 services/merge.sh         composer, duplicate-session merge rule (shared by off/past add/past modify)
-services/period.sh        composer, period resolution rule (shared by past cycles/report cycle)
+services/period.sh        composer, period resolution rule (shared by cycle show/report cycle)
+services/listing.sh       composer, shared 8-field-row table renderer (past list, cycle list/show)
 services/focus-function.sh shell integration: prompt hook + focus() wrapper
 env.sh                    config loader, sourced first everywhere, exports DB_PATH etc.
 focus-nudge               self-contained cron payload, sources env.sh + database.sh + time.sh
@@ -130,10 +131,12 @@ wall-time is never counted. `[CMD-CONTINUE]`
 
 - **Exit codes:** `0` success · `1` runtime/state error · `2` usage/arg error.
   The suite asserts these. `[CONV-EXIT]`
-- **Destructive ops** use two-tier confirmation: app-wide destructive (`reset`,
-  `import`) require the literal word `yes`; simple/recoverable ops (cycle delete,
-  cycle add replace-prompt) use `y/N` default-no. Anything else cancels cleanly
-  with exit 0 (cancel ≠ error). `[CONV-YES]`
+- **Confirmations are three-tier:** app-wide destructive (`reset`, `import`,
+  `setup.sh` install/uninstall) require the literal word `yes`; simple/recoverable
+  destructive ops (`past delete`, `cycle delete`, `cycle add` replace-prompt) use
+  `y/N` default-no; simple/recoverable non-destructive ones (`on`'s continue/typo
+  offers, `continue`) use `Y/n` default-yes. Anything else cancels cleanly with
+  exit 0 (cancel ≠ error). `[CONV-YES]`
 - **`reset`/`import` leave the tool disabled.** Re-arming is a conscious
   `focus enable`. `[CONV-REARM]`
 - **`enable` while enabled** is a no-op that says so (don't re-phase cron). `[CONV-IDEMPOTENT-ENABLE]`

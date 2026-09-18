@@ -138,8 +138,6 @@ focus past add <project> --duration 2h30m [--date YYYY/MM/DD]   # log one by dur
 focus past modify <id> [project] [start] [end]       # fix a timestamped session
 focus past modify <id> [project] [--duration 2h] [--date YYYY/MM/DD]  # fix a duration-only session
 focus past delete <id>
-focus past cycles list                               # show cycle breaks
-focus past cycles show <id>                          # show one period's sessions
 ```
 
 Forgot to start the timer? Log it after the fact. Duration-only entries (for time you tracked in your head, or retroactively) carry a date but no clock times — and Refocus won't let you accidentally corrupt one by bolting fake timestamps onto it later.
@@ -148,12 +146,14 @@ Forgot to start the timer? Log it after the fact. Duration-only entries (for tim
 
 ```bash
 focus cycle add                          # mark the end of a work period
+focus cycle list                         # show all breaks
+focus cycle show <id>                    # show one period's sessions
 focus cycle modify --edit-notes <id>     # rewrite a break's note
 focus cycle modify --edit-time <id> <time>  # move a break to a different time
 focus cycle delete <id>                  # remove a break (asks first)
 ```
 
-Cycle breaks mark where one period of work ends and the next begins — "sent the invoice", "quarter closed", "switched projects". A break is an ordinary session with zero duration and a receipt label that names the period it closes. `focus past cycles list` shows all breaks; `focus report cycle <id>` reports on one period.
+Cycle breaks mark where one period of work ends and the next begins — "sent the invoice", "quarter closed", "switched projects". A break is an ordinary session with zero duration and a receipt label that names the period it closes. `focus cycle list` shows all breaks; `focus report cycle <id>` reports on one period.
 
 `focus cycle add` refuses while a session is running — close it first with `focus off`.
 

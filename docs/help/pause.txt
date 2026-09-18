@@ -4,5 +4,6 @@ focus pause — pause the session
 
 A pit stop. No note, no questions — stepping away shouldn't cost you anything.
 The nudge keeps reminding you the session is open so you don't lose it.
+Nothing to pause → refuses, run 'focus on' first.
 
 Paused time is never counted. Use 'off' instead when you want to leave a note.

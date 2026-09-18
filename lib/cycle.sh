@@ -6,6 +6,8 @@ source "$REFOCUS_ROOT/services/editor.sh"
 source "$REFOCUS_ROOT/services/help.sh"
 source "$REFOCUS_ROOT/core/time.sh"
 source "$REFOCUS_ROOT/core/text.sh"
+source "$REFOCUS_ROOT/services/period.sh"
+source "$REFOCUS_ROOT/services/listing.sh"
 
 # A shortcut for marking where one period of work ends and the next begins —
 # the same row `focus on "Cycle break…"` + `focus off` would produce, minus the
@@ -73,7 +75,7 @@ _relabel_break() {
     [[ -z "$nend" ]] && return 0
     nto=$(ts_format "$nend" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$nend")
     nlabel=$(cycle_label "$from_text" "$nto")
-    nlabel="${nlabel//|/¦}"
+    nlabel=$(sanitize_pipe "$nlabel")
     update_session "$break_id" "$nlabel" "$nstart" "$nend" "$ndur"
     echo "   Break $break_id re-labelled: $nlabel"
 }
@@ -110,7 +112,7 @@ case "$sub" in
         # Storage transliterates '|' (it is the read separator), so do it here
         # too: the label is echoed back below and used to find the row again,
         # and both must match what actually lands in the database.
-        label="${label//|/¦}"
+        label=$(sanitize_pipe "$label")
 
         # Two breaks inside the same minute render the same label. Rather than
         # leave markers nothing can tell apart, offer to replace — all of them,
@@ -136,6 +138,22 @@ case "$sub" in
         new_id=$(list_session_ids_by_project "$label" | head -1)
         echo "✅ Cycle break $new_id: $label"
         echo "   Add your own note with 'focus cycle modify --edit-notes $new_id'."
+        ;;
+
+    list)
+        # No table header: every line this prints is a boundary, not a row,
+        # and column names over boundaries are noise. [relocated from
+        # `focus past cycles`]
+        list_cycles "$(cycle_prefix)" | render_session_rows 1
+        ;;
+
+    show)
+        # [relocated from `focus past cycles show`]
+        sel="${1:-0}"
+        is_period_selector "$sel" || usage_error cycle
+        window=$(get_period_window "$sel") || exit 1
+        render_session_header
+        list_sessions_by_id_range "${window%|*}" "${window#*|}" | render_session_rows 0
         ;;
 
     modify)
@@ -214,7 +232,7 @@ case "$sub" in
             new_label=$(cycle_label "$from" "$new_label_ts")
             # Storage transliterates '|' (it is the read separator) — same
             # discipline as add: what is echoed must match what is stored.
-            new_label="${new_label//|/¦}"
+            new_label=$(sanitize_pipe "$new_label")
 
             # With the ordering guard holding, a CLI edit cannot duplicate a
             # label — but an import can pre-seed one, and two identical

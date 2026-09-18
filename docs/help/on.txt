@@ -8,6 +8,7 @@ Start tracking. The name is just a label — customer/project reads well in repo
   known project   typo guard: "X has Ym logged. Continue? (Y/n)"
   new project     starts right away
   disabled        stops you — run 'focus enable' first
+  paused          stops you — 'focus continue' or 'focus off' first
   already busy    stops you — close the open session first
 
 Starting is meant to be one word, or none. Low cost on purpose.

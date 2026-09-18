@@ -74,6 +74,20 @@ _valid_key() {
     esac
 }
 
+_valid_value() {
+    # <key> <value> -> 0 when the value's shape is legal for that key.
+    # NUDGE_INTERVAL/CHECKIN_INTERVAL/MAX_PROJECT_LENGTH are consumed as bare
+    # arithmetic downstream (cron.sh's 10#, on.sh's length check) with no
+    # validator of their own at that point — an unchecked non-numeric value
+    # here becomes a raw bash arithmetic error on the next unrelated command,
+    # not a clean message naming what's actually wrong.
+    case "$1" in
+        NUDGE_INTERVAL|CHECKIN_INTERVAL|MAX_PROJECT_LENGTH)
+            [[ "$2" =~ ^[0-9]+$ ]] ;;
+        *) return 0 ;;
+    esac
+}
+
 sub="${1:-show}"; shift || true
 
 case "$sub" in
@@ -86,6 +100,7 @@ case "$sub" in
         _valid_key "$key" || { echo "❌ Unknown key: $key" >&2
             echo "Valid: NUDGE_INTERVAL CHECKIN_INTERVAL MAX_PROJECT_LENGTH DATE_FORMAT DATE_SHORT_FORMAT DB_PATH" >&2
             exit 2; }
+        _valid_value "$key" "$val" || { echo "❌ $key must be a non-negative integer (got: $val)" >&2; exit 2; }
         env_key="REFOCUS_${key}"
         quoted=$(_shell_quote "$val")
         touch "$ENV_FILE"

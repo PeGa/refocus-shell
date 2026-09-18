@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Refocus Shell - Help adapter (secondary adapter)
+# Refocus Shell - Help adapter (integration)
 #
 # One text per command, in docs/help/<cmd>.txt, rendered by both paths that
 # ever show usage: an explicit --help, and a usage error. Handlers must not

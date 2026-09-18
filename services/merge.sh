@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Refocus Shell - Duplicate-session merge (secondary adapter)
+# Refocus Shell - Duplicate-session merge (composer)
 #
 # One project name, one session row. `focus off`, `past add` and `past modify`
 # each route through merge_duplicate_session before writing: if a row already

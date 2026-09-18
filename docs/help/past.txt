@@ -1,8 +1,6 @@
 focus past — log and fix sessions
 
   focus past list [n] [--show-cycles]
-  focus past cycles
-  focus past cycles show [id|-n]
   focus past add <project> <start> <end>
   focus past add <project> --duration 2h30m [--date YYYY/MM/DD]
   focus past modify <id> [project] [start] [end]              timestamped session
@@ -10,49 +8,32 @@ focus past — log and fix sessions
   focus past modify <id> --notes                      rewrite the note
   focus past delete <id>
 
-With no count, list shows the full history: every session, newest first,
-however many there are. Give it a count and it shows that many instead,
-across breaks.
-
-Cycle breaks are never listed as sessions — they delimit periods, they aren't
-work. --show-cycles puts them back as boundary lines: here starts the new
-count, with the id every cycle command addresses it by. A note you gave the
-break — what the period was — prints under its boundary; the canned one
-doesn't.
-
-  cycles          every break you've recorded, newest first, as boundaries
-  cycles show     the current period — everything since the last break
-  cycles show -1  the period before it, -2 the one before that
-  cycles show <id>  the period that break opened
-
-A period runs from the break that opens it up to the next one. Counting back
-past the oldest break reaches the work that came before it; going further
-than that is an error.
-
-Forgot to start the timer? Log it after the fact.
-
-  with times    duration is computed for you
-  --duration    no clock times — just a length and a date (default today)
-
-A duration-only session has no timestamps: modify can rename it, change its
-length, or re-date it with --duration/--date (either or both, any order), but
-won't bolt fake times onto it. --notes works on either kind — a note carries
-no timestamps. list shows the most recent first.
-
-One project name, one row. add — and modify, when it renames onto a name
-another session already holds — offers to append to that original instead of
-creating a second entry: the durations add up, your note opens with the
-original's text loaded, and the timestamps the merge drops are written to the
-end of the note. modify also deletes the row it folded in. Declining writes
-nothing. `modify <id> --notes` touches neither name nor timing, so it never
-asks.
-
-Notes open in $EDITOR, so they can run to several lines. Piped input works too:
+  focus past add refactor 14:00 15:30
+  focus past add refactor --duration 2h30m --date 2026/09/03
   echo "shipped the parser" | focus past add refactor 14:00 15:30
+  focus past modify 12 renamed --duration 3h
+  focus past delete 12
 
-To clear an existing note, edit it and save an empty file. Piping nothing to
-`modify --notes` on a session that already has a note is a usage error, not
-a silent clear — say what you mean.
+  times       YYYY/MM/DD-HH:MM   14:30   "yesterday 14:00"   "2 hours ago"
+  durations   1h30m   2h   45m
 
-times       YYYY/MM/DD-HH:MM   14:30   "yesterday 14:00"   "2 hours ago"
-durations   1h30m   2h   45m
+With no count, list shows the full history, newest first. Cycle breaks are
+never listed as sessions; --show-cycles puts them back as boundary lines,
+with the note you gave the break printed under it. See 'focus cycle --help'
+for what a break is — 'cycle list'/'show' browse breaks and periods
+directly, this page only decorates the plain log with them.
+
+A duration-only session has no timestamps: modify can rename it, re-duration
+or re-date it (--duration/--date, either or both, any order), but won't bolt
+fake times onto it. --notes works on either kind.
+
+One project name, one row: add or modify onto a name another session already
+holds offers to append instead of creating a second entry — durations add
+up, the note opens with the original's text, the dropped timestamps are
+appended to it, and the folded-in row is deleted. Declining writes nothing;
+`modify <id> --notes` never triggers this, since it touches neither name nor
+timing.
+
+Notes open in $EDITOR. To clear one, edit it and save empty — piping nothing
+to `modify --notes` on a session that already has a note is a usage error,
+not a silent clear.

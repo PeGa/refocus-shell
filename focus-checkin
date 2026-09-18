@@ -33,7 +33,7 @@ question="Did you focus on anything in the last $(fmt_duration $(( interval * 60
 _log_checkin() {
     # <project> <note> -> record it as a duration-only session dated today.
     local project="$1" note="$2"
-    record_duration_session "$project" $(( interval * 60 )) "$(date +%Y-%m-%d)" "$note"
+    record_duration_session "$project" $(( interval * 60 )) "$(parse_date_to_fmt "today" "$DATE_FORMAT")" "$note"
 }
 
 # ── Can we reach the user at all? ─────────────────────────────────────────

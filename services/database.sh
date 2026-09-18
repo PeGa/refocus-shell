@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Refocus Shell - Database adapter (secondary adapter / port implementation)
+# Refocus Shell - Database adapter (infrastructure — the only file that speaks SQL)
 #
 # This is the ONLY file that speaks SQL. The rest of the app talks to it
 # through domain-intent functions: callers say *what*, the adapter handles *how*.
@@ -109,7 +109,7 @@ db_migrate() {
     # pause_notes, nudging_enabled: removed from model; stale columns in old DBs are harmless.
 }
 
-db_has_schema() {
+is_schema_present() {
     # Both tables actually present? A file existing is not the same as a
     # database existing: an interrupted import, a truncated copy or a stray
     # `touch` all leave a file with no tables in it.
@@ -127,7 +127,7 @@ db_ensure() {
     # (CREATE TABLE IF NOT EXISTS, INSERT OR IGNORE) and never drops, so
     # re-running it is the cheapest repair — whatever tables survived keep
     # their rows.
-    if [[ ! -f "$DB_PATH" ]] || ! db_has_schema; then
+    if [[ ! -f "$DB_PATH" ]] || ! is_schema_present; then
         db_init
     fi
     db_migrate
@@ -446,9 +446,12 @@ get_last_cycle_end() {
 
 get_last_session() {
     # [exclude-prefix] -> project|end_time-or-session_date|duration_seconds
-    # A duration-only row (past add --duration, check-in) has no end_time —
-    # order by whichever of the two it has, same fallback list_sessions_in_range
-    # already uses, so a check-in-logged session isn't invisible to `focus status`.
+    # "Most recent" is id order, same as get_last_project: id reflects logging
+    # order unambiguously, where sorting by COALESCE(end_time, session_date)
+    # compares full ISO-8601 timestamps against bare YYYY-MM-DD strings —
+    # lexicographically, "2026-09-17" < "2026-09-17T14:30:00-03:00" always, so
+    # a same-day duration-only row silently lost to any timestamped row from
+    # that day regardless of which was actually logged more recently.
     # The exclusion skips cycle-break markers: they delimit periods, they are
     # not work, and "what was I last doing?" must not answer with one. [#46]
     local exclude="${1:-}" where=""
@@ -456,7 +459,7 @@ get_last_session() {
     _query "SELECT project, COALESCE(end_time, session_date, ''), duration_seconds
             FROM sessions
             $where
-            ORDER BY COALESCE(end_time, session_date) DESC LIMIT 1;"
+            ORDER BY id DESC LIMIT 1;"
 }
 
 get_last_project() {
@@ -499,6 +502,8 @@ db_import_session_row() {
     # purpose: it reconstructs a stored row exactly, NULLs preserved.
     local project="$1" start_time="$2" end_time="$3" duration="$4" \
           notes="$5" duration_only="$6" session_date="$7"
+    _require_uint "duration" "$duration" || return 2
+    _require_uint "duration_only" "$duration_only" || return 2
     local start_sql end_sql date_sql
     [[ -n "$start_time"   ]] && start_sql="'$(_sql_quote "$start_time")'"  || start_sql="NULL"
     [[ -n "$end_time"     ]] && end_sql="'$(_sql_quote "$end_time")'"      || end_sql="NULL"
@@ -511,12 +516,17 @@ db_import_session_row() {
 
 update_duration_session() {
     # Rename and/or re-duration a duration-only session. Never touches timestamps.
-    local id="$1" duration="$3"
+    # Optional 4th arg: new session_date (for --date on modify).
+    local id="$1" duration="$3" new_date="${4:-}"
     local project; project=$(sanitize_pipe "$2")
     _validate_project_name "$project" || return 2
     _require_uint "id" "$id" || return 2
     _require_uint "duration" "$duration" || return 2
-    _exec "UPDATE sessions SET project='$(_sql_quote "$project")', duration_seconds=$duration WHERE id=$id;"
+    if [[ -n "$new_date" ]]; then
+        _exec "UPDATE sessions SET project='$(_sql_quote "$project")', duration_seconds=$duration, session_date='$(_sql_quote "$new_date")' WHERE id=$id;"
+    else
+        _exec "UPDATE sessions SET project='$(_sql_quote "$project")', duration_seconds=$duration WHERE id=$id;"
+    fi
 }
 
 reset_state_post_import() {

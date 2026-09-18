@@ -23,7 +23,12 @@ case "$sub" in
         ;;
     test)
         echo "Testing notification..."
-        notify-send "Refocus test" "If you see this, notify-send works." \
+        # Same flags as the real payload (focus-nudge) — a bare notify-send
+        # here could pass while a broken refocus.desktop entry (NUDGE-HISTORY)
+        # made every real fire fail at the --hint step, and this diagnostic
+        # would never have caught it.
+        notify-send --app-name="Refocus" --hint=string:desktop-entry:refocus \
+            "Refocus test" "If you see this, notify-send works." \
             && echo "✅ notify-send: OK" \
             || echo "❌ notify-send: failed — check DISPLAY/WAYLAND_DISPLAY"
         echo ""

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Refocus Shell - Period resolution (secondary adapter)
+# Refocus Shell - Period resolution (composer)
 #
-# Turns a cycle selector into the id window it names. `focus past cycles show`
+# Turns a cycle selector into the id window it names. `focus cycle show`
 # and `focus report cycle` take the same selector, so the rule for reading one
 # lives here rather than being spelled twice — handlers are self-contained and
 # cannot source each other.
@@ -36,7 +36,9 @@ get_period_window() {
     [[ -n "$ids" ]] && count=$(printf '%s\n' "$ids" | wc -l | tr -d ' ')
 
     if [[ "$sel" == -* || "$sel" == "0" ]]; then
-        local back="${sel#-}"
+        # 10# forces base-10: a leading-zero selector ("-08") would otherwise
+        # be read as octal and abort with "value too great for base".
+        local back=$(( 10#${sel#-} ))
         if [[ "$back" -gt "$count" ]]; then
             echo "❌ Cycle not found: only $count cycle break(s) recorded." >&2
             return 1

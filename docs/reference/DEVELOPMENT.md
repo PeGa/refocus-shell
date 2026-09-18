@@ -22,6 +22,7 @@ services/editor.sh          integration — captures notes through $EDITOR
 services/help.sh            integration — renders docs/help/<cmd>.txt (show_help/usage_error)
 services/merge.sh           composer — duplicate-session merge rule
 services/period.sh          composer — period resolution (cycle selector → id window)
+services/listing.sh         composer — shared 8-field-row table renderer
 services/focus-function.sh  shell integration (prompt hook + focus() wrapper)
 env.sh                      config loader — reads .env, exports DB_PATH, NUDGE_INTERVAL, etc.
 docs/help/<cmd>.txt         per-command help, served verbatim by services/help.sh

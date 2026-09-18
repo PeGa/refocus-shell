@@ -54,7 +54,7 @@ else
     # the lookup, the prompts below, and the stored row all looking at the
     # same name — a second `focus on 'a|b'` must find the same total the
     # first one logged, not 0m under a name nothing was ever stored as.
-    project="${project//|/¦}"
+    project=$(sanitize_pipe "$project")
     total=$(get_total_time "$project")
     total_min=$(( total / 60 ))
     if [[ $total_min -gt 0 ]]; then
