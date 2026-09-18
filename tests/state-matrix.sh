@@ -149,6 +149,12 @@ printf 'done\n' | ./focus off >/dev/null 2>&1
 echo "── past: duration-only ──"
 printf 'invoicing\n' | ./focus past add fyc/billing --duration 2h30m --date 2026/06/11 >/dev/null 2>&1
 chk "dur-only 9000s"       "9000" "$(dur fyc/billing)"
+chk "dur-only date"        "2026-06-11" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT session_date FROM sessions WHERE project='fyc/billing';")"
+
+# --date before --duration: order independence
+printf 'invoicing\n' | ./focus past add fyc/billing-rev --date 2026/07/20 --duration 1h >/dev/null 2>&1
+chk "dur-only reversed: dur"   "3600"       "$(dur fyc/billing-rev)"
+chk "dur-only reversed: date"  "2026-07-20" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT session_date FROM sessions WHERE project='fyc/billing-rev';")"
 
 ./focus past modify \
     "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT id FROM sessions WHERE project='fyc/billing';")" \
@@ -162,6 +168,16 @@ chk "re-duration 10800"    "10800" "$(dur fyc/billing-v2)"
 bash lib/past.sh modify "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT id FROM sessions WHERE project='fyc/billing-v2';")" --duration 90m >/dev/null 2>&1
 chk "modify --duration only: dur"  "5400"          "$(dur fyc/billing-v2)"
 chk "modify --duration only: proj" "fyc/billing-v2" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT project FROM sessions WHERE project='fyc/billing-v2';")"
+
+# modify --date: re-date a duration-only session
+bash lib/past.sh modify "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT id FROM sessions WHERE project='fyc/billing-v2';")" --date 2026/08/15 >/dev/null 2>&1
+chk "modify --date: date"  "2026-08-15" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT session_date FROM sessions WHERE project='fyc/billing-v2';")"
+chk "modify --date: dur unchanged" "5400" "$(dur fyc/billing-v2)"
+
+# modify --date before --duration: order independence
+bash lib/past.sh modify "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT id FROM sessions WHERE project='fyc/billing-v2';")" --date 2026/09/01 --duration 45m >/dev/null 2>&1
+chk "modify reversed: date" "2026-09-01" "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT session_date FROM sessions WHERE project='fyc/billing-v2';")"
+chk "modify reversed: dur"  "2700"       "$(dur fyc/billing-v2)"
 
 ./focus past modify \
     "$(sqlite3 "$REFOCUS_DB_PATH" "SELECT id FROM sessions WHERE project='fyc/billing-v2';")" \

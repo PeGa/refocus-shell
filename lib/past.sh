@@ -152,10 +152,24 @@ case "$sub" in
         # actually gets stored.
         project="${project//|/¦}"
 
-        if [[ "${1:-}" == "--duration" ]]; then
-            dur_str="${2:-}"; shift 2 || true
+        if [[ "${1:-}" == "--duration" || "${1:-}" == "--date" ]]; then
+            dur_str=""
             date_str="today"
-            [[ "${1:-}" == "--date" ]] && { date_str="${2:-today}"; shift 2 || true; }
+            while [[ $# -gt 0 ]]; do
+                case "${1:-}" in
+                    --duration)
+                        dur_str="${2:-}"; shift 2 || true
+                        ;;
+                    --date)
+                        date_str="${2:-today}"; shift 2 || true
+                        ;;
+                    *)
+                        echo "❌ Unknown argument: ${1:-}" >&2
+                        usage_error past
+                        ;;
+                esac
+            done
+            [[ -z "$dur_str" ]] && { echo "❌ --duration is required." >&2; usage_error past; }
 
             dur=$(parse_duration "$dur_str") || exit 2
 
@@ -225,23 +239,35 @@ case "$sub" in
 
         if [[ "$cur_donly" == "1" ]]; then
             # Leading [project] is optional — only consume $1 as project when it
-            # isn't the --duration flag itself (CMD-PAST-ARGS).
+            # isn't a flag (--duration or --date) (CMD-PAST-ARGS).
             new_proj="$cur_proj"
-            if [[ -n "${1:-}" && "${1:-}" != "--duration" ]]; then
+            if [[ -n "${1:-}" && "${1:-}" != "--duration" && "${1:-}" != "--date" ]]; then
                 new_proj="$1"; shift || true
             fi
             new_dur="$cur_dur"
-            if [[ "${1:-}" == "--duration" ]]; then
-                dur_str="${2:-}"; shift 2 || true
-                new_dur=$(parse_duration "$dur_str") || exit 2
-            elif [[ $# -gt 0 ]]; then
-                echo "❌ Session $id is duration-only. Timestamps cannot be edited." >&2
-                usage_error past
-            fi
+            new_date=""
+            # --duration and --date are independent; either or both may appear.
+            while [[ $# -gt 0 ]]; do
+                case "${1:-}" in
+                    --duration)
+                        dur_str="${2:-}"; shift 2 || true
+                        new_dur=$(parse_duration "$dur_str") || exit 2
+                        ;;
+                    --date)
+                        date_str="${2:-}"; shift 2 || true
+                        new_date=$(parse_date_to_fmt "$date_str" "$DATE_FORMAT") || { echo "❌ Invalid date: $date_str" >&2; exit 2; }
+                        [[ -z "$new_date" ]] && { echo "❌ Invalid date: $date_str" >&2; exit 2; }
+                        ;;
+                    *)
+                        echo "❌ Session $id is duration-only. Timestamps cannot be edited." >&2
+                        usage_error past
+                        ;;
+                esac
+            done
             if [[ $_had_args -gt 0 ]]; then
                 _merge_or_exit "$new_proj" "$new_dur" "" "" "$id"
             fi
-            update_duration_session "$id" "$new_proj" "$new_dur"
+            update_duration_session "$id" "$new_proj" "$new_dur" "$new_date"
         elif [[ $# -gt 0 ]]; then
             new_proj="${1:-$cur_proj}"
             new_start_raw="${2:-}"
