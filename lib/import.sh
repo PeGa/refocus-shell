@@ -60,7 +60,7 @@ DB_PATH="$incoming"
 _swap_in() {
     # Refuse to install anything that isn't a complete database, whatever the
     # loader thought of it.
-    if ! db_has_schema; then
+    if ! is_schema_present; then
         echo "❌ Import produced no usable database — $file is incomplete or not a refocus export." >&2
         echo "   Nothing was changed; your data is untouched." >&2
         exit 1

@@ -109,7 +109,7 @@ db_migrate() {
     # pause_notes, nudging_enabled: removed from model; stale columns in old DBs are harmless.
 }
 
-db_has_schema() {
+is_schema_present() {
     # Both tables actually present? A file existing is not the same as a
     # database existing: an interrupted import, a truncated copy or a stray
     # `touch` all leave a file with no tables in it.
@@ -127,7 +127,7 @@ db_ensure() {
     # (CREATE TABLE IF NOT EXISTS, INSERT OR IGNORE) and never drops, so
     # re-running it is the cheapest repair — whatever tables survived keep
     # their rows.
-    if [[ ! -f "$DB_PATH" ]] || ! db_has_schema; then
+    if [[ ! -f "$DB_PATH" ]] || ! is_schema_present; then
         db_init
     fi
     db_migrate
