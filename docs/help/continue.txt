@@ -3,7 +3,8 @@ focus continue — resume a paused session
   focus continue
 
 Picks up where you paused, carrying your elapsed time forward, after a quick
-confirm. Decline and it stays paused (or 'off' to end it).
+confirm. Decline and it stays paused (or 'off' to end it). Nothing paused →
+refuses.
 
 Across any number of pause/resume cycles, the total only ever counts the
 minutes you were actually focused.

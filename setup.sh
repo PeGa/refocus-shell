@@ -202,7 +202,11 @@ case "${1:-install}" in
         # permissions survive untouched.
         if [[ -f "$rc" ]]; then
             rc_tmp=$(mktemp "${rc}.XXXXXX")
-            sed -e '/# Refocus Shell/d' -e '/focus-function\.sh/d' "$rc" > "$rc_tmp" \
+            # install_shell prepends a blank separator before its own two
+            # lines; strip it too, but only when it's immediately followed by
+            # our marker — an unrelated blank line elsewhere in .bashrc must
+            # survive untouched.
+            sed -e '/^$/{N;/\n# Refocus Shell/d}' -e '/# Refocus Shell/d' -e '/focus-function\.sh/d' "$rc" > "$rc_tmp" \
                 && cat "$rc_tmp" > "$rc"
             rm -f "$rc_tmp"
         fi

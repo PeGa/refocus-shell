@@ -1,6 +1,6 @@
 # CONTRACT_INDEX.md — refocus-shell
 
-> Line-range index into `MAIN.md` (1216 lines). Lets an agent load a single
+> Line-range index into `MAIN.md` (1223 lines). Lets an agent load a single
 > section or rule by range instead of the whole spec — context budget for small-
 > window models, precise citation for everyone else.
 >
@@ -29,10 +29,10 @@
 | NUDGE| Nudge payload (focus-nudge)                 | 898–917   |
 | CHECKIN| Check-in payload (focus-checkin)            | 918–966   |
 | SM| State machine                               | 967–987   |
-| CONV| Conventions                                 | 988–1119  |
-| INT| Install & shell integration                 | 1120–1156 |
-| BUILD| Build guardrails                            | 1157–1196 |
-| ACCEPT| Acceptance                                  | 1197–1216 |
+| CONV| Conventions                                 | 988–1124  |
+| INT| Install & shell integration                 | 1125–1163 |
+| BUILD| Build guardrails                            | 1164–1203 |
+| ACCEPT| Acceptance                                  | 1204–1223 |
 
 ---
 
@@ -98,9 +98,9 @@
 | CRON| cron.sh — nudge + check-in install/remove + entry format | 593–644 |
 | NUDGE| focus-nudge — the cron payload | 898–917 |
 | CHECKIN| focus-checkin — the check-in cron payload | 918–966 |
-| INT-INSTALL| setup.sh | 1127–1140 |
-| INT-DESKTOP| refocus.desktop | 1141–1145 |
-| INT-SHELL| focus-function.sh | 1146–1156 |
+| INT-INSTALL| setup.sh | 1132–1147 |
+| INT-DESKTOP| refocus.desktop | 1148–1152 |
+| INT-SHELL| focus-function.sh | 1153–1163 |
 
 Note: `services/help.sh`, `services/editor.sh` and `services/listing.sh` have
 no surface section of their own — `listing.sh` (the shared row renderer for
@@ -150,10 +150,10 @@ by its bullet in [CONV] and referenced from the commands it governs.
 | CONV-ABSENT| absence branched at boundaries, named by renderers, never parsed, never repaired in-app | 1022 | CONV |
 | CONV-HELP| help is data; no inline usage strings | 1046 | CONV |
 | CONV-ID| session ids validated in the handler | 1051 | CONV |
-| CONV-NOTES| encode/decode notes (incl. pipe) across the read boundary | 1066 | CONV |
-| CONV-NOTES-CLEAR| clearing a note requires $EDITOR; never inferred from silence | 1073 | CONV |
-| CONV-PORTABLE| GNU+BSD+bash-3.2; no date(1)/sed -i/sed t;/declare -A | 1087 | CONV |
-| CONV-SURFACE| removing/renaming a user-facing command needs explicit sign-off + default deprecation shim | 1107 | CONV |
+| CONV-NOTES| encode/decode notes (incl. pipe) across the read boundary; report.sh is the deliberate notes_block exception | 1066 | CONV |
+| CONV-NOTES-CLEAR| clearing a note requires $EDITOR; never inferred from silence | 1078 | CONV |
+| CONV-PORTABLE| GNU+BSD+bash-3.2; no date(1)/sed -i/sed t;/declare -A | 1092 | CONV |
+| CONV-SURFACE| removing/renaming a user-facing command needs explicit sign-off + default deprecation shim | 1112 | CONV |
 | CONV-ENVFILE| ENV_FILE computed once in env.sh; DB_PATH-change split-brain confirmed live, not fixed | 572 | ENV |
 | CONV-DEADKNOB| every config key has a live reader; dead keys removed | 586 | ENV |
 | CRON-BIN| payload paths resolved at call time (nudge + checkin) | 607 | CRON |
@@ -162,11 +162,11 @@ by its bullet in [CONV] and referenced from the commands it governs.
 | CRON-INTERVAL| nudge: validate 1–60 numeric | 621 | CRON |
 | CRON-CHECKIN-INTERVAL| checkin: 0 disables, 1–60 minute-stepped, >60 whole hours only | 623 | CRON |
 | CRON-CHECKIN-FAILCLOSED| invalid checkin interval fails closed, no stale entry left | 635 | CRON |
-| BUILD-NO-REGEN| no whole-file regen through escaping | 1162 | BUILD |
-| BUILD-VERIFY| run all three test scripts after changes | 1167 | BUILD |
-| BUILD-UTF8| shellcheck under LC_ALL=C.UTF-8 | 1173 | BUILD |
-| BUILD-SCOPE| one concern per change; found-but-out-of-scope is logged, never folded in | 1175 | BUILD |
-| BUILD-RELOCATE| grep full repo before AND after relocating/renaming a cross-file symbol or surface | 1185 | BUILD |
+| BUILD-NO-REGEN| no whole-file regen through escaping | 1169 | BUILD |
+| BUILD-VERIFY| run all three test scripts after changes | 1174 | BUILD |
+| BUILD-UTF8| shellcheck under LC_ALL=C.UTF-8 | 1180 | BUILD |
+| BUILD-SCOPE| one concern per change; found-but-out-of-scope is logged, never folded in | 1182 | BUILD |
+| BUILD-RELOCATE| grep full repo before AND after relocating/renaming a cross-file symbol or surface | 1192 | BUILD |
 
 ---
 
@@ -174,7 +174,7 @@ by its bullet in [CONV] and referenced from the commands it governs.
 
 - Rebuilding a single component → load its surface row from *Component surfaces*
   plus every `INV-*` (147–211) and `NAME` (212–246). The invariants bind all of them.
-- Implementing one command → load its `CMD-*` row + `PORT` (299–492) + `CONV` (988–1119).
+- Implementing one command → load its `CMD-*` row + `PORT` (299–492) + `CONV` (988–1124).
 - Resolving an ambiguity → load the relevant rule's line ± its parent section, and
   decide by the WHY, never by local convenience (READ, 9–39).
-- Checking your work → `ACCEPT` (1197–1216).
+- Checking your work → `ACCEPT` (1204–1223).

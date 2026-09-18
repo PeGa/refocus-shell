@@ -5,4 +5,4 @@ focus status — what's happening now
   focusing   ⏳ project — elapsed, and total logged on it
   paused     ⏸  project — time so far, and how long paused
   idle       ✅ not focusing; shows your last session
-  disabled   🚫 tracking off — 'focus enable' to start
+  disabled   🚫 tracking off — 'focus enable' to start; still shows your last session

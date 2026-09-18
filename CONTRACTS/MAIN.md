@@ -1069,7 +1069,12 @@ active          1 0 0      paused          0 1 0
   so later steps' own backslashes never get re-escaped), decode with
   `notes_decode` (`printf %b`, which understands `\x7c` natively — no
   decoder change needed when `|` was added to the encode side). Render with
-  `notes_block`. Never print a note straight from a read.
+  `notes_block`. Never print a note straight from a read. **`lib/report.sh`
+  is the deliberate exception**: it decodes but never calls `notes_block`,
+  because report output is markdown meant to be redirected and shared
+  verbatim (`focus report custom 14 > report.md`) — `notes_block`'s
+  line-prefixing exists for listing alignment, and would corrupt a note's
+  own markdown structure (a list, a heading) instead of preserving it.
 - CONV-NOTES-CLEAR: clearing an existing note is only ever a deliberate act
   done through `$EDITOR` — open it, delete everything, save. `capture_notes`
   (services/editor.sh) never infers "clear" from silence, in either
@@ -1127,16 +1132,18 @@ and **hand-verified** — the test suite will not catch a regression here.
 ### INT-INSTALL · setup.sh
 - `install` → install deps (apt/pacman/dnf); copy `env.sh`, `focus`,
   `focus-nudge`, `focus-checkin`, `services/`, `lib/`, `core/`, `docs/` to
-  `~/.local/refocus`; symlink `focus` into `~/.local/bin`; add the shell-hook
-  source line to `~/.bashrc`; write the desktop entry (INT-DESKTOP); then
-  **arm tracking** (`db_init` + `set_focus_enabled` + `cron_install` +
-  `cron_checkin_install`). WHY arm-on-install: a fresh install with
+  `~/.local/refocus`; symlink `focus` into `~/.local/bin`; **arm tracking**
+  (`db_init` + `set_focus_enabled` + `cron_install` + `cron_checkin_install`);
+  then add the shell-hook source line to `~/.bashrc` and write the desktop
+  entry (INT-DESKTOP). WHY arm-on-install: a fresh install with
   `focus_disabled=0` but no cron is the DB-vs-reality mismatch from INV-3;
   install must leave both jobs consistent with the DB state, not just one.
+  (Arming before the shell-hook/desktop-entry steps is fine either way — that
+  invariant is about DB-state-vs-cron-state, not install-step ordering.)
 - Reinstall preserves the existing `refocus.db` and `.env` (stash, wipe, restore).
 - `uninstall` → `cron_remove` + `cron_checkin_remove`, remove the install dir,
-  the symlink, the desktop entry, and the two `.bashrc` lines (anchored sed,
-  not loose regex).
+  the symlink, the desktop entry, and the three `.bashrc` lines it added
+  (blank separator, comment, source line — anchored sed, not loose regex).
 
 ### INT-DESKTOP · refocus.desktop
 - Written to `~/.local/share/applications/refocus.desktop`: `NoDisplay=true`
