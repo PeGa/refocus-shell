@@ -302,13 +302,15 @@ named functions with these contracts. Output of reads is pipe-separated.
 
 **Engine (private):** `_sql_quote` (escape single quotes), `_require_uint`
 (guard on every value interpolated as a bare number), `_exec` (write, dies
-loud), `_query` (read, `-separator '|'`). **Engine (public, called across
-files):** `sanitize_pipe`, `_validate_project_name` (PORT-PROJVALID).
+loud), `_query` (read, `-separator '|'`), `_range_where` (the WHERE fragment
+shared by `list_sessions_in_range` and `get_project_totals_in_range`, so the
+two can never drift on what "in range" means). **Engine (public, called
+across files):** `sanitize_pipe`, `_validate_project_name` (PORT-PROJVALID).
 
 **PORT-VOCAB:** the adapter never hardcodes domain vocabulary. What a cycle
 break *is* — the `Cycle break. Period:` prefix — lives in `core/text.sh`
 (CORE-LITERAL) and reaches SQL only as an argument: `list_cycles
-"$(cycle_prefix)"`, `get_last_session "$(cycle_prefix)"`, the exclude-prefixes
+"$(cycle_prefix)"`, `get_last_session "$(cycle_prefix)"`, `get_last_project "$(cycle_prefix)"`, the exclude-prefixes
 on `list_sessions` and `get_project_totals_*`. WHY: INV-1's one SQL file must
 not become a second place that knows the domain — identification stays a pure
 string question, which is exactly what makes renaming a row out of the prefix
@@ -381,7 +383,13 @@ here controls.
 **Schema (db_*, storage):**
 - `db_init` — create tables if absent; `INSERT OR IGNORE` the singleton state row.
 - `db_migrate` — additive-only column adds; never drops (DM-DEAD).
-- `db_ensure` — `db_init` if no DB file, then `db_migrate`. Idempotent.
+- `is_schema_present` — predicate: both `state` and `sessions` tables actually
+  exist in `$DB_PATH`. `is_*`, not `db_*` — it's a question about the artifact,
+  not a lifecycle action, and (unlike the rest of this list) it's called
+  externally by `lib/import.sh` [NAME].
+- `db_ensure` — `db_init` if no DB file, **or if the file exists but
+  `is_schema_present` is false** (a truncated copy, an interrupted import, a
+  stray `touch`), then `db_migrate`. Idempotent.
 
 **State reads:**
 - `get_state` → `active|project|start_time|paused|pause_start_time|previous_elapsed|focus_disabled|last_off_time` (exactly 8 fields, this order, empties as `''`).
@@ -401,29 +409,47 @@ here controls.
 - `update_duration_session <id> <project> <dur> [date]` — never touches timestamps (CONV-DURONLY).
   Optional 4th arg updates `session_date`; when empty, date is left unchanged.
 - `update_session_notes <id> <notes>` — notes only; legal on either kind of row.
+- `fold_session_into <id> <total-seconds> <date> [notes]` — collapses a
+  duplicate session into the row that already holds its project name [#36];
+  the target row becomes duration-only (timestamps cleared) since it no
+  longer describes one contiguous span. Caller writes the dropped timestamps
+  into the note first — that's the only record of them that survives.
 - `delete_session <id>`.
 
-**Session reads** (all 8-field rows: `id|project|start|end|dur|notes|duration_only|session_date`):
-- `list_sessions <limit>` — newest first, limit is the caller's (no house default).
+**Session reads — full rows** (8-field:
+`id|project|start|end|dur|notes|duration_only|session_date`):
+- `list_sessions <limit> [exclude-prefix]` — newest first, limit is the caller's
+  (no house default).
 - `list_sessions_in_range <start> <end>` — timestamped rows by `end_time`;
-  duration-only rows by `session_date`.
+  duration-only rows by `session_date`. No exclude-prefix arg, unlike the
+  aggregate reads below — `lib/report.sh`'s plain listing filters cycle breaks
+  out itself in bash instead.
 - `list_sessions_by_id_range <lo> <hi>` — rows with `lo <= id < hi`, newest first.
   Either bound may be empty for unbounded. A period is an id range, not a time
   range (CMD-PERIOD).
-- `list_cycles <prefix>` — every cycle break, newest first, 8-field rows.
+- `list_cycles <prefix>` — every cycle break, newest first.
 - `get_session <id>`.
+- `get_session_by_project <project> [exclude-id]` — the ORIGINAL row carrying
+  that exact project name (lowest id wins), or empty when nothing holds it.
+  Every write path checks this before inserting, so a project name never ends
+  up split across duplicate rows [#36].
+
+**Session reads — scalar/aggregate** (shape given per entry, never 8-field):
 - `get_total_time <project>` → summed `duration_seconds`.
-- `get_project_totals_in_range <start> <end>` → `project|duration_seconds|session_count`
-  rows, one per project, `GROUP BY project` ordered by duration descending. Same
-  WHERE clause as `list_sessions_in_range` on purpose — the breakdown must count
-  exactly the sessions the raw listing shows. PORT-BASH32: this exists so `focus
+- `get_project_totals_in_range <start> <end> [exclude-prefix]` →
+  `project|duration_seconds|session_count` rows, one per project, `GROUP BY
+  project` ordered by duration descending. **Not** the same WHERE clause as
+  `list_sessions_in_range` — this one takes the optional exclude-prefix that
+  `list_sessions_in_range` doesn't. PORT-BASH32: this exists so `focus
   report` never needs a bash associative array — macOS ships bash 3.2, which
   has none, and `declare -A` there is not a warning, it's a hard abort.
 - `get_project_totals_by_id_range <lo> <hi> <exclude-prefix>` → `project|seconds|count`
   over an id window, longest first. Same aggregate-in-SQL rule as the date-range
   version (PORT-BASH32).
-- `get_last_session` → `project|end_time|duration_seconds` of most recent.
-- `get_last_project` → most recent project name.
+- `get_last_session [exclude-prefix]` → `project|end-or-date|duration_seconds`
+  of the most recent. Field 2 is `COALESCE(end_time, session_date, '')` — never
+  bare `end_time` — so a duration-only row's date still surfaces.
+- `get_last_project [exclude-prefix]` → most recent project name.
 - `get_last_cycle_end <prefix>` → `end_time` of the most recent cycle break that
   has one, or empty when there is no such row. Rows with no `end_time` are skipped.
 - `list_session_ids_by_project <project>` → every id carrying that exact project
@@ -431,12 +457,15 @@ here controls.
 
 **PORT-NOTES:** `notes` is the one free-text column and may contain newlines,
 but a read is one line per row — a raw newline would desynchronise every
-`IFS='|' read` in the codebase. The three session reads encode it on the way
-out via `$_NOTES_ENCODED`: backslash first (so the decode is reversible), then
-LF → `\n` and CR → `\r`, written with `char()` so no backslash enters the SQL
-source. Writes store the text verbatim; `core/text.sh` `notes_decode` reverses
-it (CONV-NOTES). The JSON and `.dump` exports are untouched — both formats
-carry newlines correctly on their own.
+`IFS='|' read` in the codebase. The six full-row reads (`list_sessions`,
+`list_cycles`, `list_sessions_by_id_range`, `list_sessions_in_range`,
+`get_session`, `get_session_by_project`) encode it on the way out via
+`$_NOTES_ENCODED`: backslash first (so the decode is reversible), then
+LF → `\n`, CR → `\r`, and `|` → the hex escape `\x7c` — all written with
+`char()` so no backslash enters the SQL source. Writes store the text
+verbatim; `core/text.sh` `notes_decode` reverses it (CONV-NOTES). The JSON and
+`.dump` exports are untouched — both formats carry newlines correctly on
+their own.
 
 **Serialization (db_*, storage):**
 - `db_dump_sql` → `.dump` to stdout. `db_load_sql <file>` → restore.
