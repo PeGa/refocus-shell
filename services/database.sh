@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Refocus Shell - Database adapter (secondary adapter / port implementation)
+# Refocus Shell - Database adapter (infrastructure — the only file that speaks SQL)
 #
 # This is the ONLY file that speaks SQL. The rest of the app talks to it
 # through domain-intent functions: callers say *what*, the adapter handles *how*.
@@ -446,9 +446,12 @@ get_last_cycle_end() {
 
 get_last_session() {
     # [exclude-prefix] -> project|end_time-or-session_date|duration_seconds
-    # A duration-only row (past add --duration, check-in) has no end_time —
-    # order by whichever of the two it has, same fallback list_sessions_in_range
-    # already uses, so a check-in-logged session isn't invisible to `focus status`.
+    # "Most recent" is id order, same as get_last_project: id reflects logging
+    # order unambiguously, where sorting by COALESCE(end_time, session_date)
+    # compares full ISO-8601 timestamps against bare YYYY-MM-DD strings —
+    # lexicographically, "2026-09-17" < "2026-09-17T14:30:00-03:00" always, so
+    # a same-day duration-only row silently lost to any timestamped row from
+    # that day regardless of which was actually logged more recently.
     # The exclusion skips cycle-break markers: they delimit periods, they are
     # not work, and "what was I last doing?" must not answer with one. [#46]
     local exclude="${1:-}" where=""
@@ -456,7 +459,7 @@ get_last_session() {
     _query "SELECT project, COALESCE(end_time, session_date, ''), duration_seconds
             FROM sessions
             $where
-            ORDER BY COALESCE(end_time, session_date) DESC LIMIT 1;"
+            ORDER BY id DESC LIMIT 1;"
 }
 
 get_last_project() {

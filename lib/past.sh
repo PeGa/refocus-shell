@@ -150,7 +150,7 @@ case "$sub" in
         # Sanitize here, not just inside record_session/record_duration_session:
         # both echo "$project" back to the user below, and it must match what
         # actually gets stored.
-        project="${project//|/¦}"
+        project=$(sanitize_pipe "$project")
 
         if [[ "${1:-}" == "--duration" || "${1:-}" == "--date" ]]; then
             dur_str=""

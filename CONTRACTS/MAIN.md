@@ -307,6 +307,14 @@ shared by `list_sessions_in_range` and `get_project_totals_in_range`, so the
 two can never drift on what "in range" means). **Engine (public, called
 across files):** `sanitize_pipe`, `_validate_project_name` (PORT-PROJVALID).
 
+**`_exec`'s failure path returns `1`** for any write failure (disk full,
+permissions, a corrupted `DB_PATH`) — the same code `CONV-EXIT` uses for
+"not found"/wrong-state errors. A write failure and a state error are
+programmatically indistinguishable by exit code alone. Accepted, not fixed:
+write failures are rare enough, and disambiguating would touch `_exec`'s
+~20 call sites for a benefit only a script parsing exit codes (not messages)
+would ever notice.
+
 **PORT-VOCAB:** the adapter never hardcodes domain vocabulary. What a cycle
 break *is* — the `Cycle break. Period:` prefix — lives in `core/text.sh`
 (CORE-LITERAL) and reaches SQL only as an argument: `list_cycles
@@ -447,9 +455,13 @@ here controls.
   over an id window, longest first. Same aggregate-in-SQL rule as the date-range
   version (PORT-BASH32).
 - `get_last_session [exclude-prefix]` → `project|end-or-date|duration_seconds`
-  of the most recent. Field 2 is `COALESCE(end_time, session_date, '')` — never
-  bare `end_time` — so a duration-only row's date still surfaces.
-- `get_last_project [exclude-prefix]` → most recent project name.
+  of the most recent **by id**, same ordering as `get_last_project` — not by
+  comparing `end_time`/`session_date` as strings, which mixes a full ISO-8601
+  timestamp against a bare `YYYY-MM-DD` and silently favours the wrong row on
+  a same-day mix of timestamped and duration-only sessions. Field 2 is
+  `COALESCE(end_time, session_date, '')` — never bare `end_time` — so a
+  duration-only row's date still surfaces.
+- `get_last_project [exclude-prefix]` → most recent project name, by id.
 - `get_last_cycle_end <prefix>` → `end_time` of the most recent cycle break that
   has one, or empty when there is no such row. Rows with no `end_time` are skipped.
 - `list_session_ids_by_project <project>` → every id carrying that exact project
@@ -559,6 +571,17 @@ dispatcher, by `focus-nudge`, and by the shell hook.
 - CONV-ENVFILE: `ENV_FILE` is never re-derived elsewhere; `lib/config.sh` uses
   this export. WHY: re-deriving after a `DB_PATH` change splits reads and writes
   across two `.env` files (the split-brain bug).
+  (App debt — confirmed live, not yet fixed: `env.sh`'s own bootstrap step
+  re-derives its *source* location from `${REFOCUS_DB_PATH:-default}` on every
+  invocation, before anything is sourced. `focus config set DB_PATH <new>`
+  writes the override into the *old* location's `.env`; the next invocation's
+  bootstrap reads that file, resolves `DB_PATH` correctly, then points
+  `ENV_FILE` at the *new* location — a file that never received the override.
+  From then on `config show`/`set`/`unset` operate on the new location; the
+  override that keeps `DB_PATH` pointed there at all sits, invisibly, in the
+  old one. `config unset DB_PATH` silently stops working — it edits the wrong
+  file. Needs a dedicated fix to `env.sh`'s bootstrap, not a one-line patch;
+  deliberately not attempted alongside unrelated Tier-3 items.)
 - CONV-DEADKNOB: every config key has a live reader. When the last reader of a
   config key is removed, the key goes with it — from code, from config display,
   from contract. A key the tool accepts but never reads is a lie: the user sets
@@ -850,6 +873,15 @@ is inclusive and `hi` is exclusive; either may be empty for unbounded.
   arguments and before `db_ensure`. `--help` must never reach argument parsing —
   it was being taken for a project name, so `past modify 5 --help` silently
   renamed session 5 to `--help`.
+  **`lib/help.sh` is the deliberate exception.** It doesn't call `wants_help`;
+  a bare `--help`/`-h` in `$1` asks for help about the help command itself
+  (`show_help help`), and any topic named in `$1` (e.g. `focus help past
+  --help`) renders that topic's page, with a trailing `--help` simply unused.
+  WHY the other way around here: CMD-HELP-INTERCEPT exists to stop `--help`
+  from being misread as something that *mutates state* — a project name, a
+  rename target. `lib/help.sh` never mutates anything, so that risk doesn't
+  apply, and showing the topic the user explicitly named is more useful than
+  a meta-page about the help command itself.
 
 ---
 

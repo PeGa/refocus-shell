@@ -4,6 +4,7 @@
 # Resolution itself lives in services/help.sh, so usage errors in every other
 # handler render exactly this same text.
 set -euo pipefail
+source "$REFOCUS_ROOT/env.sh"
 source "$REFOCUS_ROOT/services/help.sh"
 
 topic="${1:-global}"

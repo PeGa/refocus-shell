@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Refocus Shell - Period resolution (secondary adapter)
+# Refocus Shell - Period resolution (composer)
 #
 # Turns a cycle selector into the id window it names. `focus past cycles show`
 # and `focus report cycle` take the same selector, so the rule for reading one

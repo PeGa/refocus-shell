@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Refocus Shell - Desktop session adapter (secondary adapter)
+# Refocus Shell - Desktop session adapter (integration)
 #
 # cron runs the payloads with an environment stripped of everything that
 # points at the user's graphical session. A dialog tool doesn't degrade

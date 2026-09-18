@@ -73,7 +73,7 @@ _relabel_break() {
     [[ -z "$nend" ]] && return 0
     nto=$(ts_format "$nend" "$DATE_SHORT_FORMAT" 2>/dev/null || echo "$nend")
     nlabel=$(cycle_label "$from_text" "$nto")
-    nlabel="${nlabel//|/¦}"
+    nlabel=$(sanitize_pipe "$nlabel")
     update_session "$break_id" "$nlabel" "$nstart" "$nend" "$ndur"
     echo "   Break $break_id re-labelled: $nlabel"
 }
@@ -110,7 +110,7 @@ case "$sub" in
         # Storage transliterates '|' (it is the read separator), so do it here
         # too: the label is echoed back below and used to find the row again,
         # and both must match what actually lands in the database.
-        label="${label//|/¦}"
+        label=$(sanitize_pipe "$label")
 
         # Two breaks inside the same minute render the same label. Rather than
         # leave markers nothing can tell apart, offer to replace — all of them,
@@ -214,7 +214,7 @@ case "$sub" in
             new_label=$(cycle_label "$from" "$new_label_ts")
             # Storage transliterates '|' (it is the read separator) — same
             # discipline as add: what is echoed must match what is stored.
-            new_label="${new_label//|/¦}"
+            new_label=$(sanitize_pipe "$new_label")
 
             # With the ordering guard holding, a CLI edit cannot duplicate a
             # label — but an import can pre-seed one, and two identical

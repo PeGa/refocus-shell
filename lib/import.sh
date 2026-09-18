@@ -135,7 +135,7 @@ _bad_import_row() {
 while IFS= read -r row; do
     import_row_num=$(( import_row_num + 1 ))
     project=$(jq -r '.project'            <<< "$row")
-    project="${project//|/¦}"
+    project=$(sanitize_pipe "$project")
     # db_import_session_row skips _validate_project_name on purpose, but the
     # DB's own CHECK constraint still rejects a newline/CR — which would take
     # down every row after it. Fold them here, same as '|' above.

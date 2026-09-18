@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Refocus Shell - Editor adapter (secondary adapter)
+# Refocus Shell - Editor adapter (integration)
 #
 # Captures free-text notes for the one place the model allows them: the note
 # focus off writes onto the session [INV-4]. past add/modify reuse the same
