@@ -269,6 +269,16 @@ case "$sub" in
             fi
             update_duration_session "$id" "$new_proj" "$new_dur" "$new_date"
         elif [[ $# -gt 0 ]]; then
+            # --duration/--date only mean something on a duration-only row
+            # (CMD-PAST-ARGS). Unguarded, this branch took either literally as
+            # the new project name — silently renaming the session to
+            # "--duration" and then feeding "$2" to parse_time, which GNU
+            # date(1) parses as a *relative* time ("1h" -> an hour from now)
+            # instead of failing, producing a nonsense duration.
+            if [[ "$1" == "--duration" || "$1" == "--date" ]]; then
+                echo "❌ Session $id is timestamped; --duration/--date only apply to duration-only sessions." >&2
+                usage_error past
+            fi
             new_proj="${1:-$cur_proj}"
             new_start_raw="${2:-}"
             new_end_raw="${3:-}"
