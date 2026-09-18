@@ -193,7 +193,7 @@ case "$sub" in
                         [[ -z "$new_date" ]] && { echo "❌ Invalid date: $date_str" >&2; exit 2; }
                         ;;
                     *)
-                        echo "❌ Session $id is duration-only. Timestamps cannot be edited." >&2
+                        echo "❌ Unknown argument: $1 (session $id is duration-only; timestamps cannot be edited)." >&2
                         usage_error past
                         ;;
                 esac
@@ -211,6 +211,12 @@ case "$sub" in
             # instead of failing, producing a nonsense duration.
             if [[ "$1" == "--duration" || "$1" == "--date" ]]; then
                 echo "❌ Session $id is timestamped; --duration/--date only apply to duration-only sessions." >&2
+                usage_error past
+            fi
+            # [project] [start] [end] is at most 3 positionals; anything past
+            # that used to be silently ignored instead of refused.
+            if [[ $# -gt 3 ]]; then
+                echo "❌ Unknown argument: $4" >&2
                 usage_error past
             fi
             new_proj="${1:-$cur_proj}"

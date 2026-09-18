@@ -305,8 +305,9 @@ named functions with these contracts. Output of reads is pipe-separated.
 (guard on every value interpolated as a bare number), `_exec` (write, dies
 loud), `_query` (read, `-separator '|'`), `_range_where` (the WHERE fragment
 shared by `list_sessions_in_range` and `get_project_totals_in_range`, so the
-two can never drift on what "in range" means). **Engine (public, called
-across files):** `sanitize_pipe`, `_validate_project_name` (PORT-PROJVALID).
+two can never drift on what "in range" means), `_validate_project_name`
+(PORT-PROJVALID — called only by the five adapter write functions, never
+outside this file). **Engine (public, called across files):** `sanitize_pipe`.
 
 **`_exec`'s failure path returns `1`** for any write failure (disk full,
 permissions, a corrupted `DB_PATH`) — the same code `CONV-EXIT` uses for
@@ -452,7 +453,7 @@ here controls.
   `list_sessions_in_range` doesn't. PORT-BASH32: this exists so `focus
   report` never needs a bash associative array — macOS ships bash 3.2, which
   has none, and `declare -A` there is not a warning, it's a hard abort.
-- `get_project_totals_by_id_range <lo> <hi> <exclude-prefix>` → `project|seconds|count`
+- `get_project_totals_by_id_range <lo> <hi> [exclude-prefix]` → `project|seconds|count`
   over an id window, longest first. Same aggregate-in-SQL rule as the date-range
   version (PORT-BASH32).
 - `get_last_session [exclude-prefix]` → `project|end-or-date|duration_seconds`
@@ -609,8 +610,10 @@ strip-and-rewrite discipline, sharing one crontab.
   the install dir.
 - CRON-ENV: each entry embeds the runtime env it needs, because cron runs
   stripped (no `$HOME`, no PATH): `REFOCUS_ROOT=… DISPLAY=… WAYLAND_DISPLAY=…
-  DBUS_SESSION_BUS_ADDRESS=… <bin>`. The nudge fires every `NUDGE_INTERVAL`
-  minutes, phased to the current minute for a stable offset.
+  XDG_RUNTIME_DIR=… DBUS_SESSION_BUS_ADDRESS=… <bin>`. `XDG_RUNTIME_DIR` is
+  load-bearing, not incidental — it's how Wayland's socket resolves [#35].
+  The nudge fires every `NUDGE_INTERVAL` minutes, phased to the current
+  minute for a stable offset.
 - CRON-STRIP: every strip is **fixed-string** (`grep -vF`), never a regex, and
   always against the user's *live* crontab — never a saved backup. WHY: the path
   contains `.` (a regex wildcard); a regex strip can delete unrelated lines, and
@@ -723,8 +726,9 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
   deletes the marker; the next break's receipt may be regenerated (cascade,
   enhancement #56).
 - `list --show-cycles` — include cycle breaks in the listing (rendered as
-  boundary lines, not session rows). Browsing breaks and periods on their own
-  is `focus cycle list`/`show` (CMD-CYCLE) — `past` only decorates its own
+  boundary lines, not session rows), via `services/listing.sh`'s shared
+  renderer [ARCH-COMPOSER]. Browsing breaks and periods on their own is
+  `focus cycle list`/`show` (CMD-CYCLE) — `past` only decorates its own
   full log with the boundaries; it has no period-composition logic of its own.
 
 ### CMD-REPORT · `focus report <today|week|month|custom N|cycle [selector]>`
@@ -769,9 +773,12 @@ Each handler: source env + deps, `db_ensure`, then the logic below.
   would fire, checked in the same order `focus-checkin` itself checks
   (CHECKIN-CASCADE): kdialog → zenity → spawned terminal running `dialog` →
   spawned terminal running a plain prompt → "none found, stays silent".
-  **Desktop guard** (#35): before attempting kdialog/zenity, check that the
-  desktop environment is available (DISPLAY, WAYLAND_DISPLAY, XDG_RUNTIME_DIR);
-  if not, skip GUI tools and fall through to terminal prompts or silent.
+  **Desktop guard** (#35): the whole cascade — GUI tools *and* the terminal
+  tiers — gates on one check, made before anything is attempted: is a desktop
+  environment available at all (DISPLAY, WAYLAND_DISPLAY, XDG_RUNTIME_DIR)?
+  A spawned terminal needs a display to open in too, so there is no
+  "terminal fallback survives a missing display" case — no display means
+  silent, full stop, no tier is even probed.
 - `test`: runs `focus-checkin` directly. Same guards as a real cron fire apply
   (CHECKIN-GUARDS) — it stays silent unless idle and armed; the diagnostic
   does not bypass them, so "test" only shows a popup when a real fire would too.
@@ -924,7 +931,7 @@ lifecycle (INV-3) rather than its own toggle; `focus checkin status`/`test`
 are read-only diagnostics (CMD-CHECKIN).
 
 - Resolve `REFOCUS_ROOT`, source `env.sh` + `database.sh` + `core/time.sh`.
-- CHECKIN-GUARDS: four early exits, checked in this order, all silent
+- CHECKIN-GUARDS: five early exits, checked in this order, all silent
   (exit 0, nothing written, no popup attempted) — `[[ -f "$DB_PATH" ]] ||
   exit 0`, `is_focus_disabled && exit 0`, `is_session_active && exit 0`,
   `is_session_paused && exit 0`, then `[[ "$CHECKIN_INTERVAL" == 0 ]] &&
