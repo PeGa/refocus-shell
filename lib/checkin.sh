@@ -46,7 +46,7 @@ case "$sub" in
                     break
                 fi
             done
-            [[ -z "${term_found:-}" ]] && echo "Popup tool: none found — check-in will silently do nothing"
+            [[ -n "${term_found:-}" ]] || echo "Popup tool: none found — check-in will silently do nothing"
         fi
         ;;
     test)
