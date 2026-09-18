@@ -222,9 +222,23 @@ case "$sub" in
             [[ -n "$new_start_raw" ]] && new_start=$(parse_time "$new_start_raw")
             [[ -n "$new_end_raw"   ]] && new_end=$(parse_time "$new_end_raw")
 
-            s_ts=$(iso_to_epoch "$new_start")
-            e_ts=$(iso_to_epoch "$new_end")
-            new_dur=$(( e_ts - s_ts ))
+            if [[ -n "$new_start" && -n "$new_end" ]]; then
+                s_ts=$(iso_to_epoch "$new_start")
+                e_ts=$(iso_to_epoch "$new_end")
+                new_dur=$(( e_ts - s_ts ))
+            else
+                # One or both timestamps are still absent after applying any
+                # new args — import damage on a row the caller isn't fully
+                # repairing (both new_start and new_end together). Keep the
+                # stored duration rather than feeding iso_to_epoch an empty
+                # string: it correctly refuses (CORE-DATE), but nothing here
+                # caught that under set -e, so the command died with no
+                # output at all instead of updating what it could.
+                # DM-SESSION: duration_seconds is authoritative, never
+                # recomputed from timestamps. CONV-ABSENT: the app repairs
+                # nothing.
+                new_dur="$cur_dur"
+            fi
 
             _merge_or_exit "$new_proj" "$new_dur" "$new_start" "$new_end" "$id"
             update_session "$id" "$new_proj" "$new_start" "$new_end" "$new_dur"
