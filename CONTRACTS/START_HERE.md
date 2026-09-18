@@ -130,10 +130,12 @@ wall-time is never counted. `[CMD-CONTINUE]`
 
 - **Exit codes:** `0` success · `1` runtime/state error · `2` usage/arg error.
   The suite asserts these. `[CONV-EXIT]`
-- **Destructive ops** use two-tier confirmation: app-wide destructive (`reset`,
-  `import`) require the literal word `yes`; simple/recoverable ops (cycle delete,
-  cycle add replace-prompt) use `y/N` default-no. Anything else cancels cleanly
-  with exit 0 (cancel ≠ error). `[CONV-YES]`
+- **Confirmations are three-tier:** app-wide destructive (`reset`, `import`,
+  `setup.sh` install/uninstall) require the literal word `yes`; simple/recoverable
+  destructive ops (`past delete`, `cycle delete`, `cycle add` replace-prompt) use
+  `y/N` default-no; simple/recoverable non-destructive ones (`on`'s continue/typo
+  offers, `continue`) use `Y/n` default-yes. Anything else cancels cleanly with
+  exit 0 (cancel ≠ error). `[CONV-YES]`
 - **`reset`/`import` leave the tool disabled.** Re-arming is a conscious
   `focus enable`. `[CONV-REARM]`
 - **`enable` while enabled** is a no-op that says so (don't re-phase cron). `[CONV-IDEMPOTENT-ENABLE]`
