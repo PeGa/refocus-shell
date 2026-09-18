@@ -36,7 +36,9 @@ get_period_window() {
     [[ -n "$ids" ]] && count=$(printf '%s\n' "$ids" | wc -l | tr -d ' ')
 
     if [[ "$sel" == -* || "$sel" == "0" ]]; then
-        local back="${sel#-}"
+        # 10# forces base-10: a leading-zero selector ("-08") would otherwise
+        # be read as octal and abort with "value too great for base".
+        local back=$(( 10#${sel#-} ))
         if [[ "$back" -gt "$count" ]]; then
             echo "❌ Cycle not found: only $count cycle break(s) recorded." >&2
             return 1
